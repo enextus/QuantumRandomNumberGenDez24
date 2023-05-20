@@ -12,6 +12,10 @@ target/
 *.iml
 *.ipr
 
+src/main/resources/config.properties
+### Application Config ###
+config.properties
+
 ### Eclipse ###
 .apt_generated
 .classpath
