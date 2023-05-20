@@ -14,8 +14,8 @@ class DotMover extends JPanel {
     public static final int WIDTH2 = 10;
     public static final int HEIGHT2 = 10;
     Point dot;
-    private List<Dot> dots; // список отметин
-    private DiceRoller dice;
+    private final List<Dot> dots; // список отметин
+    private final DiceRoller dice;
     private int dotCounter; // счетчик количества отметин
 
     public int getDotCounter() {
@@ -32,19 +32,27 @@ class DotMover extends JPanel {
 
     @Override
     protected void paintComponent(Graphics g) {
+        // Устанавливаем цвет фона пастельным синим
+        g.setColor(new Color(0, 0, 0));
+        g.fillRect(0, 0, this.getWidth(), this.getHeight());
+
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
 
         g2d.setColor(Color.BLACK);
         g2d.fillOval(dot.x, dot.y, WIDTH1, HEIGHT1);
 
-        for (Dot dot : dots) { // перерисовка всех отметин
+        for (Dot dot : dots) {
             long diffInMillies = new Date().getTime() - dot.creationDate.getTime();
             long diffInSeconds = diffInMillies / DELAY_TIME;
             float alpha = 1f - Math.min(0.9f, diffInSeconds / 30f);
             alpha = Math.max(alpha, 0.3f);
 
-            g2d.setColor(new Color(0, 0, 0, alpha));
+            Color c = new Color(0, 0, 0, alpha);
+            if (alpha <= 0.3f) {
+                c = new Color(255, 0, 0, alpha);
+            }
+            g2d.setColor(c);
             g2d.fillOval(dot.point.x, dot.point.y, WIDTH2, HEIGHT2);
         }
     }
@@ -77,6 +85,5 @@ class DotMover extends JPanel {
         dotCounter++; // увеличение значения счетчика
         repaint();
     }
-
 
 }
