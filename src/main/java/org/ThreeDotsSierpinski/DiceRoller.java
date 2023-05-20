@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Properties;
 
 class DiceRoller {
-
     private final List<Integer> values;
     private int currentIndex;
 

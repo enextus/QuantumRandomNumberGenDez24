@@ -22,12 +22,22 @@ class DotMover extends JPanel {
         return dotCounter;
     }
 
+    /*    public DotMover(DiceRoller diceRoller) {
+            setPreferredSize(new Dimension(SIZE, SIZE));
+            dot = new Point(SIZE / 2, SIZE / 2); // начальная точка в центре плоскости
+            dots = new ArrayList<>(); // инициализация списка отметин
+            dice = new DiceRoller();
+            dotCounter = 0; // инициализация счетчика
+        }*/
     public DotMover(DiceRoller diceRoller) {
         setPreferredSize(new Dimension(SIZE, SIZE));
-        dot = new Point(SIZE / 2, SIZE / 2); // начальная точка в центре плоскости
-        dots = new ArrayList<>(); // инициализация списка отметин
+        dot = new Point(SIZE / 2, SIZE / 2);
+        dots = new ArrayList<>();
         dice = new DiceRoller();
-        dotCounter = 0; // инициализация счетчика
+        dotCounter = 0;
+
+        // Установка цвета фона на пастельный синий
+        setBackground(new Color(176, 224, 230));
     }
 
     @Override
@@ -45,12 +55,14 @@ class DotMover extends JPanel {
         for (Dot dot : dots) {
             long diffInMillies = new Date().getTime() - dot.creationDate.getTime();
             long diffInSeconds = diffInMillies / DELAY_TIME;
-            float alpha = 1f - Math.min(0.9f, diffInSeconds / 30f);
+            float alpha = 1f - Math.min(0.7f, diffInSeconds / 30f);
             alpha = Math.max(alpha, 0.3f);
 
-            Color c = new Color(0, 0, 0, alpha);
+            Color c = new Color(0, 0, 0, (int) (alpha * 255));
+
+//            color change from black to red 30%: 1.0
             if (alpha <= 0.3f) {
-                c = new Color(255, 0, 0, alpha);
+                c = new Color(0.0f, 0.0f, 0.0f, alpha);
             }
             g2d.setColor(c);
             g2d.fillOval(dot.point.x, dot.point.y, WIDTH2, HEIGHT2);
@@ -58,7 +70,6 @@ class DotMover extends JPanel {
     }
 
     public void moveDot() {
-
         int roll = dice.rollDice();
 
 //        -2,147,483,648 до -715,827,882 (Integer.MIN_VALUE до Integer.MIN_VALUE / 3)
