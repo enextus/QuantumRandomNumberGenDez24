@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 class DotMover extends JPanel {
-    private static final int SIZE = 1200; // размер плоскости
+    private static final int SIZE = 1000; // размер плоскости
     public static final int HEIGHT1 = 10;
     public static final int WIDTH1 = 10;
     public static final int DELAY_TIME = 1000;
@@ -21,7 +21,7 @@ class DotMover extends JPanel {
         return dotCounter;
     }
 
-    public DotMover() {
+    public DotMover(DiceRoller diceRoller) {
         setPreferredSize(new Dimension(SIZE, SIZE));
         dot = new Point(SIZE / 2, SIZE / 2); // начальная точка в центре плоскости
         dots = new ArrayList<>(); // инициализация списка отметин
