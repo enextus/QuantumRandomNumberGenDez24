@@ -11,7 +11,7 @@ class DiceRoller {
     }
 
     public int rollDice() {
-        return 1 + random.nextInt(BOUND); // Генерирует число от 1 до 6
+        return 1 + random.nextInt(BOUND);
     }
 
 }

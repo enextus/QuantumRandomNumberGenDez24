@@ -10,6 +10,8 @@ class DotMover extends JPanel {
     public static final int HEIGHT1 = 10;
     public static final int WIDTH1 = 10;
     public static final int INT = 1000;
+    public static final int WIDTH2 = 10;
+    public static final int HEIGHT2 = 10;
     private Point dot;
     private List<Dot> dots; // список отметин
     private DiceRoller dice;
@@ -36,7 +38,7 @@ class DotMover extends JPanel {
             alpha = Math.max(alpha, 0.3f);
 
             g2d.setColor(new Color(0, 0, 0, alpha));
-            g2d.fillOval(dot.point.x, dot.point.y, 10, 10);
+            g2d.fillOval(dot.point.x, dot.point.y, WIDTH2, HEIGHT2);
         }
     }
 
@@ -62,4 +64,5 @@ class DotMover extends JPanel {
         dots.add(new Dot(new Point(dot.x, dot.y), new Date())); // добавление новой отметины в список
         repaint();
     }
+
 }
