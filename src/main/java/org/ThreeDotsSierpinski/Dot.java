@@ -1,9 +1,9 @@
-package org.ThreeDotsSerpinski;
+package org.ThreeDotsSierpinski;
 
 import java.awt.*;
 import java.util.Date;
 
-class Dot {
+public class Dot {
     public Point point;
     public Date creationDate;
 

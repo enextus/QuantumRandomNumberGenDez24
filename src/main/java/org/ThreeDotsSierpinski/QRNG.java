@@ -1,4 +1,4 @@
-package org.ThreeDotsSerpinski;
+package org.ThreeDotsSierpinski;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;

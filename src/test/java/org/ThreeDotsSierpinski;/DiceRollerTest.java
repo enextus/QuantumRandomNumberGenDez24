@@ -1,4 +1,4 @@
-package org.ThreeDotsSerpinski;
+package org.ThreeDotsSierpinski;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

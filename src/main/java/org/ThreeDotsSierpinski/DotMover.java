@@ -1,4 +1,4 @@
-package org.ThreeDotsSerpinski;
+package org.ThreeDotsSierpinski;
 
 import javax.swing.*;
 import java.awt.*;

@@ -1,5 +1,6 @@
-package org.ThreeDotsSerpinski;
+package org.ThreeDotsSierpinski;
 
+import org.ThreeDotsSierpinski.Dot;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
