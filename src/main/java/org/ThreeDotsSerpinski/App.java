@@ -14,7 +14,8 @@ public class App {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
 
-        new Timer(1, e -> dotMover.moveDot()).start();
+        new Timer(1, e -> dotMover.moveDot()).start(); // двигаем точку каждые n миллисекунд
     }
 
 }
+
