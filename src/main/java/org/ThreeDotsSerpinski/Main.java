@@ -11,7 +11,7 @@ public class Main {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
 
-        new Timer(100, e -> dotMover.moveDot()).start(); // двигаем точку каждые 100 миллисекунд
+        new Timer(75, e -> dotMover.moveDot()).start(); // двигаем точку каждые 100 миллисекунд
     }
 
 }

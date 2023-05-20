@@ -7,6 +7,9 @@ import java.util.Date;
 import java.util.List;
 class DotMover extends JPanel {
     private static final int SIZE = 1200; // размер плоскости
+    public static final int HEIGHT1 = 10;
+    public static final int WIDTH1 = 10;
+    public static final int INT = 1000;
     private Point dot;
     private List<Dot> dots; // список отметин
     private DiceRoller dice;
@@ -24,11 +27,11 @@ class DotMover extends JPanel {
         Graphics2D g2d = (Graphics2D) g;
 
         g2d.setColor(Color.BLACK);
-        g2d.fillOval(dot.x, dot.y, 10, 10);
+        g2d.fillOval(dot.x, dot.y, WIDTH1, HEIGHT1);
 
         for (Dot dot : dots) { // перерисовка всех отметин
             long diffInMillies = new Date().getTime() - dot.creationDate.getTime();
-            long diffInSeconds = diffInMillies / 1000;
+            long diffInSeconds = diffInMillies / INT;
             float alpha = 1f - Math.min(0.7f, diffInSeconds / 60f);
             alpha = Math.max(alpha, 0.3f);
 

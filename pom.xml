@@ -91,7 +91,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>org.image.App</mainClass>
+                            <mainClass>org.ThreeDotsSerpinski.Main</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
