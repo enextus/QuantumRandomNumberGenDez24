@@ -9,20 +9,20 @@ import java.io.InputStream;
 import java.util.Properties;
 
 public class QRNG {
-    public static final int INT_AMOUNT = 7;
-    private static final String CONFIG_FILE_PATH = "config.properties";
-    private static final String CONNECTION_FAILED = "Connection failed!";
-    private static final String OPERATION_SUCCESSFUL = "Operation successful.";
-    private static final String DISCONNECTED_FROM_THE_SERVICE = "Disconnected from the service.";
-    private static final String SORRY_UNABLE_TO_FIND = "Sorry, unable to find ";
-    private static final String USERNAME = "username";
-    private static final String PASSWORD = "password";
-    public static final String EMPTYSTRING = "";
-    public static final String FAILED_TO_GET_INTEGER_ARRAY = "Failed to get integer array!";
-    public static final String RECEIVED = "Received ";
-    public static final String INTEGERS_FROM_THE_QRNG = " integers from the QRNG:\n";
-    public static final String LIB_QRNG_DLL_NAME = "libQRNG.dll";
-    public static final String LIB_LIB_QRNG_DLL_PATH = "lib/" + LIB_QRNG_DLL_NAME;
+    protected static final int INT_AMOUNT = 10000;
+    protected static final String CONFIG_FILE_PATH = "config.properties";
+    protected static final String CONNECTION_FAILED = "Connection failed!";
+    protected static final String OPERATION_SUCCESSFUL = "Operation successful.";
+    protected static final String DISCONNECTED_FROM_THE_SERVICE = "Disconnected from the service.";
+    protected static final String SORRY_UNABLE_TO_FIND = "Sorry, unable to find ";
+    protected static final String USERNAME = "username";
+    protected static final String PASSWORD = "password";
+    protected static final String EMPTYSTRING = "";
+    protected static final String FAILED_TO_GET_INTEGER_ARRAY = "Failed to get integer array!";
+    protected static final String RECEIVED = "Received ";
+    protected static final String INTEGERS_FROM_THE_QRNG = " integers from the QRNG:\n";
+    protected static final String LIB_QRNG_DLL_NAME = "libQRNG.dll";
+    protected static final String LIB_LIB_QRNG_DLL_PATH = "lib/" + LIB_QRNG_DLL_NAME;
 
     public interface QuantumRandomNumberGenerator extends Library {
         QuantumRandomNumberGenerator INSTANCE = Native.load(LIB_LIB_QRNG_DLL_PATH, QuantumRandomNumberGenerator.class);
@@ -83,7 +83,7 @@ public class QRNG {
         }
     }
 
-    private static void getAndPrintIntegerArray(QuantumRandomNumberGenerator lib) {
+    static void getAndPrintIntegerArray(QuantumRandomNumberGenerator lib) {
         // Create an array to hold the integers returned by the QRNG
         int[] intArray = new int[INT_AMOUNT];  // Change the size of this array based on your needs
 

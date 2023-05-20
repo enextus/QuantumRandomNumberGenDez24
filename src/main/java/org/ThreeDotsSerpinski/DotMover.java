@@ -49,27 +49,23 @@ class DotMover extends JPanel {
     }
 
     public void moveDot() {
+
         int roll = dice.rollDice();
-        switch (roll) {
-            case 1:
-            case 2:
-                dot.x = dot.x / 2;
-                dot.y = dot.y / 2;
-                break;
-            case 3:
-            case 4:
-                dot.x = SIZE / 2 + dot.x / 2;
-                dot.y = dot.y / 2;
-                break;
-            case 5:
-            case 6:
-                dot.x = dot.x / 2;
-                dot.y = SIZE / 2 + dot.y / 2;
-                break;
+
+        if (roll <= Integer.MIN_VALUE / 3 || roll > Integer.MAX_VALUE / 3 * 2) {
+            dot.x = dot.x / 2;
+            dot.y = dot.y / 2;
+        } else if (roll <= Integer.MAX_VALUE / 3) {
+            dot.x = SIZE / 2 + dot.x / 2;
+            dot.y = dot.y / 2;
+        } else {
+            dot.x = dot.x / 2;
+            dot.y = SIZE / 2 + dot.y / 2;
         }
         dots.add(new Dot(new Point(dot.x, dot.y), new Date())); // добавление новой отметины в список
         dotCounter++; // увеличение значения счетчика
         repaint();
     }
+
 
 }
