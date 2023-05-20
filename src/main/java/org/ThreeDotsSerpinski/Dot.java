@@ -1,12 +1,7 @@
 package org.ThreeDotsSerpinski;
 
-
-import javax.swing.*;
 import java.awt.*;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
-import java.util.Random;
 
 class Dot {
     public Point point;
@@ -16,4 +11,5 @@ class Dot {
         this.point = point;
         this.creationDate = creationDate;
     }
+
 }

@@ -5,7 +5,6 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Random;
 class DotMover extends JPanel {
     private static final int SIZE = 1200; // размер плоскости
     private Point dot;
