@@ -100,7 +100,7 @@
                     </descriptorRefs>
                     <archive>
                         <manifest>
-                            <mainClass>org.ThreeDotsSierpinski;.App</mainClass>
+                            <mainClass>org.ThreeDotsSierpinski.App</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
