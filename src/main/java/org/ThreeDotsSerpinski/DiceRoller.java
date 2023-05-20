@@ -3,7 +3,7 @@ package org.ThreeDotsSerpinski;
 import java.util.Random;
 
 class DiceRoller {
-    public static final int BOUND = 100;
+    public static final int BOUND = 6;
     private Random random;
 
     public DiceRoller() {

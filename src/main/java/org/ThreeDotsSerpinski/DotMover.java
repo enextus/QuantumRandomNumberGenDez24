@@ -11,14 +11,17 @@ class DotMover extends JPanel {
     private static final int SIZE = 1200;
     public static final int HEIGHT1 = 10;
     public static final int WIDTH1 = 10;
-    public static final int INT = 1000;
+    public static final int MILLIS_TO_SECONDS = 1000;
     public static final int WIDTH2 = 10;
     public static final int HEIGHT2 = 10;
+
     Point dot;
     private List<Dot> dots;
     private DiceRoller dice;
 
     private BufferedImage buffer;
+
+    private int dotCounter = 0; // Счетчик точек
 
     public DotMover() {
         setPreferredSize(new Dimension(SIZE, SIZE));
@@ -33,8 +36,6 @@ class DotMover extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-
-        // draw the buffer image on screen
         g.drawImage(buffer, 0, 0, null);
     }
 
@@ -56,8 +57,8 @@ class DotMover extends JPanel {
         }
 
         dots.add(new Dot(new Point(dot.x, dot.y), new Date()));
+        dotCounter++;
 
-        // draw on the buffer instead of directly on screen
         Graphics2D g2d = buffer.createGraphics();
 
         g2d.setColor(Color.BLACK);
@@ -65,7 +66,7 @@ class DotMover extends JPanel {
 
         for (Dot dot : dots) {
             long diffInMillies = new Date().getTime() - dot.creationDate.getTime();
-            long diffInSeconds = diffInMillies / INT;
+            long diffInSeconds = diffInMillies / MILLIS_TO_SECONDS;
             float alpha = 1f - Math.min(0.7f, diffInSeconds / 60f);
             alpha = Math.max(alpha, 0.3f);
 
@@ -73,7 +74,12 @@ class DotMover extends JPanel {
             g2d.fillOval(dot.point.x, dot.point.y, WIDTH2, HEIGHT2);
         }
 
-        g2d.dispose(); // It's important to dispose the Graphics object once done with it
+        // Рисуем счетчик точек на буфере
+        g2d.setColor(Color.GREEN);
+        g2d.drawString("Dot Count: " + dotCounter, SIZE - 150, SIZE - 30);
+
+        g2d.dispose();
         repaint();
     }
+
 }
