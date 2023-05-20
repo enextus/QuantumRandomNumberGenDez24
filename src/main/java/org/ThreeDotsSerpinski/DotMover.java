@@ -41,7 +41,7 @@ class DotMover extends JPanel {
         for (Dot dot : dots) { // перерисовка всех отметин
             long diffInMillies = new Date().getTime() - dot.creationDate.getTime();
             long diffInSeconds = diffInMillies / DELAY_TIME;
-            float alpha = 1f - Math.min(0.7f, diffInSeconds / 30f);
+            float alpha = 1f - Math.min(0.9f, diffInSeconds / 30f);
             alpha = Math.max(alpha, 0.3f);
 
             g2d.setColor(new Color(0, 0, 0, alpha));
