@@ -5,8 +5,9 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+
 class DotMover extends JPanel {
-    private static final int SIZE = 1000; // размер плоскости
+    private static final int SIZE = 1100; // размер плоскости
     public static final int HEIGHT1 = 10;
     public static final int WIDTH1 = 10;
     public static final int DELAY_TIME = 1000;
@@ -51,6 +52,16 @@ class DotMover extends JPanel {
     public void moveDot() {
 
         int roll = dice.rollDice();
+
+//        -2,147,483,648 до -715,827,882 (Integer.MIN_VALUE до Integer.MIN_VALUE / 3)
+//        -715,827,881 до 715,827,881 (Integer.MIN_VALUE / 3 + 1 до Integer.MAX_VALUE / 3)
+//        715,827,882 до 2,147,483,647 (Integer.MAX_VALUE / 3 * 2 до Integer.MAX_VALUE)
+//
+//        1,431,655,767
+//        1,431,655,763
+//        1,431,655,766
+//
+//        1,431,655,767 + 1,431,655,763 + 1,431,655,766 = 4,294,967,296
 
         if (roll <= Integer.MIN_VALUE / 3 || roll > Integer.MAX_VALUE / 3 * 2) {
             dot.x = dot.x / 2;
