@@ -78,6 +78,12 @@
             <version>5.2.0</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -91,7 +97,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>org.ThreeDotsSerpinski.Main</mainClass>
+                            <mainClass>org.ThreeDotsSerpinski.App</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

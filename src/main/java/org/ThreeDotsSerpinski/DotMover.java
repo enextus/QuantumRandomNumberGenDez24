@@ -12,7 +12,7 @@ class DotMover extends JPanel {
     public static final int INT = 1000;
     public static final int WIDTH2 = 10;
     public static final int HEIGHT2 = 10;
-    private Point dot;
+    Point dot;
     private List<Dot> dots; // список отметин
     private DiceRoller dice;
 

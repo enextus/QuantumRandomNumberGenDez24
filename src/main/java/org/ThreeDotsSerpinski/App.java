@@ -2,7 +2,7 @@ package org.ThreeDotsSerpinski;
 
 import javax.swing.*;
 
-public class Main {
+public class App {
 
     public static final String DOT_MOVER = "Dot Mover";
 
