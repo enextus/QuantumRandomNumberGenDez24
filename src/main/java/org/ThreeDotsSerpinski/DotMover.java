@@ -9,18 +9,24 @@ class DotMover extends JPanel {
     private static final int SIZE = 1200; // размер плоскости
     public static final int HEIGHT1 = 10;
     public static final int WIDTH1 = 10;
-    public static final int INT = 1000;
+    public static final int DELAY_TIME = 1000;
     public static final int WIDTH2 = 10;
     public static final int HEIGHT2 = 10;
     Point dot;
     private List<Dot> dots; // список отметин
     private DiceRoller dice;
+    private int dotCounter; // счетчик количества отметин
+
+    public int getDotCounter() {
+        return dotCounter;
+    }
 
     public DotMover() {
         setPreferredSize(new Dimension(SIZE, SIZE));
         dot = new Point(SIZE / 2, SIZE / 2); // начальная точка в центре плоскости
         dots = new ArrayList<>(); // инициализация списка отметин
         dice = new DiceRoller();
+        dotCounter = 0; // инициализация счетчика
     }
 
     @Override
@@ -33,8 +39,8 @@ class DotMover extends JPanel {
 
         for (Dot dot : dots) { // перерисовка всех отметин
             long diffInMillies = new Date().getTime() - dot.creationDate.getTime();
-            long diffInSeconds = diffInMillies / INT;
-            float alpha = 1f - Math.min(0.7f, diffInSeconds / 60f);
+            long diffInSeconds = diffInMillies / DELAY_TIME;
+            float alpha = 1f - Math.min(0.7f, diffInSeconds / 30f);
             alpha = Math.max(alpha, 0.3f);
 
             g2d.setColor(new Color(0, 0, 0, alpha));
@@ -62,6 +68,7 @@ class DotMover extends JPanel {
                 break;
         }
         dots.add(new Dot(new Point(dot.x, dot.y), new Date())); // добавление новой отметины в список
+        dotCounter++; // увеличение значения счетчика
         repaint();
     }
 
