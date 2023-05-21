@@ -73,36 +73,39 @@ class DotMover extends JPanel {
             g2d.fillOval(lastDot.point.x, lastDot.point.y, WIDTH2, HEIGHT2);
         }
 
-        Font myFont1 = new Font("Sans Serif", Font.PLAIN, 34); // adjust font name, style and size as needed
-        Font myFont2 = new Font("Sans Serif", Font.BOLD, 78); // adjust font name, style and size as needed
+        Font myFont1 = new Font("Sans Serif", Font.ITALIC, 32); // adjust font name, style and size as needed
+        Font myFont2 = new Font("Sans Serif", Font.ITALIC, 78); // adjust font name, style and size as needed
+
+        // adjust alpha value from 0 (completely transparent) to 255 (completely opaque)
+        int alpha1 = 128; // half transparent
+        int alpha2 = 64; // more transparent
 
         g2d.setFont(myFont1);
-        g2d.setColor(Color.darkGray);  // choose a color for the text
-        String text = "Dot Counter: ";
+        g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
+        String text = "Dot Counter  ";
         int textX = SIZE - 50; // adjust these values to place the text in the desired location
         int textY = SIZE - 120;
         g2d.drawString(text, textX, textY);
 
         g2d.setFont(myFont2);
-        g2d.setColor(Color.darkGray);  // choose a different color for the number
+        g2d.setColor(new Color(105, 105, 105, alpha2));  // dark gray text with adjusted transparency
         String counter = String.valueOf(getDotCounter()); // get the counter value as a string
         int counterX = textX + g2d.getFontMetrics(myFont1).stringWidth(text); // place the counter right after the text
         g2d.drawString(counter, counterX, textY);
 
         // do the same for the second line of text
         g2d.setFont(myFont1);
-        g2d.setColor(Color.darkGray);  // choose a color for the text
-        String text2 = "Rnd  Value: ";
+        g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
+        String text2 = "Rnd Value  ";
         int textX2 = SIZE - 50; // adjust these values to place the text in the desired location
         int textY2 = SIZE - 30;
         g2d.drawString(text2, textX2, textY2);
 
         g2d.setFont(myFont2);
-        g2d.setColor(Color.darkGray);  // choose a different color for the number
+        g2d.setColor(new Color(105, 105, 105, alpha2));  // dark gray text with adjusted transparency
         String value = String.valueOf(dice.rollDice()); // get the dice value as a string
         int valueX = textX2 + g2d.getFontMetrics(myFont1).stringWidth(text2); // place the value right after the text
         g2d.drawString(value, valueX, textY2);
-
     }
 
     public void moveDot() {
