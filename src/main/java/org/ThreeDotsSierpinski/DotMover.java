@@ -13,6 +13,7 @@ class DotMover extends JPanel {
     public static final int DELAY_TIME = 1000;
     public static final int WIDTH2 = 10;
     public static final int HEIGHT2 = 10;
+    public static final String GET_DOT_COUNTER = "getDotCounter(): ";
     Point dot;
     private final List<Dot> dots; // список отметин
     private final DiceRoller dice;
@@ -22,13 +23,6 @@ class DotMover extends JPanel {
         return dotCounter;
     }
 
-    /*    public DotMover(DiceRoller diceRoller) {
-            setPreferredSize(new Dimension(SIZE, SIZE));
-            dot = new Point(SIZE / 2, SIZE / 2); // начальная точка в центре плоскости
-            dots = new ArrayList<>(); // инициализация списка отметин
-            dice = new DiceRoller();
-            dotCounter = 0; // инициализация счетчика
-        }*/
     public DotMover(DiceRoller diceRoller) {
         setPreferredSize(new Dimension(SIZE, SIZE));
         dot = new Point(SIZE / 2, SIZE / 2);
@@ -64,6 +58,7 @@ class DotMover extends JPanel {
             if (alpha <= 0.3f) {
                 c = new Color(0.0f, 0.0f, 0.0f, alpha);
             }
+
             g2d.setColor(c);
             g2d.fillOval(dot.point.x, dot.point.y, WIDTH2, HEIGHT2);
         }
@@ -95,7 +90,7 @@ class DotMover extends JPanel {
         dots.add(new Dot(new Point(dot.x, dot.y), new Date())); // добавление новой отметины в список
         dotCounter++; // увеличение значения счетчика
 
-        System.out.println("getDotCounter(): " + getDotCounter());
+        System.out.println(GET_DOT_COUNTER + getDotCounter());
         repaint();
     }
 
