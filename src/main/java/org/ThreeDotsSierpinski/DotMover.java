@@ -7,7 +7,7 @@ import java.util.Date;
 import java.util.List;
 
 class DotMover extends JPanel {
-    private static final int SIZE = 1050; // размер плоскости
+    private static final int SIZE = 1050; //  size of the plane
     public static final int HEIGHT1 = 10;
     public static final int WIDTH1 = 10;
     public static final int DELAY_TIME = 1000;
@@ -15,52 +15,58 @@ class DotMover extends JPanel {
     public static final int HEIGHT2 = 10;
     public static final String GET_DOT_COUNTER = "getDotCounter(): ";
     Point dot;
-    private final List<Dot> dots; // список отметин
+    private final List<Dot> dots; //  list of dots
     private final DiceRoller dice;
-    private int dotCounter; // счетчик количества отметин
+    private int dotCounter; // counter of the number of dots
 
     public int getDotCounter() {
         return dotCounter;
     }
 
-    public DotMover(DiceRoller diceRoller) {
+    public DotMover() {
         setPreferredSize(new Dimension(SIZE, SIZE));
         dot = new Point(SIZE / 2, SIZE / 2);
         dots = new ArrayList<>();
         dice = new DiceRoller();
         dotCounter = 0;
 
-        // Установка цвета фона на пастельный синий
+        //  Setting the background color to pastel blue
         setBackground(new Color(176, 224, 230));
     }
 
     @Override
     protected void paintComponent(Graphics g) {
-        // Устанавливаем цвет фона пастельным синим
+
         g.setColor(new Color(0, 0, 0));
         g.fillRect(0, 0, this.getWidth(), this.getHeight());
 
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
 
-        g2d.setColor(Color.BLACK);
-        g2d.fillOval(dot.x, dot.y, WIDTH1, HEIGHT1);
-
         for (Dot dot : dots) {
+
             long diffInMillies = new Date().getTime() - dot.creationDate.getTime();
             long diffInSeconds = diffInMillies / DELAY_TIME;
+
             float alpha = 1f - Math.min(0.7f, diffInSeconds / 30f);
+
             alpha = Math.max(alpha, 0.3f);
 
             Color c = new Color(0, 0, 0, (int) (alpha * 255));
 
-//            color change from black to red 30%: 1.0
             if (alpha <= 0.3f) {
                 c = new Color(0.0f, 0.0f, 0.0f, alpha);
             }
 
             g2d.setColor(c);
             g2d.fillOval(dot.point.x, dot.point.y, WIDTH2, HEIGHT2);
+        }
+
+        // Drawing the last dot in red
+        if (!dots.isEmpty()) {
+            g2d.setColor(Color.RED);
+            Dot lastDot = dots.get(dots.size() - 1);
+            g2d.fillOval(lastDot.point.x, lastDot.point.y, WIDTH2, HEIGHT2);
         }
     }
 

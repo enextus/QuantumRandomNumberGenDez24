@@ -6,13 +6,13 @@ public class App {
     public static final String DOT_MOVER = "Dot Mover";
     public static final String DOT_MOVER_DOTS = "Dot Mover - Dots: ";
     public static final String RANDOM_VALUE_STRING = " (Random Value: ";
-    public static final int DELAY = 1;
+    public static final int DELAY = 5;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame(DOT_MOVER); // Window title "Dot Mover"
             DiceRoller diceRoller = new DiceRoller();
-            DotMover dotMover = new DotMover(diceRoller);
+            DotMover dotMover = new DotMover();
             frame.add(dotMover);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 

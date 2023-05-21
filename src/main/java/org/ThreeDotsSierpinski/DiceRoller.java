@@ -8,24 +8,19 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.*;
+
+import static org.ThreeDotsSierpinski.QRNG.checkResult;
 
 class DiceRoller {
     private final List<Integer> values;
     private int currentIndex;
+    private final ExecutorService executorService;
+    private Future<List<Integer>> futureValues;
 
     public DiceRoller() {
-
         values = getIntegers();
-    }
-
-    @NotNull
-    private List<Integer> getIntegers() {
-        final List<Integer> values;
-        values = new ArrayList<>();
-        connect(values);
-
-        currentIndex = 0;
-        return values;
+        executorService = Executors.newSingleThreadExecutor();
     }
 
     private void connect(List<Integer> values) {
@@ -68,19 +63,36 @@ class DiceRoller {
         }
     }
 
+    @NotNull
+    private List<Integer> getIntegers() {
+        List<Integer> values = new ArrayList<>();
+        connect(values);
+
+        currentIndex = 0;
+        return values;
+    }
+
     public int rollDice() {
         if (currentIndex >= values.size()) {
-            currentIndex = 0;
+            if (futureValues != null && futureValues.isDone()) {
+                try {
+                    values.clear();
+                    values.addAll(futureValues.get());
+                    currentIndex = 0;
+                } catch (InterruptedException | ExecutionException e) {
+                    e.printStackTrace();
+                }
+            }
         }
+
+
+        if (currentIndex > values.size() * 0.8 && (futureValues == null || futureValues.isDone())) // when we have used 80% of the values,
+            futureValues = executorService.submit(this::getIntegers); // start preparing new values
 
         int value = values.get(currentIndex);
         currentIndex++;
 
         return value;
-    }
-
-    private boolean checkResult(int result) {
-        return result == 0;
     }
 
 }
