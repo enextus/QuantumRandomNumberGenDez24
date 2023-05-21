@@ -6,7 +6,7 @@ public class App {
     public static final String DOT_MOVER = "Dot Mover";
     public static final String DOT_MOVER_DOTS = "Dot Mover - Dots: ";
     public static final String RANDOM_VALUE_STRING = " (Random Value: ";
-    public static final int DELAY = 350;
+    public static final int DELAY = 16;
 
     public static void main(String[] args) {
         QuantumRandomNumberGeneratorService qrngService = new QuantumRandomNumberGeneratorService();

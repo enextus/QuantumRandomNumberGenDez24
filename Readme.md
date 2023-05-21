@@ -2,7 +2,9 @@
 
 ## Introduction
 
-This Java application creates a simulation of the Sierpinski Triangle. The Sierpinski Triangle is a fractal with the overall shape of an equilateral triangle, subdivided recursively into smaller equilateral triangles.
+This Java application creates a simulation of the Sierpinski Triangle. 
+Only for Windows 64 because specified libQRNG.dll.
+The Sierpinski Triangle is a fractal with the overall shape of an equilateral triangle, subdivided recursively into smaller equilateral triangles.
 
 The application is built with basic Java classes and Swing for the GUI. The simulation works by repeatedly "rolling a dice" and moving a "dot" accordingly, leaving a trace behind, which eventually creates a Sierpinski triangle.
 
@@ -10,7 +12,10 @@ The application is built with basic Java classes and Swing for the GUI. The simu
 
 The application consists of the following key classes:
 
-1. **App:** The main entry point of the application. It creates a JFrame and adds a DotMover component to it. It also starts a Timer that triggers the dot's movement every millisecond.
+1. **App:** The main entry point of the application. Only for Windows 64 because specified libQRNG.dll. It creates a JFrame and adds a DotMover component to it. It also starts a Timer that triggers the dot's movement every millisecond.
+For other versions please look here http://qrng.physik.hu-berlin.de/.
+
+For Login Data please register yourself here http://qrng.physik.hu-berlin.de/
 
 2. **Dot:** A simple class that represents a dot with a position (Point) and a creation date.
 
