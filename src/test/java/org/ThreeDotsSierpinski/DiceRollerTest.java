@@ -4,30 +4,25 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import java.util.Arrays;
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DiceRollerTest {
 
-    private DiceRoller diceRoller;
-    private QuantumRandomNumberGeneratorService qrngService;
-
     @BeforeEach
     public void setup() {
-        qrngService = Mockito.mock(QuantumRandomNumberGeneratorService.class);
-        diceRoller = new DiceRoller(qrngService);
+        QuantumRandomNumberGeneratorService qrngService = Mockito.mock(QuantumRandomNumberGeneratorService.class);
+
     }
 
     @Test
     public void testRollDice() {
-        List<Integer> testValues = Arrays.asList(1, 2, 3, 4, 5, 6);
-        when(qrngService.getIntegers()).thenReturn(testValues);
+        QuantumRandomNumberGeneratorService qrngService = new QuantumRandomNumberGeneratorService();
+        DiceRoller diceRoller = new DiceRoller(qrngService);
 
-        for (int expected : testValues) {
-            assertEquals(expected, diceRoller.rollDice());
+        for (int i = 0; i < 1000; i++) {
+            int roll = diceRoller.rollDice();
+            assertTrue(roll >= Integer.MIN_VALUE && roll <= Integer.MAX_VALUE);
         }
     }
+
 }

@@ -1,6 +1,5 @@
 package org.ThreeDotsSierpinski;
 
-import org.ThreeDotsSierpinski.Dot;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -52,4 +51,5 @@ class DotTest {
         // Assert
         Assertions.assertEquals(newCreationDate, dot.creationDate);
     }
+
 }
