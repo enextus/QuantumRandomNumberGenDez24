@@ -7,7 +7,7 @@ import java.util.Date;
 import java.util.List;
 
 class DotMover extends JPanel {
-    private static final int SIZE = 1100; // размер плоскости
+    private static final int SIZE = 1050; // размер плоскости
     public static final int HEIGHT1 = 10;
     public static final int WIDTH1 = 10;
     public static final int DELAY_TIME = 1000;
@@ -94,6 +94,8 @@ class DotMover extends JPanel {
         }
         dots.add(new Dot(new Point(dot.x, dot.y), new Date())); // добавление новой отметины в список
         dotCounter++; // увеличение значения счетчика
+
+        System.out.println("getDotCounter(): " + getDotCounter());
         repaint();
     }
 
