@@ -85,9 +85,10 @@ class DiceRoller {
             }
         }
 
-
         if (currentIndex > values.size() * 0.8 && (futureValues == null || futureValues.isDone())) // when we have used 80% of the values,
+        {
             futureValues = executorService.submit(this::getIntegers); // start preparing new values
+        }
 
         int value = values.get(currentIndex);
         currentIndex++;
