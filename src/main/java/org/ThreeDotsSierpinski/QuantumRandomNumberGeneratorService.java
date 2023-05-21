@@ -1,26 +1,21 @@
 package org.ThreeDotsSierpinski;
 
 import com.sun.jna.ptr.IntByReference;
-import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.*;
 
 import static org.ThreeDotsSierpinski.QRNG.checkResult;
 
-class DiceRoller {
-    private final List<Integer> values;
-    private int currentIndex;
-    private final ExecutorService executorService;
-    private Future<List<Integer>> futureValues;
+public class QuantumRandomNumberGeneratorService {
 
-    public DiceRoller(QuantumRandomNumberGeneratorService qrngService) {
-        values = getIntegers();
-        executorService = Executors.newSingleThreadExecutor();
+    public List<Integer> getIntegers() {
+        List<Integer> values = new ArrayList<>();
+        connect(values);
+        return values;
     }
 
     private void connect(List<Integer> values) {
@@ -62,37 +57,4 @@ class DiceRoller {
             lib.qrng_disconnect();
         }
     }
-
-    @NotNull
-    private List<Integer> getIntegers() {
-        List<Integer> values = new ArrayList<>();
-        connect(values);
-
-        currentIndex = 0;
-        return values;
-    }
-
-    public int rollDice() {
-        if (currentIndex >= values.size()) {
-            if (futureValues != null && futureValues.isDone()) {
-                try {
-                    values.clear();
-                    values.addAll(futureValues.get());
-                    currentIndex = 0;
-                } catch (InterruptedException | ExecutionException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-
-
-        if (currentIndex > values.size() * 0.8 && (futureValues == null || futureValues.isDone())) // when we have used 80% of the values,
-            futureValues = executorService.submit(this::getIntegers); // start preparing new values
-
-        int value = values.get(currentIndex);
-        currentIndex++;
-
-        return value;
-    }
-
 }

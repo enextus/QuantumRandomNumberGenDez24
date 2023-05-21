@@ -7,6 +7,8 @@ import java.util.Date;
 import java.util.List;
 
 class DotMover extends JPanel {
+
+    private final QuantumRandomNumberGeneratorService qrngService;  // Add this field
     private static final int SIZE = 1050; //  size of the plane
     public static final int HEIGHT1 = 10;
     public static final int WIDTH1 = 10;
@@ -23,14 +25,16 @@ class DotMover extends JPanel {
         return dotCounter;
     }
 
-    public DotMover() {
+    public DotMover(QuantumRandomNumberGeneratorService qrngService) { // Add qrngService as a constructor parameter
         setPreferredSize(new Dimension(SIZE, SIZE));
         dot = new Point(SIZE / 2, SIZE / 2);
         dots = new ArrayList<>();
-        dice = new DiceRoller();
+
+        this.qrngService = qrngService; // Assign the qrngService parameter to the field
+        dice = new DiceRoller(this.qrngService);
+
         dotCounter = 0;
 
-        //  Setting the background color to pastel blue
         setBackground(new Color(176, 224, 230));
     }
 

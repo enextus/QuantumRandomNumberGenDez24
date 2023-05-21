@@ -9,13 +9,15 @@ public class App {
     public static final int DELAY = 5;
 
     public static void main(String[] args) {
+        QuantumRandomNumberGeneratorService qrngService = new QuantumRandomNumberGeneratorService();
+        DotMover dotMover = new DotMover(qrngService);
+
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame(DOT_MOVER); // Window title "Dot Mover"
-            DiceRoller diceRoller = new DiceRoller();
-            DotMover dotMover = new DotMover();
+            DiceRoller diceRoller = new DiceRoller(qrngService);
+
             frame.add(dotMover);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
             frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
 
             Timer timer = new Timer(DELAY, e -> {
@@ -28,5 +30,4 @@ public class App {
             frame.setVisible(true);
         });
     }
-
 }
