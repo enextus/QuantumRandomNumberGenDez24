@@ -73,7 +73,6 @@ public class QRNG {
         }
 
         if (checkResult(lib.qrng_connect(username, password))) {
-
             // get some QRNG-integers
             getAndPrintIntegerArray(lib);
 
@@ -103,7 +102,6 @@ public class QRNG {
             for (int i = 0; i < actualIntsReceived.getValue(); i++) {
                 System.out.println(intArray[i]);
             }
-
         }
 
     }
