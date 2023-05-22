@@ -80,7 +80,6 @@
 
     <build>
         <plugins>
-            <!-- Maven Dependency Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
@@ -98,8 +97,6 @@
                     </execution>
                 </executions>
             </plugin>
-
-            <!-- Maven JAR Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>

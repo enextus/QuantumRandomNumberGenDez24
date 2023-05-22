@@ -1,27 +1,25 @@
 package org.ThreeDotsSierpinski;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 class DiceRollerTest {
 
-    @BeforeEach
-    public void setup() {
-        QuantumRandomNumberGeneratorService qrngService = Mockito.mock(QuantumRandomNumberGeneratorService.class);
+    private static class TestDiceRoller extends DiceRoller {
+        AtomicInteger connectCallCount = new AtomicInteger(0);
 
-    }
+        public TestDiceRoller(QuantumRandomNumberGeneratorService qrngService) {
+            super(qrngService);
+        }
 
-    @Test
-    public void testRollDice() {
-        QuantumRandomNumberGeneratorService qrngService = new QuantumRandomNumberGeneratorService();
-        DiceRoller diceRoller = new DiceRoller(qrngService);
+        @Override
+        void connect(List<Integer> values) {
+            super.connect(values);
+            connectCallCount.incrementAndGet();
+        }
 
-        for (int i = 0; i < 1000; i++) {
-            int roll = diceRoller.rollDice();
-            assertTrue(roll >= Integer.MIN_VALUE && roll <= Integer.MAX_VALUE);
+        public int getConnectCallCount() {
+            return connectCallCount.get();
         }
     }
 

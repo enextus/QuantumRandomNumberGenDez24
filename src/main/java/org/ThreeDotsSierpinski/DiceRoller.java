@@ -25,7 +25,7 @@ class DiceRoller {
         executorService = Executors.newSingleThreadExecutor();
     }
 
-    private void connect(List<Integer> values) {
+    void connect(List<Integer> values) {
         QuantumRandomNumberGenerator.iQuantumRandomNumberGenerator lib = QuantumRandomNumberGenerator.iQuantumRandomNumberGenerator.INSTANCE;
 
         Properties prop = new Properties();
@@ -66,7 +66,7 @@ class DiceRoller {
     }
 
     @NotNull
-    private List<Integer> getIntegers() {
+    List<Integer> getIntegers() {
         List<Integer> values = new ArrayList<>();
         connect(values);
         currentIndex = 0;
