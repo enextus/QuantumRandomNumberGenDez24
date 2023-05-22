@@ -12,34 +12,34 @@ import java.util.concurrent.*;
 
 import org.jetbrains.annotations.NotNull;
 
-import static org.ThreeDotsSierpinski.RndNumberGenerator.checkResult;
+import static org.ThreeDotsSierpinski.RndNumGenerator.checkResult;
 
-class RndNumberProvider {
+class RndNumProvider {
     private final List<Integer> values;
     private int currentIndex;
     private final ExecutorService executorService;
     private Future<List<Integer>> futureValues;
 
-    public RndNumberProvider(RndNumberGeneratorService qrngService) {
+    public RndNumProvider(RndNumGeneratorService qrngService) {
         values = getIntegers();
         executorService = Executors.newSingleThreadExecutor();
     }
 
     void connect(List<Integer> values) {
-        RndNumberGenerator.iQuantumRandomNumberGenerator lib = RndNumberGenerator.iQuantumRandomNumberGenerator.INSTANCE;
+        RndNumGenerator.iQuantumRandomNumberGenerator lib = RndNumGenerator.iQuantumRandomNumberGenerator.INSTANCE;
 
         Properties prop = new Properties();
-        String username = RndNumberGenerator.EMPTYSTRING, password = RndNumberGenerator.EMPTYSTRING;
+        String username = RndNumGenerator.EMPTYSTRING, password = RndNumGenerator.EMPTYSTRING;
 
-        try (InputStream input = RndNumberGenerator.class.getClassLoader().getResourceAsStream(RndNumberGenerator.CONFIG_FILE_PATH)) {
+        try (InputStream input = RndNumGenerator.class.getClassLoader().getResourceAsStream(RndNumGenerator.CONFIG_FILE_PATH)) {
             if (input == null) {
-                System.out.println(RndNumberGenerator.SORRY_UNABLE_TO_FIND + RndNumberGenerator.CONFIG_FILE_PATH);
+                System.out.println(RndNumGenerator.SORRY_UNABLE_TO_FIND + RndNumGenerator.CONFIG_FILE_PATH);
                 System.exit(-1);
             }
 
             prop.load(input);
-            username = prop.getProperty(RndNumberGenerator.USERNAME);
-            password = prop.getProperty(RndNumberGenerator.PASSWORD);
+            username = prop.getProperty(RndNumGenerator.USERNAME);
+            password = prop.getProperty(RndNumGenerator.PASSWORD);
 
         } catch (IOException ex) {
             ex.printStackTrace();
@@ -48,13 +48,13 @@ class RndNumberProvider {
 
         if (checkResult(lib.qrng_connect(username, password))) {
 
-            int[] intArray = new int[RndNumberGenerator.INT_AMOUNT];
+            int[] intArray = new int[RndNumGenerator.INT_AMOUNT];
             IntByReference actualIntsReceived = new IntByReference();
 
             int getArrayResult = lib.qrng_connect_and_get_int_array(username, password, intArray, intArray.length, actualIntsReceived);
 
             if (getArrayResult != 0) {
-                System.out.println(RndNumberGenerator.FAILED_TO_GET_INTEGER_ARRAY);
+                System.out.println(RndNumGenerator.FAILED_TO_GET_INTEGER_ARRAY);
             } else {
                 for (int i = 0; i < actualIntsReceived.getValue(); i++) {
                     values.add(intArray[i]);
