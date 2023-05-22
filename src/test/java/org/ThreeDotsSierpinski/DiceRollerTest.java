@@ -13,8 +13,8 @@ class DiceRollerTest {
         }
 
         @Override
-        void connect(List<Integer> values) {
-            super.connect(values);
+        void getNextValue(List<Integer> values) {
+            super.getNextValue(values);
             connectCallCount.incrementAndGet();
         }
 

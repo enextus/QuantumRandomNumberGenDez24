@@ -15,7 +15,7 @@ public class RndNumGeneratorService {
                 return true;
             }
         } catch (Exception e) {
-            System.out.println("Failed to connect to RndNumGenerator: " + e.getMessage());
+            System.out.println("Failed to getNextValue to RndNumGenerator: " + e.getMessage());
         }
         return false;
     }

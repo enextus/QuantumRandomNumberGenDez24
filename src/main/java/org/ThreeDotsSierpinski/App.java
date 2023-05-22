@@ -22,7 +22,7 @@ public class App {
 
             Timer timer = new Timer(DELAY, e -> {
                 dotController.moveDot();
-                int randomValue = rndNumProvider.rollDice(); // Get a random number value from RndNumProvider
+                int randomValue = rndNumProvider.getNextRandomNumber(); // Get a random number value from RndNumProvider
                 frame.setTitle(DOT_MOVER_DOTS + dotController.getDotCounter() + RANDOM_VALUE_STRING + randomValue + ")"); // Update the window title with the dot counter readings and the value of the random number
             });
 

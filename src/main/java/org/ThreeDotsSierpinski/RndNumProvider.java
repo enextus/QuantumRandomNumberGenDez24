@@ -15,17 +15,17 @@ import org.jetbrains.annotations.NotNull;
 import static org.ThreeDotsSierpinski.RndNumGenerator.checkResult;
 
 class RndNumProvider {
-    private final List<Integer> values;
+    private final List<Integer> integerList;
     private int currentIndex;
     private final ExecutorService executorService;
     private Future<List<Integer>> futureValues;
 
     public RndNumProvider(RndNumGeneratorService qrngService) {
-        values = getIntegers();
+        integerList = getIntegerList();
         executorService = Executors.newSingleThreadExecutor();
     }
 
-    void connect(List<Integer> values) {
+    void getNextValue(List<Integer> values) {
         RndNumGenerator.iQuantumRandomNumberGenerator lib = RndNumGenerator.iQuantumRandomNumberGenerator.INSTANCE;
 
         Properties prop = new Properties();
@@ -66,19 +66,19 @@ class RndNumProvider {
     }
 
     @NotNull
-    List<Integer> getIntegers() {
+    List<Integer> getIntegerList() {
         List<Integer> values = new ArrayList<>();
-        connect(values);
+        getNextValue(values);
         currentIndex = 0;
         return values;
     }
 
-    public int rollDice() {
-        if (currentIndex >= values.size()) {
+    public int getNextRandomNumber() {
+        if (currentIndex >= integerList.size()) {
             if (futureValues != null && futureValues.isDone()) {
                 try {
-                    values.clear();
-                    values.addAll(futureValues.get());
+                    integerList.clear();
+                    integerList.addAll(futureValues.get());
                     currentIndex = 0;
                 } catch (InterruptedException | ExecutionException e) {
                     e.printStackTrace();
@@ -86,10 +86,10 @@ class RndNumProvider {
             }
         }
 
-        if (currentIndex > values.size() * 0.8 && (futureValues == null || futureValues.isDone())) // when we have used 80% of the values,
-            futureValues = executorService.submit(this::getIntegers); // start preparing new values
+        if (currentIndex > integerList.size() * 0.8 && (futureValues == null || futureValues.isDone())) // when we have used 80% of the values,
+            futureValues = executorService.submit(this::getIntegerList); // start preparing new values
 
-        int value = values.get(currentIndex);
+        int value = integerList.get(currentIndex);
         currentIndex++;
 
         return value;

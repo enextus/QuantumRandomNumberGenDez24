@@ -28,24 +28,21 @@ class DotController extends JPanel {
     public static final int HEIGHT2 = 10;
     Point dot;
     private final List<Dot> dots; //  list of dots
-    private final RndNumProvider dice;
+    private final RndNumProvider randomNumberGenerator;
     private int dotCounter; // counter of the number of dots
-
-    public int getDotCounter() {
-        return dotCounter;
-    }
 
     public DotController(RndNumGeneratorService qrngService) {
         setPreferredSize(new Dimension(SIZE, SIZE));
         dot = new Point(SIZE / 2, SIZE / 2);
         dots = new ArrayList<>();
-
         this.qrngService = qrngService;
-        dice = new RndNumProvider(this.qrngService);
-
+        randomNumberGenerator = new RndNumProvider(this.qrngService);
         dotCounter = 0;
-
         setBackground(new Color(176, 224, 230));
+    }
+
+    public int getDotCounter() {
+        return dotCounter;
     }
 
     @Override
@@ -108,13 +105,13 @@ class DotController extends JPanel {
 
         g2d.setFont(myFont2);
         g2d.setColor(new Color(105, 105, 105, alpha2));  // dark gray text with adjusted transparency
-        String value = String.valueOf(dice.rollDice()); // get the dice value as a string
+        String value = String.valueOf(randomNumberGenerator.getNextRandomNumber()); // get the dice value as a string
         int valueX = textX2 + g2d.getFontMetrics(myFont1).stringWidth(text2); // place the value right after the text
         g2d.drawString(value, valueX, textY2);
     }
 
     public void moveDot() {
-        int roll = dice.rollDice();
+        int roll = randomNumberGenerator.getNextRandomNumber();
 
         if (roll <= Integer.MIN_VALUE / 3 || roll > Integer.MAX_VALUE / 3 * 2) {
             dot.x = dot.x / 2;
