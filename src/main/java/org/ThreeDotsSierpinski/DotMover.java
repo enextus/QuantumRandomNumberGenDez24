@@ -131,10 +131,10 @@ class DotMover extends JPanel {
             dot.x = dot.x / 2;
             dot.y = SIZE / 2 + dot.y / 2;
         }
-        dots.add(new Dot(new Point(dot.x, dot.y), new Date())); // добавление новой отметины в список
-        dotCounter++; // увеличение значения счетчика
 
-        System.out.println(GET_DOT_COUNTER + getDotCounter());
+        dots.add(new Dot(new Point(dot.x, dot.y), new Date()));
+        dotCounter++;
+
         repaint();
     }
 
