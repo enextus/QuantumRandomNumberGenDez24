@@ -18,8 +18,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-class DotMover extends JPanel {
-    private final QuantumRandomNumberGeneratorService qrngService;  // Add this field
+class DotController extends JPanel {
+    private final RndNumberGeneratorService qrngService;  // Add this field
     private static final int SIZE = 1050; //  size of the plane
     public static final int HEIGHT1 = 10;
     public static final int WIDTH1 = 10;
@@ -28,20 +28,20 @@ class DotMover extends JPanel {
     public static final int HEIGHT2 = 10;
     Point dot;
     private final List<Dot> dots; //  list of dots
-    private final DiceRoller dice;
+    private final RndNumberProvider dice;
     private int dotCounter; // counter of the number of dots
 
     public int getDotCounter() {
         return dotCounter;
     }
 
-    public DotMover(QuantumRandomNumberGeneratorService qrngService) {
+    public DotController(RndNumberGeneratorService qrngService) {
         setPreferredSize(new Dimension(SIZE, SIZE));
         dot = new Point(SIZE / 2, SIZE / 2);
         dots = new ArrayList<>();
 
         this.qrngService = qrngService;
-        dice = new DiceRoller(this.qrngService);
+        dice = new RndNumberProvider(this.qrngService);
 
         dotCounter = 0;
 

@@ -5,10 +5,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 class DiceRollerTest {
 
-    private static class TestDiceRoller extends DiceRoller {
+    private static class TestRndNumberProvider extends RndNumberProvider {
         AtomicInteger connectCallCount = new AtomicInteger(0);
 
-        public TestDiceRoller(QuantumRandomNumberGeneratorService qrngService) {
+        public TestRndNumberProvider(RndNumberGeneratorService qrngService) {
             super(qrngService);
         }
 

@@ -12,34 +12,34 @@ import java.util.concurrent.*;
 
 import org.jetbrains.annotations.NotNull;
 
-import static org.ThreeDotsSierpinski.QuantumRandomNumberGenerator.checkResult;
+import static org.ThreeDotsSierpinski.RndNumberGenerator.checkResult;
 
-class DiceRoller {
+class RndNumberProvider {
     private final List<Integer> values;
     private int currentIndex;
     private final ExecutorService executorService;
     private Future<List<Integer>> futureValues;
 
-    public DiceRoller(QuantumRandomNumberGeneratorService qrngService) {
+    public RndNumberProvider(RndNumberGeneratorService qrngService) {
         values = getIntegers();
         executorService = Executors.newSingleThreadExecutor();
     }
 
     void connect(List<Integer> values) {
-        QuantumRandomNumberGenerator.iQuantumRandomNumberGenerator lib = QuantumRandomNumberGenerator.iQuantumRandomNumberGenerator.INSTANCE;
+        RndNumberGenerator.iQuantumRandomNumberGenerator lib = RndNumberGenerator.iQuantumRandomNumberGenerator.INSTANCE;
 
         Properties prop = new Properties();
-        String username = QuantumRandomNumberGenerator.EMPTYSTRING, password = QuantumRandomNumberGenerator.EMPTYSTRING;
+        String username = RndNumberGenerator.EMPTYSTRING, password = RndNumberGenerator.EMPTYSTRING;
 
-        try (InputStream input = QuantumRandomNumberGenerator.class.getClassLoader().getResourceAsStream(QuantumRandomNumberGenerator.CONFIG_FILE_PATH)) {
+        try (InputStream input = RndNumberGenerator.class.getClassLoader().getResourceAsStream(RndNumberGenerator.CONFIG_FILE_PATH)) {
             if (input == null) {
-                System.out.println(QuantumRandomNumberGenerator.SORRY_UNABLE_TO_FIND + QuantumRandomNumberGenerator.CONFIG_FILE_PATH);
+                System.out.println(RndNumberGenerator.SORRY_UNABLE_TO_FIND + RndNumberGenerator.CONFIG_FILE_PATH);
                 System.exit(-1);
             }
 
             prop.load(input);
-            username = prop.getProperty(QuantumRandomNumberGenerator.USERNAME);
-            password = prop.getProperty(QuantumRandomNumberGenerator.PASSWORD);
+            username = prop.getProperty(RndNumberGenerator.USERNAME);
+            password = prop.getProperty(RndNumberGenerator.PASSWORD);
 
         } catch (IOException ex) {
             ex.printStackTrace();
@@ -48,13 +48,13 @@ class DiceRoller {
 
         if (checkResult(lib.qrng_connect(username, password))) {
 
-            int[] intArray = new int[QuantumRandomNumberGenerator.INT_AMOUNT];
+            int[] intArray = new int[RndNumberGenerator.INT_AMOUNT];
             IntByReference actualIntsReceived = new IntByReference();
 
             int getArrayResult = lib.qrng_connect_and_get_int_array(username, password, intArray, intArray.length, actualIntsReceived);
 
             if (getArrayResult != 0) {
-                System.out.println(QuantumRandomNumberGenerator.FAILED_TO_GET_INTEGER_ARRAY);
+                System.out.println(RndNumberGenerator.FAILED_TO_GET_INTEGER_ARRAY);
             } else {
                 for (int i = 0; i < actualIntsReceived.getValue(); i++) {
                     values.add(intArray[i]);
