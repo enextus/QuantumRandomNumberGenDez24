@@ -1,16 +1,18 @@
 package org.ThreeDotsSierpinski;
 
 import com.sun.jna.ptr.IntByReference;
-import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.io.InputStream;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.*;
 
-import static org.ThreeDotsSierpinski.QRNG.checkResult;
+import org.jetbrains.annotations.NotNull;
+
+import static org.ThreeDotsSierpinski.QuantumRandomNumberGenerator.checkResult;
 
 class DiceRoller {
     private final List<Integer> values;
@@ -24,20 +26,20 @@ class DiceRoller {
     }
 
     private void connect(List<Integer> values) {
-        QRNG.QuantumRandomNumberGenerator lib = QRNG.QuantumRandomNumberGenerator.INSTANCE;
+        QuantumRandomNumberGenerator.iQuantumRandomNumberGenerator lib = QuantumRandomNumberGenerator.iQuantumRandomNumberGenerator.INSTANCE;
 
         Properties prop = new Properties();
-        String username = QRNG.EMPTYSTRING, password = QRNG.EMPTYSTRING;
+        String username = QuantumRandomNumberGenerator.EMPTYSTRING, password = QuantumRandomNumberGenerator.EMPTYSTRING;
 
-        try (InputStream input = QRNG.class.getClassLoader().getResourceAsStream(QRNG.CONFIG_FILE_PATH)) {
+        try (InputStream input = QuantumRandomNumberGenerator.class.getClassLoader().getResourceAsStream(QuantumRandomNumberGenerator.CONFIG_FILE_PATH)) {
             if (input == null) {
-                System.out.println(QRNG.SORRY_UNABLE_TO_FIND + QRNG.CONFIG_FILE_PATH);
+                System.out.println(QuantumRandomNumberGenerator.SORRY_UNABLE_TO_FIND + QuantumRandomNumberGenerator.CONFIG_FILE_PATH);
                 System.exit(-1);
             }
 
             prop.load(input);
-            username = prop.getProperty(QRNG.USERNAME);
-            password = prop.getProperty(QRNG.PASSWORD);
+            username = prop.getProperty(QuantumRandomNumberGenerator.USERNAME);
+            password = prop.getProperty(QuantumRandomNumberGenerator.PASSWORD);
 
         } catch (IOException ex) {
             ex.printStackTrace();
@@ -46,13 +48,13 @@ class DiceRoller {
 
         if (checkResult(lib.qrng_connect(username, password))) {
 
-            int[] intArray = new int[QRNG.INT_AMOUNT];
+            int[] intArray = new int[QuantumRandomNumberGenerator.INT_AMOUNT];
             IntByReference actualIntsReceived = new IntByReference();
 
             int getArrayResult = lib.qrng_connect_and_get_int_array(username, password, intArray, intArray.length, actualIntsReceived);
 
             if (getArrayResult != 0) {
-                System.out.println(QRNG.FAILED_TO_GET_INTEGER_ARRAY);
+                System.out.println(QuantumRandomNumberGenerator.FAILED_TO_GET_INTEGER_ARRAY);
             } else {
                 for (int i = 0; i < actualIntsReceived.getValue(); i++) {
                     values.add(intArray[i]);
@@ -67,7 +69,6 @@ class DiceRoller {
     private List<Integer> getIntegers() {
         List<Integer> values = new ArrayList<>();
         connect(values);
-
         currentIndex = 0;
         return values;
     }
@@ -86,9 +87,7 @@ class DiceRoller {
         }
 
         if (currentIndex > values.size() * 0.8 && (futureValues == null || futureValues.isDone())) // when we have used 80% of the values,
-        {
             futureValues = executorService.submit(this::getIntegers); // start preparing new values
-        }
 
         int value = values.get(currentIndex);
         currentIndex++;

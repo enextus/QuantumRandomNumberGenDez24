@@ -3,7 +3,7 @@ package org.ThreeDotsSierpinski;
 import com.sun.jna.ptr.IntByReference;
 
 public class QuantumRandomNumberGeneratorService {
-    private QRNG.QuantumRandomNumberGenerator qrng;
+    private QuantumRandomNumberGenerator.iQuantumRandomNumberGenerator qrng;
 
     public QuantumRandomNumberGeneratorService() {
         this.qrng = qrng;
@@ -11,11 +11,11 @@ public class QuantumRandomNumberGeneratorService {
 
     public boolean connect(String username, String password) {
         try {
-            if (QRNG.checkResult(qrng.qrng_connect(username, password))) {
+            if (QuantumRandomNumberGenerator.checkResult(qrng.qrng_connect(username, password))) {
                 return true;
             }
         } catch (Exception e) {
-            System.out.println("Failed to connect to QRNG: " + e.getMessage());
+            System.out.println("Failed to connect to QuantumRandomNumberGenerator: " + e.getMessage());
         }
         return false;
     }
@@ -24,27 +24,27 @@ public class QuantumRandomNumberGeneratorService {
         try {
             qrng.qrng_disconnect();
         } catch (Exception e) {
-            System.out.println("Failed to disconnect from QRNG: " + e.getMessage());
+            System.out.println("Failed to disconnect from QuantumRandomNumberGenerator: " + e.getMessage());
         }
     }
 
     public int[] getAndPrintIntegerArray() {
-        int[] intArray = new int[QRNG.INT_AMOUNT];
+        int[] intArray = new int[QuantumRandomNumberGenerator.INT_AMOUNT];
         IntByReference actualIntsReceived = new IntByReference();
 
         try {
             int getArrayResult = qrng.qrng_get_int_array(intArray, intArray.length, actualIntsReceived);
 
             if (getArrayResult != 0) {
-                System.out.println(QRNG.FAILED_TO_GET_INTEGER_ARRAY);
+                System.out.println(QuantumRandomNumberGenerator.FAILED_TO_GET_INTEGER_ARRAY);
             } else {
-                System.out.println(QRNG.RECEIVED + actualIntsReceived.getValue() + QRNG.INTEGERS_FROM_THE_QRNG);
+                System.out.println(QuantumRandomNumberGenerator.RECEIVED + actualIntsReceived.getValue() + QuantumRandomNumberGenerator.INTEGERS_FROM_THE_QRNG);
                 for (int i = 0; i < actualIntsReceived.getValue(); i++) {
                     System.out.println(intArray[i]);
                 }
             }
         } catch (Exception e) {
-            System.out.println("Failed to get integer array from QRNG: " + e.getMessage());
+            System.out.println("Failed to get integer array from QuantumRandomNumberGenerator: " + e.getMessage());
         }
 
         return intArray;
