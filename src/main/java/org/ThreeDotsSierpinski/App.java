@@ -9,12 +9,13 @@ public class App {
     public static final int DELAY = 16;
 
     public static void main(String[] args) {
-        RndNumGeneratorService qrngService = new RndNumGeneratorService();
+
+        RandomNumberService qrngService = new RandomNumberService();
         DotController dotController = new DotController(qrngService);
 
         SwingUtilities.invokeLater(() -> {
-            JFrame frame = new JFrame(DOT_MOVER); // Window title "Dot Mover"
-            RndNumProvider rndNumProvider = new RndNumProvider(qrngService);
+            JFrame frame = new JFrame(DOT_MOVER);
+            RandomNumberProvider randomNumberProvider = new RandomNumberProvider(qrngService);
 
             frame.add(dotController);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -22,7 +23,7 @@ public class App {
 
             Timer timer = new Timer(DELAY, e -> {
                 dotController.moveDot();
-                int randomValue = rndNumProvider.getNextRandomNumber(); // Get a random number value from RndNumProvider
+                int randomValue = randomNumberProvider.getNextRandomNumber(); // Get a random number value from RandomNumberProvider
                 frame.setTitle(DOT_MOVER_DOTS + dotController.getDotCounter() + RANDOM_VALUE_STRING + randomValue + ")"); // Update the window title with the dot counter readings and the value of the random number
             });
 

@@ -9,18 +9,18 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
-public class RndNumGeneratorTest {
-    private RndNumGenerator.iQuantumRandomNumberGenerator qrngMock;
+public class RandomNumberGeneratorTest {
+    private RandomNumberGenerator.iQuantumRandomNumberGenerator qrngMock;
 
     @BeforeEach
     void setUp() {
-        qrngMock = Mockito.mock(RndNumGenerator.iQuantumRandomNumberGenerator.class);
+        qrngMock = Mockito.mock(RandomNumberGenerator.iQuantumRandomNumberGenerator.class);
     }
 
     @Test
     void getIntegerArray_success() {
-        int[] intArray = new int[RndNumGenerator.INT_AMOUNT];
-        IntByReference actualIntsReceived = new IntByReference(RndNumGenerator.INT_AMOUNT);
+        int[] intArray = new int[RandomNumberGenerator.INT_AMOUNT];
+        IntByReference actualIntsReceived = new IntByReference(RandomNumberGenerator.INT_AMOUNT);
 
         when(qrngMock.qrng_get_int_array(any(), eq(intArray.length), any()))
                 .thenAnswer(invocation -> {
@@ -33,27 +33,27 @@ public class RndNumGeneratorTest {
                     return 0;
                 });
 
-        RndNumGenerator.getIntegerArray(qrngMock);
+        RandomNumberGenerator.getIntegerArray(qrngMock);
     }
 
     @Test
     void getIntegerArray_success2() {
-        int[] intArray = new int[RndNumGenerator.INT_AMOUNT];
+        int[] intArray = new int[RandomNumberGenerator.INT_AMOUNT];
         IntByReference actualIntsReceived = new IntByReference();
 
         when(qrngMock.qrng_get_int_array(intArray, intArray.length, actualIntsReceived)).thenReturn(0);
 
-        RndNumGenerator.getIntegerArray(qrngMock);
+        RandomNumberGenerator.getIntegerArray(qrngMock);
     }
 
     @Test
     void getAndPrintIntegerArray_failure() {
-        int[] intArray = new int[RndNumGenerator.INT_AMOUNT];
+        int[] intArray = new int[RandomNumberGenerator.INT_AMOUNT];
         IntByReference actualIntsReceived = new IntByReference();
 
         when(qrngMock.qrng_get_int_array(intArray, intArray.length, actualIntsReceived)).thenReturn(-1);
 
-        RndNumGenerator.getIntegerArray(qrngMock);
+        RandomNumberGenerator.getIntegerArray(qrngMock);
     }
 
 }

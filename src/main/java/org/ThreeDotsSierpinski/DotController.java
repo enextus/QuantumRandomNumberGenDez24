@@ -19,7 +19,7 @@ import java.util.Date;
 import java.util.List;
 
 class DotController extends JPanel {
-    private final RndNumGeneratorService qrngService;  // Add this field
+    private final RandomNumberService qrngService;
     private static final int SIZE = 1050; //  size of the plane
     public static final int HEIGHT1 = 10;
     public static final int WIDTH1 = 10;
@@ -28,15 +28,15 @@ class DotController extends JPanel {
     public static final int HEIGHT2 = 10;
     Point dot;
     private final List<Dot> dots; //  list of dots
-    private final RndNumProvider randomNumberGenerator;
+    private final RandomNumberProvider randomNumberGenerator;
     private int dotCounter; // counter of the number of dots
 
-    public DotController(RndNumGeneratorService qrngService) {
+    public DotController(RandomNumberService qrngService) {
         setPreferredSize(new Dimension(SIZE, SIZE));
         dot = new Point(SIZE / 2, SIZE / 2);
         dots = new ArrayList<>();
         this.qrngService = qrngService;
-        randomNumberGenerator = new RndNumProvider(this.qrngService);
+        randomNumberGenerator = new RandomNumberProvider(this.qrngService);
         dotCounter = 0;
         setBackground(new Color(176, 224, 230));
     }
