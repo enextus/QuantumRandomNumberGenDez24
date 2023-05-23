@@ -20,7 +20,7 @@ import java.util.List;
 
 class DotController extends JPanel {
     private final RandomNumberService qrngService;
-    private static final int SIZE = 1050; //  size of the plane
+    private static final int SIZE = 1000; //  size of the plane
     public static final int HEIGHT1 = 10;
     public static final int WIDTH1 = 10;
     public static final int DELAY_TIME = 1000;
@@ -85,8 +85,8 @@ class DotController extends JPanel {
         g2d.setFont(myFont1);
         g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
         String text = "Dot Counter  ";
-        int textX = SIZE - 50; // adjust these values to place the text in the desired location
-        int textY = SIZE - 120;
+        int textX = SIZE - 1; // adjust these values to place the text in the desired location
+        int textY = SIZE - 190;
         g2d.drawString(text, textX, textY);
 
         g2d.setFont(myFont2);
@@ -99,8 +99,8 @@ class DotController extends JPanel {
         g2d.setFont(myFont1);
         g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
         String text2 = "Rnd Value  ";
-        int textX2 = SIZE - 50; // adjust these values to place the text in the desired location
-        int textY2 = SIZE - 30;
+        int textX2 = SIZE - 1; // adjust these values to place the text in the desired location
+        int textY2 = SIZE - 100;
         g2d.drawString(text2, textX2, textY2);
 
         g2d.setFont(myFont2);
