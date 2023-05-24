@@ -10,12 +10,12 @@ public class App {
 
     public static void main(String[] args) {
 
-        RandomNumberService qrngService = new RandomNumberService();
-        DotController dotController = new DotController(qrngService);
+        RandomNumberService RandomNumberService = new RandomNumberService();
+        DotController dotController = new DotController(RandomNumberService);
 
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame(DOT_MOVER);
-            RandomNumberProvider randomNumberProvider = new RandomNumberProvider(qrngService);
+            RandomNumberProvider randomNumberProvider = new RandomNumberProvider(RandomNumberService);
 
             frame.add(dotController);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
