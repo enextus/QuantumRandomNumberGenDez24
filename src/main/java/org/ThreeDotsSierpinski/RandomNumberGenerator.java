@@ -7,10 +7,12 @@ import com.sun.jna.ptr.IntByReference;
 import java.io.IOException;
 import java.io.InputStream;
 
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
 
 public class RandomNumberGenerator {
-    protected static final int INT_AMOUNT = 10000;
+    protected static final int INT_AMOUNT = 100000;
     protected static final String CONFIG_FILE_PATH = "config.properties";
     protected static final String CONNECTION_FAILED = "Connection failed!";
     protected static final String DISCONNECTED_FROM_THE_SERVICE = "Disconnected from the service.";
@@ -68,6 +70,29 @@ public class RandomNumberGenerator {
 
     }
 
+    /*    static void getIntegerArray(iQuantumRandomNumberGenerator lib) {
+            // Create an array to hold the integers returned by the RandomNumberGenerator
+            int[] intArray = new int[INT_AMOUNT];  // Change the size of this array based on your needs
+
+            // Create an IntByReference instance to hold the actual number of integers received
+            IntByReference actualIntsReceived = new IntByReference();
+
+            // Call the qrng_get_int_array method
+            int getArrayResult = lib.qrng_get_int_array(intArray, intArray.length, actualIntsReceived);
+
+            if (getArrayResult != 0) {
+                // Failed to get integer array, handle this case
+                System.out.println(FAILED_TO_GET_INTEGER_ARRAY);
+            } else {
+                // Successfully got the integer array, print it
+                System.out.println(RECEIVED + actualIntsReceived.getValue() + INTEGERS_FROM_THE_QRNG);
+                for (int i = 0; i < actualIntsReceived.getValue(); i++) {
+                    System.out.println(intArray[i]);
+                }
+            }
+
+        }*/
+
     static void getIntegerArray(iQuantumRandomNumberGenerator lib) {
         // Create an array to hold the integers returned by the RandomNumberGenerator
         int[] intArray = new int[INT_AMOUNT];  // Change the size of this array based on your needs
@@ -87,9 +112,24 @@ public class RandomNumberGenerator {
             for (int i = 0; i < actualIntsReceived.getValue(); i++) {
                 System.out.println(intArray[i]);
             }
+
+            // Check for duplicate numbers
+            checkUniqueNumbers(intArray);
         }
 
     }
+
+    public static void checkUniqueNumbers(int[] numbers) {
+        Set<Integer> seenNumbers = new HashSet<>();
+
+        for (int number : numbers) {
+            if (!seenNumbers.add(number)) {
+                String duplicateMessage = "Дубликат числа: " + number;
+                System.out.println(duplicateMessage);
+            }
+        }
+    }
+
 
     static boolean checkResult(int result) {
         if (result != 0) {

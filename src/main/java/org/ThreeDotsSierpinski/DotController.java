@@ -1,6 +1,8 @@
 //
 //        -2,147,483,648 до -715,827,882 (Integer.MIN_VALUE до Integer.MIN_VALUE / 3)
+//
 //        -715,827,881 до 715,827,881 (Integer.MIN_VALUE / 3 + 1 до Integer.MAX_VALUE / 3)
+//
 //        715,827,882 до 2,147,483,647 (Integer.MAX_VALUE / 3 * 2 до Integer.MAX_VALUE)
 //
 //        1,431,655,767
@@ -9,16 +11,14 @@
 //
 //        1,431,655,767 + 1,431,655,763 + 1,431,655,766 = 4,294,967,296
 //
-//
 package org.ThreeDotsSierpinski;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.Date;
+import java.util.*;
 import java.util.List;
-
 class DotController extends JPanel {
+    private String duplicateMessage = "";
     public static final float RANGETIMEFLOAT = 90f;
     public static final float TRANSPARENCYFLOAT = 0.85f;
     public static final float DARKNESSFLOAT = 1 - TRANSPARENCYFLOAT;
@@ -135,3 +135,4 @@ class DotController extends JPanel {
     }
 
 }
+
