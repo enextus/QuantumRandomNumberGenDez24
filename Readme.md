@@ -25,10 +25,9 @@ For Login Data please register yourself here http://qrng.physik.hu-berlin.de/
 
 2. **Dot:** A simple class that represents a dot with a position (Point) and a creation date.
 
-3. **DiceRoller:** This class encapsulates a random number generator, simulating a dice roll. The `rollDice` method
-   returns an integer between 1 and 6.
-
-4. **DotMover:** This class extends a JPanel and is responsible for the logic of moving the dot and painting the dots on
+3. **RandomNumberGenerator:** This class encapsulates a random number generator.
+4. 
+4. **DotController:** This class extends a JPanel and is responsible for the logic of moving the dot and painting the dots on
    the panel. The dot's movement direction depends on the dice roll result.
 
 ## How to Use

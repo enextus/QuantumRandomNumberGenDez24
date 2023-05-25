@@ -9,7 +9,7 @@ import java.io.InputStream;
 
 import java.util.Properties;
 
-public class RndNumGenerator {
+public class RandomNumberGenerator {
     protected static final int INT_AMOUNT = 10000;
     protected static final String CONFIG_FILE_PATH = "config.properties";
     protected static final String CONNECTION_FAILED = "Connection failed!";
@@ -20,7 +20,7 @@ public class RndNumGenerator {
     protected static final String EMPTYSTRING = "";
     protected static final String FAILED_TO_GET_INTEGER_ARRAY = "Failed to get integer array!";
     protected static final String RECEIVED = "Received ";
-    protected static final String INTEGERS_FROM_THE_QRNG = " integers from the RndNumGenerator: ";
+    protected static final String INTEGERS_FROM_THE_QRNG = " integers from the RandomNumberGenerator: ";
     protected static final String LIB_QRNG_DLL_NAME = "libQRNG.dll";
     protected static final String LIB_LIB_QRNG_DLL_PATH = "lib/" + LIB_QRNG_DLL_NAME;
 
@@ -44,7 +44,7 @@ public class RndNumGenerator {
 
         String username = EMPTYSTRING, password = EMPTYSTRING;
 
-        try (InputStream input = RndNumGenerator.class.getClassLoader().getResourceAsStream(CONFIG_FILE_PATH)) {
+        try (InputStream input = RandomNumberGenerator.class.getClassLoader().getResourceAsStream(CONFIG_FILE_PATH)) {
 
             if (input == null) {
                 System.out.println(SORRY_UNABLE_TO_FIND + CONFIG_FILE_PATH);
@@ -69,7 +69,7 @@ public class RndNumGenerator {
     }
 
     static void getIntegerArray(iQuantumRandomNumberGenerator lib) {
-        // Create an array to hold the integers returned by the RndNumGenerator
+        // Create an array to hold the integers returned by the RandomNumberGenerator
         int[] intArray = new int[INT_AMOUNT];  // Change the size of this array based on your needs
 
         // Create an IntByReference instance to hold the actual number of integers received
@@ -93,7 +93,7 @@ public class RndNumGenerator {
 
     static boolean checkResult(int result) {
         if (result != 0) {
-            System.out.println(RndNumGenerator.CONNECTION_FAILED);
+            System.out.println(RandomNumberGenerator.CONNECTION_FAILED);
             return false;
         }
 

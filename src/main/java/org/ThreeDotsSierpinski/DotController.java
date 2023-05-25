@@ -22,8 +22,8 @@ class DotController extends JPanel {
     public static final float RANGETIMEFLOAT = 90f;
     public static final float TRANSPARENCYFLOAT = 0.85f;
     public static final float DARKNESSFLOAT = 1 - TRANSPARENCYFLOAT;
-    private final RndNumGeneratorService qrngService;  // Add this field
-    private static final int SIZE = 1050; //  size of the plane
+    private final RandomNumberService qrngService;
+    private static final int SIZE = 1000;
     public static final int HEIGHT1 = 10;
     public static final int WIDTH1 = 10;
     public static final int DELAY_TIME = 1000;
@@ -31,15 +31,15 @@ class DotController extends JPanel {
     public static final int HEIGHT2 = 10;
     Point dot;
     private final List<Dot> dots; //  list of dots
-    private final RndNumProvider randomNumberGenerator;
+    private final RandomNumberProvider randomNumberGenerator;
     private int dotCounter; // counter of the number of dots
 
-    public DotController(RndNumGeneratorService qrngService) {
+    public DotController(RandomNumberService qrngService) {
         setPreferredSize(new Dimension(SIZE, SIZE));
         dot = new Point(SIZE / 2, SIZE / 2);
         dots = new ArrayList<>();
         this.qrngService = qrngService;
-        randomNumberGenerator = new RndNumProvider(this.qrngService);
+        randomNumberGenerator = new RandomNumberProvider(this.qrngService);
         dotCounter = 0;
         setBackground(new Color(176, 224, 230));
     }
@@ -71,7 +71,6 @@ class DotController extends JPanel {
             g2d.fillOval(dot.point.x, dot.point.y, WIDTH2, HEIGHT2);
         }
 
-        // Drawing the last dot in red
         if (!dots.isEmpty()) {
             g2d.setColor(new Color(255, 0, 0)); // bright red
             Dot lastDot = dots.get(dots.size() - 1);
@@ -81,15 +80,15 @@ class DotController extends JPanel {
         Font myFont1 = new Font("Sans Serif", Font.ITALIC, 32); // adjust font name, style and size as needed
         Font myFont2 = new Font("Sans Serif", Font.ITALIC, 78); // adjust font name, style and size as needed
 
-        // adjust alpha value from 0 (completely transparent) to 255 (completely opaque)
-        int alpha1 = 128; // half transparent
-        int alpha2 = 64; // more transparent
+        int alpha1 = 128;
+        int alpha2 = 64;
 
         g2d.setFont(myFont1);
         g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
         String text = "Counter  ";
         int textX = SIZE - 50; // adjust these values to place the text in the desired location
         int textY = SIZE - 120;
+
         g2d.drawString(text, textX, textY);
 
         g2d.setFont(myFont2);
@@ -101,9 +100,11 @@ class DotController extends JPanel {
         // do the same for the second line of text
         g2d.setFont(myFont1);
         g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
+
         String text2 = "Number    ";
         int textX2 = SIZE - 50; // adjust these values to place the text in the desired location
         int textY2 = SIZE - 30;
+
         g2d.drawString(text2, textX2, textY2);
 
         g2d.setFont(myFont2);
