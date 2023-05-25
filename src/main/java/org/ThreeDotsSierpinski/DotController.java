@@ -19,6 +19,9 @@ import java.util.Date;
 import java.util.List;
 
 class DotController extends JPanel {
+    public static final float RANGETIMEFLOAT = 90f;
+    public static final float TRANSPARENCYFLOAT = 0.85f;
+    public static final float DARKNESSFLOAT = 1 - TRANSPARENCYFLOAT;
     private final RndNumGeneratorService qrngService;  // Add this field
     private static final int SIZE = 1050; //  size of the plane
     public static final int HEIGHT1 = 10;
@@ -56,12 +59,12 @@ class DotController extends JPanel {
         for (Dot dot : dots) {
             long diffInMillis = new Date().getTime() - dot.creationDate.getTime();
             long diffInSeconds = diffInMillis / DELAY_TIME;
-            float alpha = 1f - Math.min(0.7f, diffInSeconds / 30f);
+            float alpha = 1f - Math.min(TRANSPARENCYFLOAT, diffInSeconds / RANGETIMEFLOAT);
 
-            alpha = Math.max(alpha, 0.3f);
+            alpha = Math.max(alpha, DARKNESSFLOAT);
             Color c = new Color(0, 0, 0, (int) (alpha * 255));
 
-            if (alpha <= 0.3f)
+            if (alpha <= 1 - TRANSPARENCYFLOAT)
                 c = new Color(0.0f, 0.0f, 0.0f, alpha);
 
             g2d.setColor(c);
@@ -70,7 +73,7 @@ class DotController extends JPanel {
 
         // Drawing the last dot in red
         if (!dots.isEmpty()) {
-            g2d.setColor(Color.RED);
+            g2d.setColor(new Color(255, 0, 0)); // bright red
             Dot lastDot = dots.get(dots.size() - 1);
             g2d.fillOval(lastDot.point.x, lastDot.point.y, WIDTH2, HEIGHT2);
         }
@@ -84,7 +87,7 @@ class DotController extends JPanel {
 
         g2d.setFont(myFont1);
         g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
-        String text = "Dot Counter  ";
+        String text = "Counter  ";
         int textX = SIZE - 50; // adjust these values to place the text in the desired location
         int textY = SIZE - 120;
         g2d.drawString(text, textX, textY);
@@ -98,7 +101,7 @@ class DotController extends JPanel {
         // do the same for the second line of text
         g2d.setFont(myFont1);
         g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
-        String text2 = "Rnd Value  ";
+        String text2 = "Number    ";
         int textX2 = SIZE - 50; // adjust these values to place the text in the desired location
         int textY2 = SIZE - 30;
         g2d.drawString(text2, textX2, textY2);

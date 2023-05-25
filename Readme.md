@@ -48,14 +48,20 @@ The `moveDot` method:
 - 
   (1.: to the lower left, 2.: to the lower right, 3.: up).
 - 1.: -2,147,483,648 до -715,827,882 (Integer.MIN_VALUE до Integer.MIN_VALUE / 3)
+- 
   2.: -715,827,881 до 715,827,881 (Integer.MIN_VALUE / 3 + 1 до Integer.MAX_VALUE / 3)
+- 
   3.: 715,827,882 до 2,147,483,647 (Integer.MAX_VALUE / 3 * 2 до Integer.MAX_VALUE)
 - 
-  1,431,655,767
-  1,431,655,763
-  1,431,655,766
+- -----------------------------------------------------------------------------------
+
+  1,431,655,767 numbers
+  1,431,655,763 numbers
+  1,431,655,766 numbers
   
   1,431,655,767 + 1,431,655,763 + 1,431,655,766 = 4,294,967,296
+
+- -----------------------------------------------------------------------------------
 - 
 - Adds the new dot to a list of dots.
 - Calls `repaint` to trigger the Swing repaint process.
