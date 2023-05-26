@@ -27,10 +27,14 @@ Add after become credentials a config.properties
 
 src/main/resources/config.properties
 
-with some infos 
+        with only these infos:
 
-username=your-username
-password=your-password
+            username=your-username
+            password=your-password
+
+
+1.1 Important: Please check the owner and the execution permissions for lib/libQRNG.dll.
+
 
 2. **Dot:** A simple class that represents a dot with a position (Point) and a creation date.
 
