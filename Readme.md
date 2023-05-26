@@ -23,6 +23,15 @@ The application consists of the following key classes:
 
 For Login Data please register yourself here http://qrng.physik.hu-berlin.de/
 
+Add after become credentials a config.properties
+
+src/main/resources/config.properties
+
+with some infos 
+
+username=your-username
+password=your-password
+
 2. **Dot:** A simple class that represents a dot with a position (Point) and a creation date.
 
 3. **RandomNumberGenerator:** This class encapsulates a random number generator.
