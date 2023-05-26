@@ -24,9 +24,14 @@ public class App {
             frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
 
             Timer timer = new Timer(DELAY, e -> {
+
                 dotController.moveDot();
-                int randomValue = randomNumberProvider.getNextRandomNumber(); // Get a random number value from RandomNumberProvider
-                frame.setTitle(DOT_MOVER_DOTS + dotController.getDotCounter() + RANDOM_VALUE_STRING + randomValue + ")"); // Update the window title with the dot counter readings and the value of the random number
+
+                // Get a random number value from RandomNumberProvider
+                int randomValue = randomNumberProvider.getNextRandomNumber();
+
+                // Update the window title with the dot counter readings and the value of the random number
+                frame.setTitle(DOT_MOVER_DOTS + dotController.getDotCounter() + RANDOM_VALUE_STRING + randomValue + ")");
             });
 
             timer.start();
