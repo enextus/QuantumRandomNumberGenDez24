@@ -1,4 +1,4 @@
-# Three Dots Serpinski
+# Quantum Random Number Generator Serpinski
 
 ## Introduction
 
