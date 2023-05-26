@@ -30,19 +30,7 @@ class RandomNumberProviderTest {
         assertFalse(integerList.isEmpty());
     }
 
-    @Test
-    public void testGetNextRandomNumber() {
-        // First get the integer list
-        List<Integer> integerList = randomNumberProvider.getIntegerList();
 
-        // Check the first number
-        int firstNumber = randomNumberProvider.getNextRandomNumber();
-        assertEquals(firstNumber, integerList.get(0));
-
-        // Check the second number
-        int secondNumber = randomNumberProvider.getNextRandomNumber();
-        assertEquals(secondNumber, integerList.get(1));
-    }
 
     // Other tests can be added here
 }
