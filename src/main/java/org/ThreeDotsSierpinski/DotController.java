@@ -24,11 +24,9 @@ class DotController extends JPanel {
     public static final float DARKNESSFLOAT = 1 - TRANSPARENCYFLOAT;
     private final RandomNumberService qrngService;
     private static final int SIZE = 1000;
-    public static final int HEIGHT1 = 10;
-    public static final int WIDTH1 = 10;
     public static final int DELAY_TIME = 1000;
-    public static final int WIDTH2 = 10;
-    public static final int HEIGHT2 = 10;
+    public static final int DOTWIDTH = 10;
+    public static final int DOTHEIGHT = 10;
     Point dot;
     private final List<Dot> dots; //  list of dots
     private final RandomNumberProvider randomNumberGenerator;
@@ -68,13 +66,13 @@ class DotController extends JPanel {
                 c = new Color(0.0f, 0.0f, 0.0f, alpha);
 
             g2d.setColor(c);
-            g2d.fillOval(dot.point.x, dot.point.y, WIDTH2, HEIGHT2);
+            g2d.fillOval(dot.point.x, dot.point.y, DOTWIDTH, DOTHEIGHT);
         }
 
         if (!dots.isEmpty()) {
             g2d.setColor(new Color(255, 0, 0)); // bright red
             Dot lastDot = dots.get(dots.size() - 1);
-            g2d.fillOval(lastDot.point.x, lastDot.point.y, WIDTH2, HEIGHT2);
+            g2d.fillOval(lastDot.point.x, lastDot.point.y, DOTWIDTH, DOTHEIGHT);
         }
 
         Font myFont1 = new Font("Sans Serif", Font.ITALIC, 32); // adjust font name, style and size as needed
@@ -85,17 +83,30 @@ class DotController extends JPanel {
 
         g2d.setFont(myFont1);
         g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
-        String text = "Counter  ";
+
+        String text = "Counter2  ";
         int textX = SIZE - 50; // adjust these values to place the text in the desired location
         int textY = SIZE - 120;
 
-        g2d.drawString(text, textX, textY);
+        g2d.drawString(text, textX, textY); // "Counter  "
 
         g2d.setFont(myFont2);
         g2d.setColor(new Color(105, 105, 105, alpha2));  // dark gray text with adjusted transparency
         String counter = String.valueOf(getDotCounter()); // get the counter value as a string
         int counterX = textX + g2d.getFontMetrics(myFont1).stringWidth(text); // place the counter right after the text
         g2d.drawString(counter, counterX, textY);
+
+        // Добавленный код
+        g2d.setFont(myFont1);
+        g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
+        int textYNew = textY - 200; // place the new text 200 pixels above the old one
+
+        g2d.drawString(text, textX, textYNew);
+
+        g2d.setFont(myFont2);
+        g2d.setColor(new Color(105, 105, 105, alpha2));  // dark gray text with adjusted transparency
+        int counterXNew = counterX; // place the counter right after the new text
+        g2d.drawString(counter, counterXNew, textYNew);
 
         // do the same for the second line of text
         g2d.setFont(myFont1);
@@ -135,4 +146,3 @@ class DotController extends JPanel {
     }
 
 }
-
