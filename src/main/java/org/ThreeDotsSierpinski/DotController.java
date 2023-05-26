@@ -84,11 +84,13 @@ class DotController extends JPanel {
         g2d.setFont(myFont1);
         g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
 
-        String text = "Counter2  ";
+        String text = "Counter     ";
         int textX = SIZE - 50; // adjust these values to place the text in the desired location
         int textY = SIZE - 120;
 
         g2d.drawString(text, textX, textY); // "Counter  "
+
+        // ------------------------------------------------------------------------------------------------------//
 
         g2d.setFont(myFont2);
         g2d.setColor(new Color(105, 105, 105, alpha2));  // dark gray text with adjusted transparency
@@ -101,12 +103,15 @@ class DotController extends JPanel {
         g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
         int textYNew = textY - 200; // place the new text 200 pixels above the old one
 
-        g2d.drawString(text, textX, textYNew);
+        String text3 = "Duplicate  ";
+        g2d.drawString(text3, textX, textYNew);
 
         g2d.setFont(myFont2);
         g2d.setColor(new Color(105, 105, 105, alpha2));  // dark gray text with adjusted transparency
-        int counterXNew = counterX; // place the counter right after the new text
-        g2d.drawString(counter, counterXNew, textYNew);
+        String duplicateNumberStr = String.valueOf(RandomNumberGenerator.duplicateNumber); // get the duplicateNumber value as a string
+        int duplicateNumberX = textX + g2d.getFontMetrics(myFont1).stringWidth(text3); // place the duplicateNumber right after the text3
+        g2d.drawString(duplicateNumberStr, duplicateNumberX, textYNew); // print the duplicateNumber
+
 
         // do the same for the second line of text
         g2d.setFont(myFont1);
