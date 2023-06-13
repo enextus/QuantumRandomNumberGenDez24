@@ -69,31 +69,7 @@ public class RandomNumberGenerator {
             lib.qrng_disconnect();
             System.out.println("\n" + DISCONNECTED_FROM_THE_SERVICE);
         }
-
     }
-
-    /*    static void getIntegerArray(iQuantumRandomNumberGenerator lib) {
-            // Create an array to hold the integers returned by the RandomNumberGenerator
-            int[] intArray = new int[INT_AMOUNT];  // Change the size of this array based on your needs
-
-            // Create an IntByReference instance to hold the actual number of integers received
-            IntByReference actualIntsReceived = new IntByReference();
-
-            // Call the qrng_get_int_array method
-            int getArrayResult = lib.qrng_get_int_array(intArray, intArray.length, actualIntsReceived);
-
-            if (getArrayResult != 0) {
-                // Failed to get integer array, handle this case
-                System.out.println(FAILED_TO_GET_INTEGER_ARRAY);
-            } else {
-                // Successfully got the integer array, print it
-                System.out.println(RECEIVED + actualIntsReceived.getValue() + INTEGERS_FROM_THE_QRNG);
-                for (int i = 0; i < actualIntsReceived.getValue(); i++) {
-                    System.out.println(intArray[i]);
-                }
-            }
-
-        }*/
 
     static void getIntegerArray(iQuantumRandomNumberGenerator lib) {
         // Create an array to hold the integers returned by the RandomNumberGenerator
@@ -118,7 +94,6 @@ public class RandomNumberGenerator {
             // Check for duplicate numbers
             checkUniqueNumbers(intArray);
         }
-
     }
 
     public static void checkUniqueNumbers(int[] numbers) {
