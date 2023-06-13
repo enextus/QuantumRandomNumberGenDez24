@@ -104,7 +104,7 @@ class DotController extends JPanel {
         g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
         int textYNew = textY - 200; // place the new text 200 pixels above the old one
 
-        String text3 = "Last duplicate value ";
+        String text3 = "Last duplicates value    "; // the last value from a set of duplicate values
         g2d.drawString(text3, textX, textYNew);
 
         g2d.setFont(myFont2);
