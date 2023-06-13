@@ -23,7 +23,7 @@ class DotController extends JPanel {
     public static final float TRANSPARENCYFLOAT = 0.85f;
     public static final float DARKNESSFLOAT = 1 - TRANSPARENCYFLOAT;
     private final RandomNumberService qrngService;
-    private static final int SIZE = 1000;
+    private static final int SIZE = 925;
     public static final int DELAY_TIME = 1000;
     public static final int DOTWIDTH = 10;
     public static final int DOTHEIGHT = 10;
