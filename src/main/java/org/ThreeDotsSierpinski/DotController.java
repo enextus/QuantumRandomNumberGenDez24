@@ -17,6 +17,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
+
 class DotController extends JPanel {
     private String duplicateMessage = "";
     public static final float RANGETIMEFLOAT = 90f;
@@ -25,8 +26,8 @@ class DotController extends JPanel {
     private final RandomNumberService qrngService;
     private static final int SIZE = 925;
     public static final int DELAY_TIME = 1000;
-    public static final int DOTWIDTH = 10;
-    public static final int DOTHEIGHT = 10;
+    public static final int DOTWIDTH = 7;
+    public static final int DOTHEIGHT = 7;
     Point dot;
     private final List<Dot> dots; //  list of dots
     private final RandomNumberProvider randomNumberGenerator;
@@ -103,7 +104,7 @@ class DotController extends JPanel {
         g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
         int textYNew = textY - 200; // place the new text 200 pixels above the old one
 
-        String text3 = "Duplicate  ";
+        String text3 = "Last duplicate value ";
         g2d.drawString(text3, textX, textYNew);
 
         g2d.setFont(myFont2);
