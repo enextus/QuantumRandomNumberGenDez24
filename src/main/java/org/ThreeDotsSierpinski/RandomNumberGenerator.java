@@ -7,9 +7,7 @@ import com.sun.jna.ptr.IntByReference;
 import java.io.IOException;
 import java.io.InputStream;
 
-import java.util.HashSet;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 
 public class RandomNumberGenerator {
     protected static final int INT_AMOUNT = 100000;
@@ -25,8 +23,8 @@ public class RandomNumberGenerator {
     protected static final String INTEGERS_FROM_THE_QRNG = " integers from the RandomNumberGenerator: ";
     protected static final String LIB_QRNG_DLL_NAME = "libQRNG.dll";
     protected static final String LIB_LIB_QRNG_DLL_PATH = "lib/" + LIB_QRNG_DLL_NAME;
-    public static final String DUPLICATE_NUMBER = "Duplicate number: ";
     public static int duplicateNumber = 0;
+    private static final String DUPLICATE_MESSAGE = "Duplicate number: ";
 
     public interface iQuantumRandomNumberGenerator extends Library {
         iQuantumRandomNumberGenerator INSTANCE = Native.load(LIB_LIB_QRNG_DLL_PATH, iQuantumRandomNumberGenerator.class);
@@ -96,15 +94,23 @@ public class RandomNumberGenerator {
         }
     }
 
-    public static void checkUniqueNumbers(int[] numbers) {
-        Set<Integer> seenNumbers = new HashSet<>();
-        for (int duplicateNumber : numbers) {
-            if (!seenNumbers.add(duplicateNumber)) {
-                String duplicateMessage = DUPLICATE_NUMBER + duplicateNumber;
-                System.out.println(duplicateMessage);
-                // обновляем значение duplicateNumber
-                RandomNumberGenerator.duplicateNumber = duplicateNumber;
-            }
+    public static int[] checkUniqueNumbers(int[] numbers) {
+
+        Set<Integer> seenNumbers = new LinkedHashSet<>();
+        List<Integer> duplicateNumbers = new ArrayList<>();
+
+        for (int number : numbers) {
+            if (!seenNumbers.add(number)) duplicateNumbers.add(number);
+        }
+
+        printDuplicateNumbers(duplicateNumbers);
+
+        return duplicateNumbers.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    private static void printDuplicateNumbers(List<Integer> duplicateNumbers) {
+        for (int number : duplicateNumbers) {
+            System.out.println(DUPLICATE_MESSAGE + number);
         }
     }
 

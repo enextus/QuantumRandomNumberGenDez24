@@ -5,9 +5,7 @@ import com.sun.jna.ptr.IntByReference;
 import java.io.IOException;
 import java.io.InputStream;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.*;
 
 import org.jetbrains.annotations.NotNull;
@@ -27,6 +25,7 @@ class RandomNumberProvider {
 
     void getNextValue(List<Integer> values) {
         RandomNumberGenerator.iQuantumRandomNumberGenerator lib = RandomNumberGenerator.iQuantumRandomNumberGenerator.INSTANCE;
+        Set<Integer> seenNumbers = new HashSet<>();
 
         Properties prop = new Properties();
         String username = RandomNumberGenerator.EMPTYSTRING, password = RandomNumberGenerator.EMPTYSTRING;
@@ -57,7 +56,13 @@ class RandomNumberProvider {
                 System.out.println(RandomNumberGenerator.FAILED_TO_GET_INTEGER_ARRAY);
             } else {
                 for (int i = 0; i < actualIntsReceived.getValue(); i++) {
-                    values.add(intArray[i]);
+                    if (seenNumbers.contains(intArray[i])) {
+                        RandomNumberGenerator.duplicateNumber = intArray[i];
+                        System.out.println("Duplicate number found: " + intArray[i]);
+                    } else {
+                        seenNumbers.add(intArray[i]);
+                        values.add(intArray[i]);
+                    }
                 }
             }
 

@@ -48,6 +48,7 @@ public class RandomNumberGeneratorTest {
 
     @Test
     void getAndPrintIntegerArray_failure() {
+
         int[] intArray = new int[RandomNumberGenerator.INT_AMOUNT];
         IntByReference actualIntsReceived = new IntByReference();
 
