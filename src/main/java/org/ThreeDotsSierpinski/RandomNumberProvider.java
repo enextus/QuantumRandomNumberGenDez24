@@ -13,12 +13,17 @@ import org.jetbrains.annotations.NotNull;
 import static org.ThreeDotsSierpinski.RandomNumberGenerator.checkResult;
 
 class RandomNumberProvider {
+    public static int getDuplicateNumbersCount() {
+        return duplicateNumbersCount;
+    }
+
+    private static int duplicateNumbersCount;
     private final List<Integer> integerList;
     private int currentIndex;
     private final ExecutorService executorService;
     private Future<List<Integer>> futureValues;
 
-    public RandomNumberProvider(RandomNumberService qrngService) {
+    public RandomNumberProvider() {
         integerList = getIntegerList();
         executorService = Executors.newSingleThreadExecutor();
     }
@@ -49,16 +54,24 @@ class RandomNumberProvider {
 
             int[] intArray = new int[RandomNumberGenerator.INT_AMOUNT];
             IntByReference actualIntsReceived = new IntByReference();
-
             int getArrayResult = lib.qrng_connect_and_get_int_array(username, password, intArray, intArray.length, actualIntsReceived);
 
             if (getArrayResult != 0) {
                 System.out.println(RandomNumberGenerator.FAILED_TO_GET_INTEGER_ARRAY);
             } else {
+
                 for (int i = 0; i < actualIntsReceived.getValue(); i++) {
+
+
+
                     if (seenNumbers.contains(intArray[i])) {
-                        RandomNumberGenerator.duplicateNumber = intArray[i];
+                        RandomNumberGenerator.lastDuplicateNumber = intArray[i];
                         System.out.println("Duplicate number found: " + intArray[i]);
+                        System.out.println("Duplicate number found: " + intArray[i]);
+                        System.out.println("Last duplicate numbers value: " + RandomNumberGenerator.getLastDuplicateNumber());
+                        System.out.println("Seen numbers count: " + seenNumbers.size());
+                        duplicateNumbersCount++;
+                        System.out.println("duplicateNumbersCount   " + getDuplicateNumbersCount());
                     } else {
                         seenNumbers.add(intArray[i]);
                         values.add(intArray[i]);

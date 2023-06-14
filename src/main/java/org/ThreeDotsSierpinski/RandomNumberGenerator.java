@@ -10,7 +10,7 @@ import java.io.InputStream;
 import java.util.*;
 
 public class RandomNumberGenerator {
-    protected static final int INT_AMOUNT = 100000;
+    protected static final int INT_AMOUNT = 50000;
     protected static final String CONFIG_FILE_PATH = "config.properties";
     protected static final String CONNECTION_FAILED = "Connection failed!";
     protected static final String DISCONNECTED_FROM_THE_SERVICE = "Disconnected from the service.";
@@ -23,12 +23,12 @@ public class RandomNumberGenerator {
     protected static final String INTEGERS_FROM_THE_QRNG = " integers from the RandomNumberGenerator: ";
     protected static final String LIB_QRNG_DLL_NAME = "libQRNG.dll";
     protected static final String LIB_LIB_QRNG_DLL_PATH = "lib/" + LIB_QRNG_DLL_NAME;
-    public static int duplicateNumber = 0;
     private static final String DUPLICATE_MESSAGE = "******* Duplicate number: ";
-    public static int duplicateNumbersCount;
+    public static int duplicateNumbersCount2;
+    public static int lastDuplicateNumber;
 
-    public RandomNumberGenerator() {
-        duplicateNumbersCount = 0;
+    public static int getLastDuplicateNumber() {
+        return lastDuplicateNumber;
     }
 
     public interface iQuantumRandomNumberGenerator extends Library {
@@ -44,6 +44,8 @@ public class RandomNumberGenerator {
     }
 
     public static void main(String[] args) {
+
+
 
         iQuantumRandomNumberGenerator lib = iQuantumRandomNumberGenerator.INSTANCE;
 
@@ -68,15 +70,22 @@ public class RandomNumberGenerator {
         }
 
         if (checkResult(lib.qrng_connect(username, password))) {
+
             getIntegerArray(lib);
             lib.qrng_disconnect();
             System.out.println("\n" + DISCONNECTED_FROM_THE_SERVICE);
         }
+
+        System.out.println( "      ---  ISCONNECTED_FROM_THE_SERVICE   " + "      ---     ");
     }
 
     static void getIntegerArray(iQuantumRandomNumberGenerator lib) {
         // Create an array to hold the integers returned by the RandomNumberGenerator
         int[] intArray = new int[INT_AMOUNT];  // Change the size of this array based on your needs
+
+        for (int ar : intArray) {
+            System.out.println(ar);
+        }
 
         // Create an IntByReference instance to hold the actual number of integers received
         IntByReference actualIntsReceived = new IntByReference();
@@ -95,30 +104,37 @@ public class RandomNumberGenerator {
             }
 
             // Check for duplicate numbers
+            System.out.println("GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG");
             checkUniqueNumbers(intArray);
         }
     }
 
-    public static int[] checkUniqueNumbers(int[] numbers) {
-
+    public static void checkUniqueNumbers(int[] numbers) {
         Set<Integer> seenNumbers = new LinkedHashSet<>();
         List<Integer> duplicateNumbers = new ArrayList<>();
 
         for (int number : numbers) {
-            if (!seenNumbers.add(number)) duplicateNumbers.add(number);
+            System.out.println("22  ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ");
+            if (!seenNumbers.add(number)) {
+                duplicateNumbers.add(number);
+                duplicateNumbersCount2++;  // увеличиваем счетчик дубликатов
+                System.out.println("333  ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ");
+            }
         }
 
         printDuplicateNumbers(duplicateNumbers);
-
-        return duplicateNumbers.stream().mapToInt(Integer::intValue).toArray();
+        duplicateNumbers.stream().mapToInt(Integer::intValue).toArray();
     }
 
     private static void printDuplicateNumbers(List<Integer> duplicateNumbers) {
+
+        System.out.println( "      ---     " + duplicateNumbers.isEmpty() + "      ---     ");
+
         for (int number : duplicateNumbers) {
 
             // duplicateNumbers
 
-           //  System.out.println(duplicateNumbers.isEmpty() + "      ---     ");
+           System.out.println( "      ---     " + duplicateNumbers.isEmpty() + "      ---     ");
 
             System.out.println(DUPLICATE_MESSAGE + number);
         }

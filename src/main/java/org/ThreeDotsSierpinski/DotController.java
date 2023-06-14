@@ -30,17 +30,21 @@ class DotController extends JPanel {
     public static final int DOTHEIGHT = 7;
     Point dot;
     private final List<Dot> dots; //  list of dots
-    private final RandomNumberProvider randomNumberGenerator;
+    private final RandomNumberProvider randomNumberProvider;
     private int dotCounter; // counter of the number of dots
+    private static int duplicateNumber;
+
 
     public DotController(RandomNumberService qrngService) {
         setPreferredSize(new Dimension(SIZE, SIZE));
         dot = new Point(SIZE / 2, SIZE / 2);
         dots = new ArrayList<>();
         this.qrngService = qrngService;
-        randomNumberGenerator = new RandomNumberProvider(this.qrngService);
+        randomNumberProvider = new RandomNumberProvider();
         dotCounter = 0;
+        duplicateNumber=0;
         setBackground(new Color(176, 224, 230));
+
     }
 
     public int getDotCounter() {
@@ -85,7 +89,7 @@ class DotController extends JPanel {
         g2d.setFont(myFont1);
         g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
 
-        String text = "Counter     ";
+        String text = "Dots count     ";
         int textX = SIZE - 50; // adjust these values to place the text in the desired location
         int textY = SIZE - 120;
 
@@ -99,7 +103,6 @@ class DotController extends JPanel {
         int counterX = textX + g2d.getFontMetrics(myFont1).stringWidth(text); // place the counter right after the text
         g2d.drawString(counter, counterX, textY);
 
-        // Добавленный код
         g2d.setFont(myFont1);
         g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
         int textYNew = textY - 200; // place the new text 200 pixels above the old one
@@ -109,11 +112,10 @@ class DotController extends JPanel {
 
         g2d.setFont(myFont2);
         g2d.setColor(new Color(105, 105, 105, alpha2));  // dark gray text with adjusted transparency
-        String duplicateNumberStr = String.valueOf(RandomNumberGenerator.duplicateNumber); // get the duplicateNumber value as a string
+        String duplicateNumberStr = String.valueOf(RandomNumberGenerator.lastDuplicateNumber); // get the duplicateNumber value as a string
         int duplicateNumberX = textX + g2d.getFontMetrics(myFont1).stringWidth(text3); // place the duplicateNumber right after the text3
         g2d.drawString(duplicateNumberStr, duplicateNumberX, textYNew); // print the duplicateNumber
 
-        // New code
         g2d.setFont(myFont1);
         g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
         int textYNew2 = textYNew - 100; // place the new text 100 pixels above the old one
@@ -123,9 +125,9 @@ class DotController extends JPanel {
 
         g2d.setFont(myFont2);
         g2d.setColor(new Color(105, 105, 105, alpha2));  // dark gray text with adjusted transparency
-        String duplicateCountStr = String.valueOf(RandomNumberGenerator.duplicateNumbersCount); // get the duplicateNumbersCount value as a string
-        int duplicateCountX = textX + g2d.getFontMetrics(myFont1).stringWidth(text4); // place the duplicateCount right after the text4
-        g2d.drawString(duplicateCountStr, duplicateCountX, textYNew2); // print the duplicateCount
+        String duplicateCountStr = String.valueOf(RandomNumberProvider.getDuplicateNumbersCount()); // get the duplicateNumbersCount value as a string
+        int duplicateCountX = textX + g2d.getFontMetrics(myFont1).stringWidth(text4); // place the duplicateNumbersCount right after the text4
+        g2d.drawString(duplicateCountStr, duplicateCountX, textYNew2); // print the duplicateNumbersCount
 
         // do the same for the second line of text
         g2d.setFont(myFont1);
@@ -139,13 +141,13 @@ class DotController extends JPanel {
 
         g2d.setFont(myFont2);
         g2d.setColor(new Color(105, 105, 105, alpha2));  // dark gray text with adjusted transparency
-        String value = String.valueOf(randomNumberGenerator.getNextRandomNumber()); // get the dice value as a string
+        String value = String.valueOf(randomNumberProvider.getNextRandomNumber()); // get the dice value as a string
         int valueX = textX2 + g2d.getFontMetrics(myFont1).stringWidth(text2); // place the value right after the text
         g2d.drawString(value, valueX, textY2);
     }
 
     public void moveDot() {
-        int roll = randomNumberGenerator.getNextRandomNumber();
+        int roll = randomNumberProvider.getNextRandomNumber();
 
         if (roll <= Integer.MIN_VALUE / 3 || roll > Integer.MAX_VALUE / 3 * 2) {
             dot.x = dot.x / 2;
