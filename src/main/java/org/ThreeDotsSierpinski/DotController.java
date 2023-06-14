@@ -30,7 +30,7 @@ class DotController extends JPanel {
     private final List<Dot> dots; //  list of dots
     private final RandomNumberProvider randomNumberProvider;
     private int dotCounter; // counter of the number of dots
-    public DotController(RandomNumberService qrngService) {
+    public DotController() {
         setPreferredSize(new Dimension(SIZE, SIZE));
         dot = new Point(SIZE / 2, SIZE / 2);
         dots = new ArrayList<>();

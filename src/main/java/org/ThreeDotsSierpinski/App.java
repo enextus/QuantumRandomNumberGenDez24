@@ -10,8 +10,7 @@ public class App {
 
     public static void main(String[] args) {
 
-        RandomNumberService RandomNumberService = new RandomNumberService();
-        DotController dotController = new DotController(RandomNumberService);
+        DotController dotController = new DotController();
 
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame(DOT_MOVER);
