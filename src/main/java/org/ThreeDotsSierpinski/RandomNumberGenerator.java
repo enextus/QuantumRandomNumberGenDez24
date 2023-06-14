@@ -24,7 +24,12 @@ public class RandomNumberGenerator {
     protected static final String LIB_QRNG_DLL_NAME = "libQRNG.dll";
     protected static final String LIB_LIB_QRNG_DLL_PATH = "lib/" + LIB_QRNG_DLL_NAME;
     public static int duplicateNumber = 0;
-    private static final String DUPLICATE_MESSAGE = "Duplicate number: ";
+    private static final String DUPLICATE_MESSAGE = "******* Duplicate number: ";
+    public static int duplicateNumbersCount;
+
+    public RandomNumberGenerator() {
+        duplicateNumbersCount = 0;
+    }
 
     public interface iQuantumRandomNumberGenerator extends Library {
         iQuantumRandomNumberGenerator INSTANCE = Native.load(LIB_LIB_QRNG_DLL_PATH, iQuantumRandomNumberGenerator.class);
@@ -110,6 +115,11 @@ public class RandomNumberGenerator {
 
     private static void printDuplicateNumbers(List<Integer> duplicateNumbers) {
         for (int number : duplicateNumbers) {
+
+            // duplicateNumbers
+
+           //  System.out.println(duplicateNumbers.isEmpty() + "      ---     ");
+
             System.out.println(DUPLICATE_MESSAGE + number);
         }
     }
