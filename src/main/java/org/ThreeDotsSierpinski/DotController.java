@@ -17,13 +17,11 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
-
 class DotController extends JPanel {
-    private String duplicateMessage = "";
+    private final String duplicateMessage = "";
     public static final float RANGETIMEFLOAT = 90f;
     public static final float TRANSPARENCYFLOAT = 0.85f;
     public static final float DARKNESSFLOAT = 1 - TRANSPARENCYFLOAT;
-    private final RandomNumberService qrngService;
     private static final int SIZE = 925;
     public static final int DELAY_TIME = 1000;
     public static final int DOTWIDTH = 7;
@@ -32,19 +30,14 @@ class DotController extends JPanel {
     private final List<Dot> dots; //  list of dots
     private final RandomNumberProvider randomNumberProvider;
     private int dotCounter; // counter of the number of dots
-    private static int duplicateNumber;
-
-
     public DotController(RandomNumberService qrngService) {
         setPreferredSize(new Dimension(SIZE, SIZE));
         dot = new Point(SIZE / 2, SIZE / 2);
         dots = new ArrayList<>();
-        this.qrngService = qrngService;
         randomNumberProvider = new RandomNumberProvider();
         dotCounter = 0;
-        duplicateNumber=0;
+        int duplicateNumber = 0;
         setBackground(new Color(176, 224, 230));
-
     }
 
     public int getDotCounter() {

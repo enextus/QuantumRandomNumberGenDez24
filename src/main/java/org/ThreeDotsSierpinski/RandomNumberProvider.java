@@ -67,7 +67,6 @@ class RandomNumberProvider {
                     if (seenNumbers.contains(intArray[i])) {
                         RandomNumberGenerator.lastDuplicateNumber = intArray[i];
                         System.out.println("Duplicate number found: " + intArray[i]);
-                        System.out.println("Duplicate number found: " + intArray[i]);
                         System.out.println("Last duplicate numbers value: " + RandomNumberGenerator.getLastDuplicateNumber());
                         System.out.println("Seen numbers count: " + seenNumbers.size());
                         duplicateNumbersCount++;
