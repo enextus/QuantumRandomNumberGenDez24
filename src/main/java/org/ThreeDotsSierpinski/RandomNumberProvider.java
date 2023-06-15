@@ -59,18 +59,10 @@ class RandomNumberProvider {
             if (getArrayResult != 0) {
                 System.out.println(RandomNumberGenerator.FAILED_TO_GET_INTEGER_ARRAY);
             } else {
-
                 for (int i = 0; i < actualIntsReceived.getValue(); i++) {
-
-
-
                     if (seenNumbers.contains(intArray[i])) {
                         RandomNumberGenerator.lastDuplicateNumber = intArray[i];
-                        System.out.println("Duplicate number found: " + intArray[i]);
-                        System.out.println("Last duplicate numbers value: " + RandomNumberGenerator.getLastDuplicateNumber());
-                        System.out.println("Seen numbers count: " + seenNumbers.size());
                         duplicateNumbersCount++;
-                        System.out.println("duplicateNumbersCount   " + getDuplicateNumbersCount());
                     } else {
                         seenNumbers.add(intArray[i]);
                         values.add(intArray[i]);
