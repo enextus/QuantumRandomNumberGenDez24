@@ -82,7 +82,13 @@ class RandomNumberProvider {
         return values;
     }
 
+    public boolean isNumberDuplicatedInList(int number) {
+        return Collections.frequency(integerList, number) >= 2;
+    }
+
+
     public int getNextRandomNumber() {
+        System.out.println(" integerList.size():  " +integerList.size());
         if (currentIndex >= integerList.size()) {
             if (futureValues != null && futureValues.isDone()) {
                 try {

@@ -29,7 +29,7 @@ public class RandomNumberGenerator {
 
         void qrng_disconnect();
 
-        int qrng_get_int_array(int[] int_array, int int_array_size, IntByReference actual_ints_rcvd);
+//        int qrng_get_int_array(int[] int_array, int int_array_size, IntByReference actual_ints_rcvd);
 
         int qrng_connect_and_get_int_array(String username, String password, int[] int_array, int int_array_size, IntByReference actual_ints_rcvd);
     }
