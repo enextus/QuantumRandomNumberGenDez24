@@ -118,7 +118,10 @@ class DotController extends JPanel {
 
         g2d.setFont(myFont2);
         g2d.setColor(new Color(105, 105, 105, alpha2));  // dark gray text with adjusted transparency
-        String duplicateCountStr = String.valueOf(RandomNumberProvider.getDuplicateNumbersCount()); // get the duplicateNumbersCount value as a string
+        // String duplicateCountStr = String.valueOf(RandomNumberProvider.getDuplicateNumbersCount()); // get the duplicateNumbersCount value as a string
+
+        String duplicateCountStr = String.valueOf(App.getFrequencyCount()); // get the duplicateNumbersCount value as a string
+
         int duplicateCountX = textX + g2d.getFontMetrics(myFont1).stringWidth(text4); // place the duplicateNumbersCount right after the text4
         g2d.drawString(duplicateCountStr, duplicateCountX, textYNew2); // print the duplicateNumbersCount
 

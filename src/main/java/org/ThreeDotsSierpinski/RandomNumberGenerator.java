@@ -10,7 +10,7 @@ import java.io.InputStream;
 import java.util.*;
 
 public class RandomNumberGenerator {
-    protected static final int INT_AMOUNT = 10000;
+    protected static final int INT_AMOUNT = 100000;
     protected static final String CONFIG_FILE_PATH = "config.properties";
     protected static final String CONNECTION_FAILED = "Connection failed!";
     protected static final String SORRY_UNABLE_TO_FIND = "Sorry, unable to find ";

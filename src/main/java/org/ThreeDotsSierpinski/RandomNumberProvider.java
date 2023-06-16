@@ -86,7 +86,6 @@ class RandomNumberProvider {
         return Collections.frequency(integerList, number) >= 2;
     }
 
-
     public int getNextRandomNumber() {
         System.out.println(" integerList.size():  " +integerList.size());
         if (currentIndex >= integerList.size()) {
