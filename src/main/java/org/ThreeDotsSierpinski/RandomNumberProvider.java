@@ -22,7 +22,6 @@ class RandomNumberProvider {
     private int currentIndex;
     private final ExecutorService executorService;
     private Future<List<Integer>> futureValues;
-
     public RandomNumberProvider() {
         integerList = getIntegerList();
         executorService = Executors.newSingleThreadExecutor();

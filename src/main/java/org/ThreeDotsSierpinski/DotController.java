@@ -88,8 +88,6 @@ class DotController extends JPanel {
 
         g2d.drawString(text, textX, textY); // "Counter  "
 
-        // ------------------------------------------------------------------------------------------------------//
-
         g2d.setFont(myFont2);
         g2d.setColor(new Color(105, 105, 105, alpha2));  // dark gray text with adjusted transparency
         String counter = String.valueOf(getDotCounter()); // get the counter value as a string

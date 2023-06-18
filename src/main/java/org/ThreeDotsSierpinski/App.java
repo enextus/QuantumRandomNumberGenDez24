@@ -8,7 +8,6 @@ public class App {
     public static final String RANDOM_VALUE_STRING = "Random Value: ";
     public static final int DELAY = 0; // 5000 for slow
     public static int frequencyCount = 0;
-
     public static int getFrequencyCount() {
         return frequencyCount;
     }
@@ -32,7 +31,6 @@ public class App {
 
                 // Get a random number value from RandomNumberProvider
                 int randomValue = randomNumberProvider.getNextRandomNumber();
-
                 boolean  frequencyStatus = randomNumberProvider.isNumberDuplicatedInList(randomValue);
 
                 if ( frequencyStatus ) frequencyCount++;
