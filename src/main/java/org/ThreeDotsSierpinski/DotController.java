@@ -19,6 +19,9 @@ import java.util.*;
 import java.util.List;
 
 class DotController extends JPanel {
+    public static final String TEXT_2 = "Number    ";
+    public static final String LAST_DUPLICATES_VALUE = "Last duplicates value    ";
+    public static final String COUNTER = "Counter     ";
     private String duplicateMessage = "";
     public static final float RANGETIMEFLOAT = 90f;
     public static final float TRANSPARENCYFLOAT = 0.85f;
@@ -28,6 +31,7 @@ class DotController extends JPanel {
     public static final int DELAY_TIME = 1000;
     public static final int DOTWIDTH = 7;
     public static final int DOTHEIGHT = 7;
+    public static final String TEXT_33 = "Duplicates count     ";
     Point dot;
     private final List<Dot> dots; //  list of dots
     private final RandomNumberProvider randomNumberGenerator;
@@ -40,6 +44,7 @@ class DotController extends JPanel {
         this.qrngService = qrngService;
         randomNumberGenerator = new RandomNumberProvider(this.qrngService);
         dotCounter = 0;
+
         setBackground(new Color(176, 224, 230));
     }
 
@@ -85,7 +90,7 @@ class DotController extends JPanel {
         g2d.setFont(myFont1);
         g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
 
-        String text = "Counter     ";
+        String text = COUNTER;
         int textX = SIZE - 50; // adjust these values to place the text in the desired location
         int textY = SIZE - 120;
 
@@ -104,7 +109,7 @@ class DotController extends JPanel {
         g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
         int textYNew = textY - 200; // place the new text 200 pixels above the old one
 
-        String text3 = "Last duplicates value    "; // the last value from a set of duplicate values
+        String text3 = LAST_DUPLICATES_VALUE; // the last value from a set of duplicate values
         g2d.drawString(text3, textX, textYNew);
 
         g2d.setFont(myFont2);
@@ -118,7 +123,7 @@ class DotController extends JPanel {
         g2d.setFont(myFont1);
         g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
 
-        String text2 = "Number    ";
+        String text2 = TEXT_2;
         int textX2 = SIZE - 50; // adjust these values to place the text in the desired location
         int textY2 = SIZE - 30;
 
@@ -129,6 +134,28 @@ class DotController extends JPanel {
         String value = String.valueOf(randomNumberGenerator.getNextRandomNumber()); // get the dice value as a string
         int valueX = textX2 + g2d.getFontMetrics(myFont1).stringWidth(text2); // place the value right after the text
         g2d.drawString(value, valueX, textY2);
+
+
+        // ----
+
+        // do the same for the second line of text
+        g2d.setFont(myFont1);
+        g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
+
+        String text33 = TEXT_33;
+        int textX3 = SIZE - 250; // adjust these values to place the text in the desired location
+        int textY3 = SIZE - 230;
+
+        g2d.drawString(text33, textX3, textY3);
+
+        g2d.setFont(myFont2);
+        g2d.setColor(new Color(105, 105, 105, alpha2));  // dark gray text with adjusted transparency
+        int value3 = RandomNumberProvider.getDuplicatesCount(); // get the dice value as a string
+        int valueX3 = textX2 + g2d.getFontMetrics(myFont1).stringWidth(text3); // place the value right after the text
+
+        System.out.println("value3 " + value3);
+
+        g2d.drawString(Integer.toString(value3), valueX3, textY3);
     }
 
     public void moveDot() {

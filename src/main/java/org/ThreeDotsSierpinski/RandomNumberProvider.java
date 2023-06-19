@@ -18,9 +18,18 @@ class RandomNumberProvider {
     private final ExecutorService executorService;
     private Future<List<Integer>> futureValues;
 
+
+    public static int getDuplicatesCount() {
+        return duplicatesCount;
+    }
+
+    static int duplicatesCount; // now it's a static field
+
+
     public RandomNumberProvider(RandomNumberService qrngService) {
         integerList = getIntegerList();
         executorService = Executors.newSingleThreadExecutor();
+        duplicatesCount = 0; // initialize new field
     }
 
     void getNextValue(List<Integer> values) {
@@ -52,6 +61,7 @@ class RandomNumberProvider {
 
             int getArrayResult = lib.qrng_connect_and_get_int_array(username, password, intArray, intArray.length, actualIntsReceived);
 
+
             if (getArrayResult != 0) {
                 System.out.println(RandomNumberGenerator.FAILED_TO_GET_INTEGER_ARRAY);
             } else {
@@ -59,6 +69,9 @@ class RandomNumberProvider {
                     if (seenNumbers.contains(intArray[i])) {
                         RandomNumberGenerator.duplicateNumber = intArray[i];
                         System.out.println("Duplicate number found: " + intArray[i]);
+
+                        duplicatesCount++; // increment duplicates count
+                        System.out.println("duplicatesCount: " + duplicatesCount);
                     } else {
                         seenNumbers.add(intArray[i]);
                         values.add(intArray[i]);
