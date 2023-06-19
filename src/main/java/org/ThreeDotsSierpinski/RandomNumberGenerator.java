@@ -13,18 +13,14 @@ public class RandomNumberGenerator {
     protected static final int INT_AMOUNT = 100000;
     protected static final String CONFIG_FILE_PATH = "config.properties";
     protected static final String CONNECTION_FAILED = "Connection failed!";
-    protected static final String DISCONNECTED_FROM_THE_SERVICE = "Disconnected from the service.";
     protected static final String SORRY_UNABLE_TO_FIND = "Sorry, unable to find ";
     protected static final String USERNAME = "username";
     protected static final String PASSWORD = "password";
     protected static final String EMPTYSTRING = "";
     protected static final String FAILED_TO_GET_INTEGER_ARRAY = "Failed to get integer array!";
-    protected static final String RECEIVED = "Received ";
-    protected static final String INTEGERS_FROM_THE_QRNG = " integers from the RandomNumberGenerator: ";
     protected static final String LIB_QRNG_DLL_NAME = "libQRNG.dll";
     protected static final String LIB_LIB_QRNG_DLL_PATH = "lib/" + LIB_QRNG_DLL_NAME;
-    public static int duplicateNumber = 0;
-    private static final String DUPLICATE_MESSAGE = "Duplicate number: ";
+    public static int lastDuplicateNumber;
 
     public interface iQuantumRandomNumberGenerator extends Library {
         iQuantumRandomNumberGenerator INSTANCE = Native.load(LIB_LIB_QRNG_DLL_PATH, iQuantumRandomNumberGenerator.class);
@@ -33,85 +29,9 @@ public class RandomNumberGenerator {
 
         void qrng_disconnect();
 
-        int qrng_get_int_array(int[] int_array, int int_array_size, IntByReference actual_ints_rcvd);
+//        int qrng_get_int_array(int[] int_array, int int_array_size, IntByReference actual_ints_rcvd);
 
         int qrng_connect_and_get_int_array(String username, String password, int[] int_array, int int_array_size, IntByReference actual_ints_rcvd);
-    }
-
-    public static void main(String[] args) {
-
-        iQuantumRandomNumberGenerator lib = iQuantumRandomNumberGenerator.INSTANCE;
-
-        Properties prop = new Properties();
-
-        String username = EMPTYSTRING, password = EMPTYSTRING;
-
-        try (InputStream input = RandomNumberGenerator.class.getClassLoader().getResourceAsStream(CONFIG_FILE_PATH)) {
-
-            if (input == null) {
-                System.out.println(SORRY_UNABLE_TO_FIND + CONFIG_FILE_PATH);
-                System.exit(-1);
-            }
-
-            prop.load(input);
-            username = prop.getProperty(USERNAME);
-            password = prop.getProperty(PASSWORD);
-
-        } catch (IOException ex) {
-            ex.printStackTrace();
-            System.exit(-1);
-        }
-
-        if (checkResult(lib.qrng_connect(username, password))) {
-            getIntegerArray(lib);
-            lib.qrng_disconnect();
-            System.out.println("\n" + DISCONNECTED_FROM_THE_SERVICE);
-        }
-    }
-
-    static void getIntegerArray(iQuantumRandomNumberGenerator lib) {
-        // Create an array to hold the integers returned by the RandomNumberGenerator
-        int[] intArray = new int[INT_AMOUNT];  // Change the size of this array based on your needs
-
-        // Create an IntByReference instance to hold the actual number of integers received
-        IntByReference actualIntsReceived = new IntByReference();
-
-        // Call the qrng_get_int_array method
-        int getArrayResult = lib.qrng_get_int_array(intArray, intArray.length, actualIntsReceived);
-
-        if (getArrayResult != 0) {
-            // Failed to get integer array, handle this case
-            System.out.println(FAILED_TO_GET_INTEGER_ARRAY);
-        } else {
-            // Successfully got the integer array, print it
-            System.out.println(RECEIVED + actualIntsReceived.getValue() + INTEGERS_FROM_THE_QRNG);
-            for (int i = 0; i < actualIntsReceived.getValue(); i++) {
-                System.out.println(intArray[i]);
-            }
-
-            // Check for duplicate numbers
-            checkUniqueNumbers(intArray);
-        }
-    }
-
-    public static int[] checkUniqueNumbers(int[] numbers) {
-
-        Set<Integer> seenNumbers = new LinkedHashSet<>();
-        List<Integer> duplicateNumbers = new ArrayList<>();
-
-        for (int number : numbers) {
-            if (!seenNumbers.add(number)) duplicateNumbers.add(number);
-        }
-
-        printDuplicateNumbers(duplicateNumbers);
-
-        return duplicateNumbers.stream().mapToInt(Integer::intValue).toArray();
-    }
-
-    private static void printDuplicateNumbers(List<Integer> duplicateNumbers) {
-        for (int number : duplicateNumbers) {
-            System.out.println(DUPLICATE_MESSAGE + number);
-        }
     }
 
     static boolean checkResult(int result) {

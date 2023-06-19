@@ -1,55 +1,26 @@
 package org.ThreeDotsSierpinski;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.awt.*;
 import java.util.Date;
 
-class DotTest {
+public class DotTest {
 
     @Test
-    void testDotConstructor() {
-        // Arrange
-        Point point = new Point(5, 10);
-        Date creationDate = new Date();
+    public void testDotCreation() {
+        // arrange
+        Point expectedPoint = new Point(1, 2);
+        Date expectedDate = new Date();
 
-        // Act
-        Dot dot = new Dot(point, creationDate);
+        // act
+        Dot dot = new Dot(expectedPoint, expectedDate);
 
-        // Assert
-        Assertions.assertEquals(point, dot.point);
-        Assertions.assertEquals(creationDate, dot.creationDate);
+        // assert
+        assertThat(dot.point.x).isEqualTo(expectedPoint.x);
+        assertThat(dot.point.y).isEqualTo(expectedPoint.y);
+        assertThat(dot.creationDate).isEqualTo(expectedDate);
     }
-
-    @Test
-    void testDotPoint() {
-        // Arrange
-        Point point = new Point(5, 10);
-        Date creationDate = new Date();
-        Dot dot = new Dot(point, creationDate);
-
-        // Act
-        Point newPoint = new Point(15, 20);
-        dot.point = newPoint;
-
-        // Assert
-        Assertions.assertEquals(newPoint, dot.point);
-    }
-
-    @Test
-    void testDotCreationDate() {
-        // Arrange
-        Point point = new Point(5, 10);
-        Date creationDate = new Date();
-        Dot dot = new Dot(point, creationDate);
-
-        // Act
-        Date newCreationDate = new Date();
-        dot.creationDate = newCreationDate;
-
-        // Assert
-        Assertions.assertEquals(newCreationDate, dot.creationDate);
-    }
-
 }

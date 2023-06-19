@@ -1,60 +1,41 @@
 package org.ThreeDotsSierpinski;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import com.sun.jna.ptr.IntByReference;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 
-public class RandomNumberGeneratorTest {
-    private RandomNumberGenerator.iQuantumRandomNumberGenerator qrngMock;
+import static org.junit.jupiter.api.Assertions.*;
+
+class RandomNumberGeneratorTest {
+
+    private final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+    private final PrintStream originalOut = System.out;
 
     @BeforeEach
     void setUp() {
-        qrngMock = Mockito.mock(RandomNumberGenerator.iQuantumRandomNumberGenerator.class);
+        System.setOut(new PrintStream(outContent));
+    }
+
+    @AfterEach
+    void tearDown() {
+        System.setOut(originalOut);
     }
 
     @Test
-    void getIntegerArray_success() {
-        int[] intArray = new int[RandomNumberGenerator.INT_AMOUNT];
-        IntByReference actualIntsReceived = new IntByReference(RandomNumberGenerator.INT_AMOUNT);
-
-        when(qrngMock.qrng_get_int_array(any(), eq(intArray.length), any()))
-                .thenAnswer(invocation -> {
-                    int[] argArray = invocation.getArgument(0);
-                    IntByReference argIntsReceived = invocation.getArgument(2);
-                    for (int i = 0; i < argArray.length; i++) {
-                        argArray[i] = i; // Or any other logic to generate your random integers
-                    }
-                    argIntsReceived.setValue(argArray.length);
-                    return 0;
-                });
-
-        RandomNumberGenerator.getIntegerArray(qrngMock);
+    void checkResultZero() {
+        boolean result = RandomNumberGenerator.checkResult(0);
+        assertTrue(result, "Expected true for result zero");
+        assertEquals("", outContent.toString(), "Expected no print output for result zero");
     }
 
     @Test
-    void getIntegerArray_success2() {
-        int[] intArray = new int[RandomNumberGenerator.INT_AMOUNT];
-        IntByReference actualIntsReceived = new IntByReference();
-
-        when(qrngMock.qrng_get_int_array(intArray, intArray.length, actualIntsReceived)).thenReturn(0);
-
-        RandomNumberGenerator.getIntegerArray(qrngMock);
-    }
-
-    @Test
-    void getAndPrintIntegerArray_failure() {
-
-        int[] intArray = new int[RandomNumberGenerator.INT_AMOUNT];
-        IntByReference actualIntsReceived = new IntByReference();
-
-        when(qrngMock.qrng_get_int_array(intArray, intArray.length, actualIntsReceived)).thenReturn(-1);
-
-        RandomNumberGenerator.getIntegerArray(qrngMock);
+    void checkResultNonZero() {
+        boolean result = RandomNumberGenerator.checkResult(1);
+        assertFalse(result, "Expected false for non-zero result");
     }
 
 }

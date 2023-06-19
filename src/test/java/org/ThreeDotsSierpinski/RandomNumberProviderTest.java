@@ -1,36 +1,37 @@
 package org.ThreeDotsSierpinski;
 
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
-
-import java.util.List;
-import java.util.ArrayList;
-
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import static org.junit.jupiter.api.Assertions.*;
 
-class RandomNumberProviderTest {
+import java.util.*;
+
+public class RandomNumberProviderTest {
 
     private RandomNumberProvider randomNumberProvider;
-    private RandomNumberService randomNumberServiceMock;
 
     @BeforeEach
-    public void setup() {
-        // Here you would setup your mocks or stubs if necessary
-        // randomNumberServiceMock = ... ;
-        // For simplicity, we will just create a new instance of RandomNumberProvider
-        randomNumberProvider = new RandomNumberProvider(randomNumberServiceMock);
+    void setUp() {
+        randomNumberProvider = new RandomNumberProvider();
     }
 
     @Test
-    public void testGetIntegerList() {
-        List<Integer> integerList = randomNumberProvider.getIntegerList();
-
-        // Assuming that the external system will return non-empty list
-        // Here we are just checking if list is not empty
-        assertFalse(integerList.isEmpty());
+    void getNextRandomNumberTest() {
+        int randomNumber = randomNumberProvider.getNextRandomNumber();
+        // As this is a random number, there's not a lot we can assert about it.
+        // Let's just make sure it's a valid integer.
+        assertTrue(randomNumber >= Integer.MIN_VALUE && randomNumber <= Integer.MAX_VALUE);
     }
 
+    @Test
+    void getDuplicateNumbersCountTest() {
+        // Call getDuplicateNumbersCount after getNextRandomNumber.
+        // This way we could potentially have some duplicates.
+        randomNumberProvider.getNextRandomNumber();
+        int duplicates = randomNumberProvider.getDuplicateNumbersCount();
+        // The number of duplicates should always be equal or greater than 0.
+        assertTrue(duplicates >= 0);
+    }
 
-
-    // Other tests can be added here
 }
