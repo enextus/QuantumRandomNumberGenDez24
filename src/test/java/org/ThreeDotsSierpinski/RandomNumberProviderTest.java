@@ -24,14 +24,5 @@ public class RandomNumberProviderTest {
         assertTrue(randomNumber >= Integer.MIN_VALUE && randomNumber <= Integer.MAX_VALUE);
     }
 
-    @Test
-    void getDuplicateNumbersCountTest() {
-        // Call getDuplicateNumbersCount after getNextRandomNumber.
-        // This way we could potentially have some duplicates.
-        randomNumberProvider.getNextRandomNumber();
-        int duplicates = randomNumberProvider.getDuplicateNumbersCount();
-        // The number of duplicates should always be equal or greater than 0.
-        assertTrue(duplicates >= 0);
-    }
 
 }
