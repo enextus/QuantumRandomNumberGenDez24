@@ -6,7 +6,7 @@ public class App {
     public static final String DOT_MOVER = "Dot Mover";
     public static final String DOT_MOVER_DOTS = "Dot Mover - Dots: ";
     public static final String RANDOM_VALUE_STRING = "Random Value: ";
-    public static final int DELAY =1; // 5000 for slow
+    public static final int DELAY =0; // 5000 for slow
 
     public static void main(String[] args) {
 
