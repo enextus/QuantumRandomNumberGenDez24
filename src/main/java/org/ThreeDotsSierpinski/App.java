@@ -2,14 +2,14 @@ package org.ThreeDotsSierpinski;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.Random;
 
 public class App {
-    private static final Random RANDOM = new Random();
+    public static final String CLOSING_PARENTHESIS = ")";
     public static final String DOT_MOVER = "Dot Mover";
     public static final String DOT_MOVER_DOTS = "Dot Mover - Dots: ";
     public static final String RANDOM_VALUE_STRING = "Random Value: ";
     public static final int DELAY = 0; // 5000 for slow
+
     public void drawLine(Graphics g, int x1, int y1, int x2, int y2) {
         g.drawLine(x1, y1, x2, y2);
     }
@@ -35,7 +35,7 @@ public class App {
                 int randomValue = randomNumberProvider.getNextRandomNumber();
 
                 // Update the window title with the dot counter readings and the value of the random number
-                frame.setTitle(DOT_MOVER_DOTS + dotController.getDotCounter() + RANDOM_VALUE_STRING + randomValue + ")");
+                frame.setTitle(DOT_MOVER_DOTS + dotController.getDotCounter() + RANDOM_VALUE_STRING + randomValue + CLOSING_PARENTHESIS);
             });
 
             timer.start();
