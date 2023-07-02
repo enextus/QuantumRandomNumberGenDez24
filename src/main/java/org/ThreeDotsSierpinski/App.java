@@ -35,7 +35,7 @@ public class App {
                 int randomValue = randomNumberProvider.getNextRandomNumber();
 
                 // Update the window title with the dot counter readings and the value of the random number
-                frame.setTitle(DOT_MOVER_DOTS + dotController.getDotCounter() + RANDOM_VALUE_STRING + randomValue + CLOSING_PARENTHESIS);
+                frame.setTitle(String.format("%s%d%s%d%s", DOT_MOVER_DOTS, dotController.getDotCounter(), RANDOM_VALUE_STRING, randomValue, CLOSING_PARENTHESIS));
             });
 
             timer.start();
