@@ -2,25 +2,20 @@ package org.ThreeDotsSierpinski;
 
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.awt.*;
-import java.util.Date;
-
+import java.time.LocalDateTime;
 public class DotTest {
-
     @Test
-    public void testDotCreation() {
-        // arrange
-        Point expectedPoint = new Point(1, 2);
-        Date expectedDate = new Date();
+    void testDot() {
+        Point point = new Point(5, 7);
+        LocalDateTime now = LocalDateTime.now();
 
-        // act
-        Dot dot = new Dot(expectedPoint, expectedDate);
+        Dot dot = new Dot(point, now);
 
-        // assert
-        assertThat(dot.point.x).isEqualTo(expectedPoint.x);
-        assertThat(dot.point.y).isEqualTo(expectedPoint.y);
-        assertThat(dot.creationDate).isEqualTo(expectedDate);
+        assertEquals(point, dot.point);
+        assertEquals(now, dot.creationDate);
     }
+
 }

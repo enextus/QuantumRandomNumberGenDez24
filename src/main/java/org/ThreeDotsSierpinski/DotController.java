@@ -15,6 +15,8 @@ package org.ThreeDotsSierpinski;
 
 import javax.swing.*;
 import java.awt.*;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.List;
 class DotController extends JPanel {
@@ -44,6 +46,10 @@ class DotController extends JPanel {
         return dotCounter;
     }
 
+    private long toMillis(LocalDateTime localDateTime) {
+        return localDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         g.setColor(new Color(0, 0, 0));
@@ -53,7 +59,7 @@ class DotController extends JPanel {
         Graphics2D g2d = (Graphics2D) g;
 
         for (Dot dot : dots) {
-            long diffInMillis = new Date().getTime() - dot.creationDate.getTime();
+            long diffInMillis = toMillis(LocalDateTime.now()) - toMillis(dot.creationDate);
             long diffInSeconds = diffInMillis / DELAY_TIME;
             float alpha = 1f - Math.min(TRANSPARENCYFLOAT, diffInSeconds / RANGETIMEFLOAT);
 
@@ -154,7 +160,7 @@ class DotController extends JPanel {
             dot.y = SIZE / 2 + dot.y / 2;
         }
 
-        dots.add(new Dot(new Point(dot.x, dot.y), new Date()));
+        dots.add(new Dot(new Point(dot.x, dot.y), LocalDateTime.now()));
         dotCounter++;
 
         repaint();
