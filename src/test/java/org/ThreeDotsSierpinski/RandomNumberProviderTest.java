@@ -22,5 +22,4 @@ public class RandomNumberProviderTest {
         assertTrue(randomNumber >= Integer.MIN_VALUE && randomNumber <= Integer.MAX_VALUE);
     }
 
-
 }

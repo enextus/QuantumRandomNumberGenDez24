@@ -8,7 +8,6 @@ import java.awt.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class DotControllerTest {
-
     DotController dotController;
 
     @BeforeEach
@@ -34,4 +33,5 @@ class DotControllerTest {
         dotController.moveDot();
         assertNotEquals(initialDot, dotController.dot, "Dot position must change after moving");
     }
+
 }
