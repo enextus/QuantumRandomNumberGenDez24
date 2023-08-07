@@ -15,9 +15,14 @@ package org.ThreeDotsSierpinski;
 
 import javax.swing.*;
 import java.awt.*;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.List;
 class DotController extends JPanel {
+    public static final int SMALL_FONT_SIZE = 32;
+    public static final int LARGE_FONT_SIZE = 78;
+
     private final String duplicateMessage = "";
     public static final float RANGETIMEFLOAT = 90f;
     public static final float TRANSPARENCYFLOAT = 0.85f;
@@ -44,6 +49,10 @@ class DotController extends JPanel {
         return dotCounter;
     }
 
+    private long toMillis(LocalDateTime localDateTime) {
+        return localDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         g.setColor(new Color(0, 0, 0));
@@ -53,8 +62,8 @@ class DotController extends JPanel {
         Graphics2D g2d = (Graphics2D) g;
 
         for (Dot dot : dots) {
-            long diffInMillis = new Date().getTime() - dot.creationDate.getTime();
-            long diffInSeconds = diffInMillis / DELAY_TIME;
+            long diffInNanoTime = System.nanoTime() - dot.getCreationNanoTime();
+            long diffInSeconds = diffInNanoTime / (DELAY_TIME * 1_000_000);  // convert nanoseconds to seconds
             float alpha = 1f - Math.min(TRANSPARENCYFLOAT, diffInSeconds / RANGETIMEFLOAT);
 
             alpha = Math.max(alpha, DARKNESSFLOAT);
@@ -64,8 +73,9 @@ class DotController extends JPanel {
                 c = new Color(0.0f, 0.0f, 0.0f, alpha);
 
             g2d.setColor(c);
-            g2d.fillOval(dot.point.x, dot.point.y, DOTWIDTH, DOTHEIGHT);
+            g2d.fillOval(dot.getPoint().x, dot.getPoint().y, DOTWIDTH, DOTHEIGHT);
         }
+
 
         if (!dots.isEmpty()) {
             g2d.setColor(new Color(255, 0, 0)); // bright red
@@ -73,8 +83,9 @@ class DotController extends JPanel {
             g2d.fillOval(lastDot.point.x, lastDot.point.y, DOTWIDTH, DOTHEIGHT);
         }
 
-        Font myFont1 = new Font("Sans Serif", Font.ITALIC, 32); // adjust font name, style and size as needed
-        Font myFont2 = new Font("Sans Serif", Font.ITALIC, 78); // adjust font name, style and size as needed
+        Font myFont1 = new Font("Sans Serif", Font.ITALIC, SMALL_FONT_SIZE);
+        Font myFont2 = new Font("Sans Serif", Font.ITALIC, LARGE_FONT_SIZE);
+
 
         int alpha1 = 128;
         int alpha2 = 64;
@@ -103,7 +114,7 @@ class DotController extends JPanel {
 
         g2d.setFont(myFont2);
         g2d.setColor(new Color(105, 105, 105, alpha2));  // dark gray text with adjusted transparency
-        String duplicateNumberStr = String.valueOf(RandomNumberGenerator.lastDuplicateNumber); // get the duplicateNumber value as a string
+        String duplicateNumberStr = String.valueOf(RandomNumberProvider.lastDuplicateNumber); // get the duplicateNumber value as a string
         int duplicateNumberX = textX + g2d.getFontMetrics(myFont1).stringWidth(text3); // place the duplicateNumber right after the text3
         g2d.drawString(duplicateNumberStr, duplicateNumberX, textYNew); // print the duplicateNumber
 
@@ -114,14 +125,14 @@ class DotController extends JPanel {
         String text4 = "Duplicate Numbers Count    "; // the count of duplicate numbers
         g2d.drawString(text4, textX, textYNew2);
 
-        g2d.setFont(myFont2);
+/*        g2d.setFont(myFont2);
         g2d.setColor(new Color(105, 105, 105, alpha2));  // dark gray text with adjusted transparency
         // String duplicateCountStr = String.valueOf(RandomNumberProvider.getDuplicateNumbersCount()); // get the duplicateNumbersCount value as a string
 
         String duplicateCountStr = String.valueOf(App.getFrequencyCount()); // get the duplicateNumbersCount value as a string
 
         int duplicateCountX = textX + g2d.getFontMetrics(myFont1).stringWidth(text4); // place the duplicateNumbersCount right after the text4
-        g2d.drawString(duplicateCountStr, duplicateCountX, textYNew2); // print the duplicateNumbersCount
+        g2d.drawString(duplicateCountStr, duplicateCountX, textYNew2); // print the duplicateNumbersCount*/
 
         // do the same for the second line of text
         g2d.setFont(myFont1);
@@ -154,7 +165,7 @@ class DotController extends JPanel {
             dot.y = SIZE / 2 + dot.y / 2;
         }
 
-        dots.add(new Dot(new Point(dot.x, dot.y), new Date()));
+        dots.add(new Dot(new Point(dot.x, dot.y)));
         dotCounter++;
 
         repaint();

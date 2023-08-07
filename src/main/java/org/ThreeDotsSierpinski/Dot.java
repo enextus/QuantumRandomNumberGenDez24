@@ -1,14 +1,22 @@
 package org.ThreeDotsSierpinski;
 
 import java.awt.*;
-import java.util.Date;
 
 public class Dot {
-    public Point point;
-    public Date creationDate;
-    public Dot(Point point, Date creationDate) {
+    protected Point point;
+    protected long creationNanoTime;
+
+    public Dot(Point point) {
         this.point = point;
-        this.creationDate = creationDate;
+        this.creationNanoTime = System.nanoTime();
     }
 
+    public Point getPoint() {
+        return new Point(point); // We return a copy to protect from modifications
+    }
+
+    public long getCreationNanoTime() {
+        return creationNanoTime;
+    }
 }
+

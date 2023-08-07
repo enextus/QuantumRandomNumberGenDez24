@@ -10,7 +10,7 @@ import java.io.InputStream;
 import java.util.*;
 
 public class RandomNumberGenerator {
-    protected static final int INT_AMOUNT = 100000;
+    protected static final int INT_AMOUNT = 10000;
     protected static final String CONFIG_FILE_PATH = "config.properties";
     protected static final String CONNECTION_FAILED = "Connection failed!";
     protected static final String SORRY_UNABLE_TO_FIND = "Sorry, unable to find ";
@@ -20,7 +20,6 @@ public class RandomNumberGenerator {
     protected static final String FAILED_TO_GET_INTEGER_ARRAY = "Failed to get integer array!";
     protected static final String LIB_QRNG_DLL_NAME = "libQRNG.dll";
     protected static final String LIB_LIB_QRNG_DLL_PATH = "lib/" + LIB_QRNG_DLL_NAME;
-    public static int lastDuplicateNumber;
 
     public interface iQuantumRandomNumberGenerator extends Library {
         iQuantumRandomNumberGenerator INSTANCE = Native.load(LIB_LIB_QRNG_DLL_PATH, iQuantumRandomNumberGenerator.class);
@@ -29,7 +28,7 @@ public class RandomNumberGenerator {
 
         void qrng_disconnect();
 
-//        int qrng_get_int_array(int[] int_array, int int_array_size, IntByReference actual_ints_rcvd);
+        // int qrng_get_int_array(int[] int_array, int int_array_size, IntByReference actual_ints_rcvd);
 
         int qrng_connect_and_get_int_array(String username, String password, int[] int_array, int int_array_size, IntByReference actual_ints_rcvd);
     }
