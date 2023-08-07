@@ -7,7 +7,7 @@ public class App {
     public static final String DOT_MOVER_DOTS = "Dot Mover - Dots: ";
     public static final String RANDOM_VALUE_STRING = "Random Value: ";
     public static final int DELAY = 0; // 5000 for slow
-    public static int frequencyCount = 0;
+    public static int frequencyCount = 1;
     public static int getFrequencyCount() {
         return frequencyCount;
     }
