@@ -8,25 +8,14 @@ public class KolmogorovSmirnovTest {
         // Сортируем выборку по возрастанию
         Arrays.sort(sample);
 
-        // Вычисляем эмпирическую функцию распределения
-        double[] empiricalCDF = new double[sample.length];
-        for (int i = 0; i < sample.length; i++) {
-            empiricalCDF[i] = (double) (i + 1) / sample.length;
-        }
-
-        // Вычисляем теоретическую функцию распределения (равномерное распределение)
-        double[] theoreticalCDF = new double[sample.length];
-        for (int i = 0; i < sample.length; i++) {
-            theoreticalCDF[i] = (double) (i + 1) / sample.length;
-        }
-
-        // Вычисляем максимальное отклонение между эмпирической и теоретической функциями распределения
+        // Вычисляем эмпирическую функцию распределения и находим максимальное отклонение
         double maxDeviation = 0.0;
         for (int i = 0; i < sample.length; i++) {
-            double deviation = Math.abs(empiricalCDF[i] - theoreticalCDF[i]);
-            if (deviation > maxDeviation) {
-                maxDeviation = deviation;
-            }
+            double empiricalCDF = (double) (i + 1) / sample.length;
+            double theoreticalCDF = calculateTheoreticalCDF(sample[i]);
+
+            double deviation = Math.abs(empiricalCDF - theoreticalCDF);
+            maxDeviation = Math.max(maxDeviation, deviation);
         }
 
         // Вычисляем критическое значение
@@ -34,6 +23,12 @@ public class KolmogorovSmirnovTest {
 
         // Проверяем условие
         return maxDeviation <= criticalValue;
+    }
+
+    private static double calculateTheoreticalCDF(double value) {
+        // Здесь должна быть реализация теоретической функции распределения.
+        // Например, для равномерного распределения в пределах [0,1]:
+        return value;
     }
 
 }
