@@ -51,9 +51,7 @@ class RandomNumberProvider {
         if (checkResult(lib.qrng_connect(username, password))) {
 
             int[] intArray = new int[RandomNumberGenerator.INT_AMOUNT]; // set the dimension of array
-
             IntByReference actualIntsReceived = new IntByReference(); // для сохранения значения количества целых чисел, полученных из QRNG.
-
             // int getArrayResult = lib.qrng_connect_and_get_int_array(username, password, intArray, intArray.length, actualIntsReceived);
 
             int getArrayResult;
@@ -86,9 +84,7 @@ class RandomNumberProvider {
     }
 
     public int getNextRandomNumber() {
-
         synchronized (lock) { // Синхронизация доступа к общим ресурсам
-
             if (currentIndex >= integerList.size()) {
                 if (futureValues != null && futureValues.isDone()) {
                     try {
@@ -110,4 +106,5 @@ class RandomNumberProvider {
             return value;
         }
     }
+
 }
