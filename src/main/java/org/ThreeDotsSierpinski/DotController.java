@@ -19,7 +19,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.List;
+
 class DotController extends JPanel {
+    private String errorMessage = null; // Для хранения сообщения об ошибке
     public static final int SMALL_FONT_SIZE = 32;
     public static final int LARGE_FONT_SIZE = 78;
 
@@ -35,6 +37,7 @@ class DotController extends JPanel {
     private final List<Dot> dots; //  list of dots
     private final RandomNumberProvider randomNumberProvider;
     private int dotCounter; // counter of the number of dots
+
     public DotController() {
         setPreferredSize(new Dimension(SIZE, SIZE));
         dot = new Point(SIZE / 2, SIZE / 2);
@@ -55,10 +58,22 @@ class DotController extends JPanel {
 
     @Override
     protected void paintComponent(Graphics g) {
+
+        super.paintComponent(g);
+
+        if (errorMessage != null) { // Проверяем, есть ли сообщение об ошибке
+            // Отрисовка фона ошибки или самого сообщения об ошибке
+            g.setColor(Color.WHITE);
+            g.fillRect(0, 0, this.getWidth(), this.getHeight());
+            g.setColor(Color.RED);
+            g.drawString(errorMessage, 10, 20); // Выводим сообщение об ошибке
+        } else {
+
         g.setColor(new Color(0, 0, 0));
         g.fillRect(0, 0, this.getWidth(), this.getHeight());
 
-        super.paintComponent(g);
+        //super.paintComponent(g);
+
         Graphics2D g2d = (Graphics2D) g;
 
         for (Dot dot : dots) {
@@ -125,16 +140,6 @@ class DotController extends JPanel {
         String text4 = "Duplicate Numbers Count    "; // the count of duplicate numbers
         g2d.drawString(text4, textX, textYNew2);
 
-/*        g2d.setFont(myFont2);
-        g2d.setColor(new Color(105, 105, 105, alpha2));  // dark gray text with adjusted transparency
-        // String duplicateCountStr = String.valueOf(RandomNumberProvider.getDuplicateNumbersCount()); // get the duplicateNumbersCount value as a string
-
-        String duplicateCountStr = String.valueOf(App.getFrequencyCount()); // get the duplicateNumbersCount value as a string
-
-        int duplicateCountX = textX + g2d.getFontMetrics(myFont1).stringWidth(text4); // place the duplicateNumbersCount right after the text4
-        g2d.drawString(duplicateCountStr, duplicateCountX, textYNew2); // print the duplicateNumbersCount*/
-
-        // do the same for the second line of text
         g2d.setFont(myFont1);
         g2d.setColor(new Color(105, 105, 105, alpha1));  // blue text with adjusted transparency
 
@@ -149,26 +154,32 @@ class DotController extends JPanel {
         String value = String.valueOf(randomNumberProvider.getNextRandomNumber()); // get the dice value as a string
         int valueX = textX2 + g2d.getFontMetrics(myFont1).stringWidth(text2); // place the value right after the text
         g2d.drawString(value, valueX, textY2);
+        }
     }
 
     public void moveDot() {
-        int roll = randomNumberProvider.getNextRandomNumber();
+        try {
+            int roll = randomNumberProvider.getNextRandomNumber();
 
-        if (roll <= Integer.MIN_VALUE / 3 || roll > Integer.MAX_VALUE / 3 * 2) {
-            dot.x = dot.x / 2;
-            dot.y = dot.y / 2;
-        } else if (roll <= Integer.MAX_VALUE / 3) {
-            dot.x = SIZE / 2 + dot.x / 2;
-            dot.y = dot.y / 2;
-        } else {
-            dot.x = dot.x / 2;
-            dot.y = SIZE / 2 + dot.y / 2;
+            if (roll <= Integer.MIN_VALUE / 3 || roll > Integer.MAX_VALUE / 3 * 2) {
+                dot.x = dot.x / 2;
+                dot.y = dot.y / 2;
+            } else if (roll <= Integer.MAX_VALUE / 3) {
+                dot.x = SIZE / 2 + dot.x / 2;
+                dot.y = dot.y / 2;
+            } else {
+                dot.x = dot.x / 2;
+                dot.y = SIZE / 2 + dot.y / 2;
+            }
+
+            dots.add(new Dot(new Point(dot.x, dot.y)));
+            dotCounter++;
+
+            repaint();
+
+        } catch (Exception e) { // Перехватываем исключение
+            errorMessage = "Error: Cannot connect to Random Number Provider."; // Сохраняем сообщение об ошибке
+            repaint(); // Перерисовываем компонент для отображения сообщения об ошибке
         }
-
-        dots.add(new Dot(new Point(dot.x, dot.y)));
-        dotCounter++;
-
-        repaint();
     }
-
 }
