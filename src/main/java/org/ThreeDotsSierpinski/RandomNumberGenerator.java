@@ -4,11 +4,6 @@ import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.ptr.IntByReference;
 
-import java.io.IOException;
-import java.io.InputStream;
-
-import java.util.*;
-
 public class RandomNumberGenerator {
     protected static final int INT_AMOUNT = 10000;
     protected static final String CONFIG_FILE_PATH = "config.properties";
