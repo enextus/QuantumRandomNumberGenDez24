@@ -1,110 +1,69 @@
 package org.ThreeDotsSierpinski;
 
-import com.sun.jna.ptr.IntByReference;
-
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.io.InputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
-import java.util.*;
-import java.util.concurrent.*;
-
-import org.jetbrains.annotations.NotNull;
-
-import static org.ThreeDotsSierpinski.RandomNumberGenerator.checkResult;
-
-class RandomNumberProvider {
-    public static int lastDuplicateNumber;
-
+public class RandomNumberProvider {
+    private static final String API_URL = "https://quantum-random.com/quantum";
+    private final HttpClient httpClient;
     private final List<Integer> integerList;
-    private int currentIndex;
-    private final ExecutorService executorService;
-    private Future<List<Integer>> futureValues;
-    private final Object lock = new Object(); // Объект для синхронизации доступа к общим ресурсам
+    private final ObjectMapper objectMapper;
 
     public RandomNumberProvider() {
-        integerList = getIntegerList();
-        executorService = Executors.newSingleThreadExecutor();
+        httpClient = HttpClient.newHttpClient();
+        integerList = new CopyOnWriteArrayList<>();
+        objectMapper = new ObjectMapper(); // Jackson object mapper for JSON parsing
+        loadInitialData();
     }
 
-    void getNextValue(List<Integer> values) {
-        RandomNumberGenerator.iQuantumRandomNumberGenerator lib = RandomNumberGenerator.iQuantumRandomNumberGenerator.INSTANCE;
-        Set<Integer> seenNumbers = new HashSet<>();
+    private void loadInitialData() {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(API_URL))
+                .GET()
+                .build();
 
-        Properties prop = new Properties();
-        String username = RandomNumberGenerator.EMPTYSTRING, password = RandomNumberGenerator.EMPTYSTRING;
+        try {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            System.out.println("Status Code: " + response.statusCode());
+            System.out.println("Response Body: " + response.body().substring(0, Math.min(500, response.body().length()))); // Print first 500 characters of the response
 
-        try (InputStream input = RandomNumberGenerator.class.getClassLoader().getResourceAsStream(RandomNumberGenerator.CONFIG_FILE_PATH)) {
-            if (input == null) {
-                System.out.println(RandomNumberGenerator.SORRY_UNABLE_TO_FIND + RandomNumberGenerator.CONFIG_FILE_PATH);
-                System.exit(-1);
-            }
-
-            prop.load(input);
-            username = prop.getProperty(RandomNumberGenerator.USERNAME);
-            password = prop.getProperty(RandomNumberGenerator.PASSWORD);
-
-        } catch (IOException ex) {
-            ex.printStackTrace();
-            System.exit(-1);
-        }
-
-        if (checkResult(lib.qrng_connect(username, password))) {
-
-            int[] intArray = new int[RandomNumberGenerator.INT_AMOUNT]; // set the dimension of array
-            IntByReference actualIntsReceived = new IntByReference(); // для сохранения значения количества целых чисел, полученных из QRNG.
-            // int getArrayResult = lib.qrng_connect_and_get_int_array(username, password, intArray, intArray.length, actualIntsReceived);
-
-            int getArrayResult;
-            synchronized (lock) { // Синхронизация доступа к общим ресурсам
-                getArrayResult = lib.qrng_connect_and_get_int_array(username, password, intArray, intArray.length, actualIntsReceived);
-            }
-
-            System.out.println("1. actualIntsReceived: " + actualIntsReceived);
-
-            if (getArrayResult != 0) {
-                System.out.println(RandomNumberGenerator.FAILED_TO_GET_INTEGER_ARRAY);
-            } else {
-                for (int i = 0; i < actualIntsReceived.getValue(); i++) {
-                    seenNumbers.add(intArray[i]);
-                    values.add(intArray[i]);
+            if (response.headers().firstValue("Content-Type").orElse("").contains("application/json")) {
+                int[] data = parseJsonResponse(response.body());
+                for (int num : data) {
+                    integerList.add(num);
                 }
+            } else {
+                System.err.println("Unexpected content type received: " + response.headers().firstValue("Content-Type").orElse("unknown"));
             }
-
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
         }
-
-        lib.qrng_disconnect();
     }
 
-    @NotNull
-    List<Integer> getIntegerList() {
-        List<Integer> IntegerValues = new ArrayList<>();
-        getNextValue(IntegerValues);
-        currentIndex = 0;
-        return IntegerValues;
+    private int[] parseJsonResponse(String jsonResponse) {
+        try {
+            JsonNode rootNode = objectMapper.readTree(jsonResponse);
+            JsonNode numbersNode = rootNode.path("data").path("numbers");
+            if (numbersNode.isArray()) {
+                return objectMapper.convertValue(numbersNode, int[].class);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return new int[] {};  // Return empty array in case of an error or if the path is not found
     }
 
     public int getNextRandomNumber() {
-        synchronized (lock) { // Синхронизация доступа к общим ресурсам
-            if (currentIndex >= integerList.size()) {
-                if (futureValues != null && futureValues.isDone()) {
-                    try {
-                        integerList.clear();
-                        integerList.addAll(futureValues.get());
-                        currentIndex = 0;
-                    } catch (InterruptedException | ExecutionException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-
-            if (currentIndex > integerList.size() * 0.8 && (futureValues == null || futureValues.isDone())) // when we have used 80% of the values,
-                futureValues = executorService.submit(this::getIntegerList); // start preparing new values
-
-            int value = integerList.get(currentIndex);
-            currentIndex++;
-
-            return value;
+        if (integerList.isEmpty()) {
+            loadInitialData();
         }
+        return integerList.isEmpty() ? 0 : integerList.remove(0);
     }
-
 }

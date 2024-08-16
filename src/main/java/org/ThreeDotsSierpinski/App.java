@@ -11,9 +11,12 @@ public class App {
 
     public static void main(String[] args) {
         DotController dotController = new DotController();
+        RandomNumberProvider randomNumberProvider = new RandomNumberProvider();
+        NumberDisplayWindow displayWindow = new NumberDisplayWindow();
+        displayWindow.setVisible(true);
+
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame(DOT_MOVER);
-            RandomNumberProvider randomNumberProvider = new RandomNumberProvider();
             frame.add(dotController);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
@@ -23,10 +26,11 @@ public class App {
                 int randomValue = randomNumberProvider.getNextRandomNumber();
                 // Update the window title with the dot counter readings and the value of the random number
                 frame.setTitle(String.format("%s%d%s%d%s", DOT_MOVER_DOTS, dotController.getDotCounter(), RANDOM_VALUE_STRING, randomValue, CLOSING_PARENTHESIS));
+                // Display the random number in the second window
+                displayWindow.addNumber(randomValue);
             });
             timer.start();
             frame.setVisible(true);
         });
     }
-
 }
