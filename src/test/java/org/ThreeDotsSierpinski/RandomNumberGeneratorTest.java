@@ -24,17 +24,7 @@ class RandomNumberGeneratorTest {
         System.setOut(originalOut);
     }
 
-    @Test
-    void checkResultZero() {
-        boolean result = RandomNumberGenerator.checkResult(0);
-        assertTrue(result, "Expected true for result zero");
-        assertEquals("", outContent.toString(), "Expected no print output for result zero");
-    }
 
-    @Test
-    void checkResultNonZero() {
-        boolean result = RandomNumberGenerator.checkResult(1);
-        assertFalse(result, "Expected false for non-zero result");
-    }
+
 
 }

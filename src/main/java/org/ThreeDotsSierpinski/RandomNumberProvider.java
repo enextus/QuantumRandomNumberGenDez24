@@ -9,6 +9,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class RandomNumberProvider {
@@ -26,7 +27,7 @@ public class RandomNumberProvider {
     }
 
     private void loadInitialData() {
-        String requestUrl = API_URL + "?length=10&type=uint8"; // Modify these parameters as needed
+        String requestUrl = API_URL + "?length=10&type=uint8";
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(requestUrl))
                 .header("Accept", "application/json")
@@ -34,21 +35,25 @@ public class RandomNumberProvider {
                 .GET()
                 .build();
 
-        try {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 200 && response.headers().firstValue("Content-Type").orElse("").contains("application/json")) {
-                int[] data = parseJsonResponse(response.body());
-                for (int num : data) {
-                    integerList.add(num);
-                }
-            } else {
-                System.err.println("Unexpected response or content type received: " + response.headers().firstValue("Content-Type").orElse("unknown"));
-            }
-        } catch (IOException | InterruptedException e) {
-            System.err.println("Failed to retrieve data");
-            e.printStackTrace();
-        }
+        httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> {
+                    if (response.statusCode() == 200 && response.headers().firstValue("Content-Type").orElse("").contains("application/json")) {
+                        return parseJsonResponse(response.body());
+                    } else {
+                        throw new RuntimeException("Unexpected response: " + response.statusCode());
+                    }
+                })
+                .thenAccept(data -> {
+                    for (int num : data) {
+                        integerList.add(num);
+                    }
+                })
+                .exceptionally(e -> {
+                    System.err.println("Failed to retrieve data: " + e.getMessage());
+                    return null;
+                });
     }
+
 
     private int[] parseJsonResponse(String jsonResponse) {
         try {
@@ -64,10 +69,14 @@ public class RandomNumberProvider {
         return new int[] {};  // Return an empty array in case of error
     }
 
-    public int getNextRandomNumber() {
+    public int getNextRandomNumber() throws NoSuchElementException {
         if (integerList.isEmpty()) {
             loadInitialData();
         }
-        return integerList.isEmpty() ? 0 : integerList.remove(0);
+        if (integerList.isEmpty()) {
+            throw new NoSuchElementException("Нет доступных случайных чисел");
+        }
+        return integerList.remove(0);
     }
+
 }

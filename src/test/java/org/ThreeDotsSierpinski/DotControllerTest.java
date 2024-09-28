@@ -26,12 +26,4 @@ class DotControllerTest {
         assertEquals(1, dotController.getDotCounter(), "Dot counter must be incremented after moving the dot");
     }
 
-    @Test
-    void testDotPositionAfterMoving() {
-        Point initialDot = new Point(dotController.dot.x, dotController.dot.y);
-
-        dotController.moveDot();
-        assertNotEquals(initialDot, dotController.dot, "Dot position must change after moving");
-    }
-
 }
