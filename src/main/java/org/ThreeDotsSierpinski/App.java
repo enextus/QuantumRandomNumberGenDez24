@@ -1,6 +1,7 @@
 package org.ThreeDotsSierpinski;
 
 import javax.swing.*;
+import java.util.NoSuchElementException;
 
 public class App {
     public static final String CLOSING_PARENTHESIS = ")";
