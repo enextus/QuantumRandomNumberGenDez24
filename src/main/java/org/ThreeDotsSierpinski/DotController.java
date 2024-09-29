@@ -4,79 +4,77 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.NoSuchElementException;
 
 public class DotController extends JPanel {
-    private static final int SIZE = 925;
-    private static final int DOTWIDTH = 7;
-    private static final int DOTHEIGHT = 7;
-    private final List<Dot> dots;
-    private final RandomNumberProvider randomNumberProvider;
-    private int dotCounter;
-    private String errorMessage;
+    private static final int SIZE = 925; // Размер панели
+    private static final int DOTWIDTH = 7; // Ширина точки
+    private static final int DOTHEIGHT = 7; // Высота точки
+    private final List<Dot> dots; // Список точек
+    private final RandomNumberProvider randomNumberProvider; // Провайдер случайных чисел
+    private int dotCounter; // Счетчик точек
+    private String errorMessage; // Сообщение об ошибке
 
+    // Конструктор, инициализирующий панель и параметры
     public DotController() {
-        setPreferredSize(new Dimension(SIZE, SIZE));
-        setBackground(new Color(176, 224, 230));
-        dots = new ArrayList<>();
-        randomNumberProvider = new RandomNumberProvider();
-        dotCounter = 0;
-        errorMessage = null;
+        setPreferredSize(new Dimension(SIZE, SIZE)); // Устанавливаем размер панели
+        setBackground(new Color(176, 224, 230)); // Задаем цвет фона
+        dots = new ArrayList<>(); // Инициализируем список точек
+        randomNumberProvider = new RandomNumberProvider(); // Инициализируем провайдер случайных чисел
+        dotCounter = 0; // Инициализируем счетчик точек
+        errorMessage = null; // Изначально ошибки нет
     }
 
+    // Метод для перемещения точки на новую позицию
     public void moveDot() {
         try {
-            int randomValue = randomNumberProvider.getNextRandomNumber();
-            Point newPoint = calculateNewDotPosition(randomValue);
-            Dot newDot = new Dot(newPoint);
-            dots.add(newDot);
-            dotCounter++;
-            repaint();
-        } catch (NoSuchElementException e) {
-            errorMessage = "Нет доступных случайных чисел.";
-            repaint();
+            int randomValue = randomNumberProvider.getNextRandomNumber(); // Получаем случайное число
+            Point newPoint = calculateNewDotPosition(randomValue); // Вычисляем новую позицию точки
+            Dot newDot = new Dot(newPoint); // Создаем новую точку
+            dots.add(newDot); // Добавляем точку в список
+            dotCounter++; // Увеличиваем счетчик точек
+            repaint(); // Перерисовываем панель для отображения новой точки
         } catch (Exception e) {
-            errorMessage = "Ошибка: Не удалось подключиться к провайдеру случайных чисел.";
-            repaint();
+            errorMessage = "Error: Cannot connect to Random Number Provider."; // Устанавливаем сообщение об ошибке
+            repaint(); // Перерисовываем панель для отображения ошибки
         }
     }
 
-
+    // Метод для вычисления новой позиции точки на основе случайного числа
     private Point calculateNewDotPosition(int randomValue) {
-        int third = 255 / 3;
         int x = SIZE / 2;
         int y = SIZE / 2;
 
-        if (randomValue < third) {
+        // Пример простой логики для вычисления новой позиции
+        if (randomValue <= Integer.MIN_VALUE / 3) {
             x = x / 2;
             y = y / 2;
-        } else if (randomValue < 2 * third) {
+        } else if (randomValue <= Integer.MAX_VALUE / 3) {
             x = SIZE / 2 + x / 2;
             y = y / 2;
-        } else {
+        } else if (randomValue <= Integer.MAX_VALUE / 3 * 2) {
             x = x / 2;
             y = SIZE / 2 + y / 2;
         }
 
-        return new Point(x, y);
+        return new Point(x, y); // Возвращаем новую позицию точки
     }
 
-
+    // Метод для отрисовки точек и ошибок
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         if (errorMessage != null) {
-            g.setColor(Color.RED);
-            g.drawString(errorMessage, 10, 20);
+            g.setColor(Color.RED); // Цвет ошибки
+            g.drawString(errorMessage, 10, 20); // Отрисовываем сообщение об ошибке
         } else {
             for (Dot dot : dots) {
-                g.setColor(new Color((dot.getPoint().x * 255) / SIZE, (dot.getPoint().y * 255) / SIZE, 150));
-                g.fillOval(dot.getPoint().x, dot.getPoint().y, DOTWIDTH, DOTHEIGHT);
+                g.setColor(Color.BLACK); // Цвет точки
+                g.fillOval(dot.getPoint().x, dot.getPoint().y, DOTWIDTH, DOTHEIGHT); // Рисуем точку
             }
         }
     }
 
-
+    // Метод для получения количества созданных точек
     public int getDotCounter() {
         return dotCounter;
     }
