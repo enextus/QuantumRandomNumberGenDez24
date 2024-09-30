@@ -50,23 +50,32 @@ public class DotController extends JPanel {
 
         System.out.println("RandomValue => " + randomValue + ";");
 
+        // Текущие координаты центра панели
         int x = SIZE / 2;
         int y = SIZE / 2;
 
-        // Пример простой логики для вычисления новой позиции
-        if (randomValue <= (MinValue / 3)) {
+        // Вычисляем трети диапазона
+        int rangePart = (MaxValue - MinValue) / 3;
+
+        // Пример логики для вычисления новой позиции
+        if (randomValue <= (MinValue + rangePart)) {
+            // Двигаемся к точке A (например, половина расстояния)
             x = x / 2;
             y = y / 2;
-        } else if (randomValue <= (MaxValue / 3)) {
+        } else if (randomValue <= (MinValue + 2 * rangePart)) {
+            // Двигаемся к точке B (половина расстояния к другой вершине)
             x = SIZE / 2 + x / 2;
             y = y / 2;
-        } else if (randomValue <= ((MaxValue / 3) * 2)) {
+        } else {
+            // Двигаемся к точке C (третья вершина)
             x = x / 2;
             y = SIZE / 2 + y / 2;
         }
 
-        return new Point(x, y); // Возвращаем новую позицию точки
+        // Возвращаем новую позицию точки
+        return new Point(x, y);
     }
+
 
     // Метод для отрисовки точек и ошибок
     @Override
