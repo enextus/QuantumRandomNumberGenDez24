@@ -7,8 +7,8 @@ import java.util.List;
 
 public class DotController extends JPanel {
     private static final int SIZE = 900; // Размер панели
-    private static final int DOTWIDTH = 5; // Ширина точки
-    private static final int DOTHEIGHT = 5; // Высота точки
+    private static final int DOTWIDTH = 7; // Ширина точки
+    private static final int DOTHEIGHT = 7; // Высота точки
     private final List<Dot> dots; // Список точек
     private final RandomNumberProvider randomNumberProvider; // Провайдер случайных чисел
     private int dotCounter; // Счетчик точек
