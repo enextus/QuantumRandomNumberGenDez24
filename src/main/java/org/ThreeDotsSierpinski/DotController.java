@@ -6,9 +6,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class DotController extends JPanel {
-    private static final int SIZE = 925; // Размер панели
-    private static final int DOTWIDTH = 7; // Ширина точки
-    private static final int DOTHEIGHT = 7; // Высота точки
+    private static final int SIZE = 900; // Размер панели
+    private static final int DOTWIDTH = 5; // Ширина точки
+    private static final int DOTHEIGHT = 5; // Высота точки
     private final List<Dot> dots; // Список точек
     private final RandomNumberProvider randomNumberProvider; // Провайдер случайных чисел
     private int dotCounter; // Счетчик точек
@@ -33,6 +33,9 @@ public class DotController extends JPanel {
             dots.add(newDot); // Добавляем точку в список
             dotCounter++; // Увеличиваем счетчик точек
             repaint(); // Перерисовываем панель для отображения новой точки
+
+            System.out.println("Перерисовано!");
+
         } catch (Exception e) {
             errorMessage = "Error: Cannot connect to Random Number Provider."; // Устанавливаем сообщение об ошибке
             repaint(); // Перерисовываем панель для отображения ошибки
@@ -41,17 +44,23 @@ public class DotController extends JPanel {
 
     // Метод для вычисления новой позиции точки на основе случайного числа
     private Point calculateNewDotPosition(int randomValue) {
+
+        int MinValue = -99999999;
+        int MaxValue = 100000000;
+
+        System.out.println("RandomValue => " + randomValue + ";");
+
         int x = SIZE / 2;
         int y = SIZE / 2;
 
         // Пример простой логики для вычисления новой позиции
-        if (randomValue <= Integer.MIN_VALUE / 3) {
+        if (randomValue <= (MinValue / 3)) {
             x = x / 2;
             y = y / 2;
-        } else if (randomValue <= Integer.MAX_VALUE / 3) {
+        } else if (randomValue <= (MaxValue / 3)) {
             x = SIZE / 2 + x / 2;
             y = y / 2;
-        } else if (randomValue <= Integer.MAX_VALUE / 3 * 2) {
+        } else if (randomValue <= ((MaxValue / 3) * 2)) {
             x = x / 2;
             y = SIZE / 2 + y / 2;
         }

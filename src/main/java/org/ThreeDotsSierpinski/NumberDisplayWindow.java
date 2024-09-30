@@ -9,7 +9,7 @@ public class NumberDisplayWindow extends JFrame {
     // Конструктор для инициализации окна
     public NumberDisplayWindow() {
         setTitle("Random Numbers"); // Устанавливаем заголовок окна
-        setSize(300, 400); // Устанавливаем размер окна
+        setSize(350, 500); // Устанавливаем размер окна
         setLocationRelativeTo(null);  // Центрируем окно на экране
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);  // Закрываем только это окно, при нажатии "закрыть"
         initUI(); // Инициализируем компоненты

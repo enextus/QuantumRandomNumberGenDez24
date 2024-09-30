@@ -34,6 +34,8 @@ public class App {
                     dotController.moveDot();
                     int randomValue = randomNumberProvider.getNextRandomNumber();
 
+                    System.out.println("randomValue:-> " + randomValue + "\n");
+
                     // Обновляем заголовок окна с информацией о точке и случайном числе
                     frame.setTitle(String.format("%s%d%s%d%s", DOT_MOVER_DOTS, dotController.getDotCounter(), RANDOM_VALUE_STRING, randomValue, CLOSING_PARENTHESIS));
 

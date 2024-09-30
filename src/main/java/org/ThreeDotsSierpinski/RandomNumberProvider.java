@@ -35,21 +35,21 @@ public class RandomNumberProvider {
     // Метод для получения случайных чисел
     private void loadInitialData() {
         String jsonRequest = """
-        {
-            "jsonrpc": "2.0",
-            "method": "generateIntegers",
-            "params": {
-                "apiKey": "%s",
-                "n": 10,
-                "min": 1,
-                "max": 10,
-                "replacement": true,
-                "base": 10,
-                "pregeneratedRandomization": null
-            },
-            "id": 6004
-        }
-        """.formatted(apiKey);
+                {
+                    "jsonrpc": "2.0",
+                    "method": "generateIntegers",
+                    "params": {
+                        "apiKey": "%s",
+                        "n": 1,
+                        "min": -99999999,
+                        "max":  100000000,
+                        "replacement": true,
+                        "base": 10,
+                        "pregeneratedRandomization": null
+                    },
+                    "id": 6004
+                }
+                """.formatted(apiKey);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_URL))
@@ -61,8 +61,10 @@ public class RandomNumberProvider {
 
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            System.out.println("--------------------------------------------------------------------");
             System.out.println("Получен ответ с кодом: " + response.statusCode());
             System.out.println("Тело ответа: " + response.body());
+            System.out.println("--------------------------------------------------------------------");
 
             if (response.statusCode() == 200) {
                 int[] data = parseJsonResponse(response.body());
@@ -93,7 +95,7 @@ public class RandomNumberProvider {
             System.err.println("Не удалось разобрать JSON ответ");
             e.printStackTrace();
         }
-        return new int[] {}; // Возвращаем пустой массив в случае ошибки
+        return new int[]{}; // Возвращаем пустой массив в случае ошибки
     }
 
     // Метод для получения следующего случайного числа
@@ -104,21 +106,21 @@ public class RandomNumberProvider {
         if (integerList.isEmpty()) {
             throw new NoSuchElementException("Нет доступных случайных чисел");
         }
-        return integerList.remove(0);
+        return integerList.removeFirst();
     }
 
     // Метод для получения статистики использования API
     public void getUsage() {
         String jsonRequest = """
-        {
-            "jsonrpc": "2.0",
-            "method": "getUsage",
-            "params": {
-                "apiKey": "%s"
-            },
-            "id": 6005
-        }
-        """.formatted(apiKey);
+                {
+                    "jsonrpc": "2.0",
+                    "method": "getUsage",
+                    "params": {
+                        "apiKey": "%s"
+                    },
+                    "id": 6005
+                }
+                """.formatted(apiKey);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_URL))
