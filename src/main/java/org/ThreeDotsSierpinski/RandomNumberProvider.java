@@ -8,31 +8,31 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.List;
+import java.util.LinkedList;
 import java.util.NoSuchElementException;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Queue;
 
 public class RandomNumberProvider {
     private static final String API_URL = "https://api.random.org/json-rpc/4/invoke"; // API URL RANDOM.ORG
     private final HttpClient httpClient;
-    private final List<Integer> integerList;
+    private final Queue<Integer> randomNumbersQueue; // Очередь для накопления случайных чисел
     private final ObjectMapper objectMapper;
     private final String apiKey;
 
-    // Конструктор инициализирует ключ API из переменной окружения
+    // Конструктор
     public RandomNumberProvider() {
-        apiKey = System.getenv("RANDOM_ORG_API_KEY"); // Извлекаем API ключ из переменной окружения
+        apiKey = System.getenv("RANDOM_ORG_API_KEY");
         if (apiKey == null || apiKey.isEmpty()) {
-            throw new IllegalStateException("API ключ не найден! Убедитесь, что переменная окружения RANDOM_ORG_API_KEY установлена.");
+            throw new IllegalStateException("API ключ не найден!");
         }
 
         httpClient = HttpClient.newHttpClient();
-        integerList = new CopyOnWriteArrayList<>();
-        objectMapper = new ObjectMapper(); // Jackson object mapper для парсинга JSON
+        randomNumbersQueue = new LinkedList<>(); // Инициализируем очередь
+        objectMapper = new ObjectMapper();
         loadInitialData(); // Загружаем начальные данные при инициализации
     }
 
-    // Метод для получения случайных чисел
+    // Метод для получения случайных чисел (загружаем пакет чисел)
     private void loadInitialData() {
         String jsonRequest = """
                 {
@@ -40,12 +40,10 @@ public class RandomNumberProvider {
                     "method": "generateIntegers",
                     "params": {
                         "apiKey": "%s",
-                        "n": 1,
+                        "n": 10,
                         "min": -99999999,
-                        "max":  100000000,
-                        "replacement": true,
-                        "base": 10,
-                        "pregeneratedRandomization": null
+                        "max": 100000000,
+                        "replacement": true
                     },
                     "id": 6004
                 }
@@ -69,8 +67,10 @@ public class RandomNumberProvider {
             if (response.statusCode() == 200) {
                 int[] data = parseJsonResponse(response.body());
                 System.out.println("Получено случайных чисел: " + data.length);
+                // Добавляем числа в очередь и выводим их в консоль
                 for (int num : data) {
-                    integerList.add(num);
+                    randomNumbersQueue.add(num);
+                    System.out.println("Число добавлено в очередь: " + num);
                 }
             } else {
                 System.err.println("Неожиданный код ответа: " + response.statusCode());
@@ -80,6 +80,7 @@ public class RandomNumberProvider {
             e.printStackTrace();
         }
     }
+
 
     // Метод для парсинга случайных чисел из ответа
     private int[] parseJsonResponse(String jsonResponse) {
@@ -100,13 +101,21 @@ public class RandomNumberProvider {
 
     // Метод для получения следующего случайного числа
     public synchronized int getNextRandomNumber() {
-        if (integerList.isEmpty()) {
-            loadInitialData();
+        if (randomNumbersQueue.isEmpty()) {
+            System.out.println("Очередь пуста, загружаем новые данные...");
+            loadInitialData(); // Если очередь пуста, загружаем новый пакет
         }
-        if (integerList.isEmpty()) {
+        if (randomNumbersQueue.isEmpty()) {
             throw new NoSuchElementException("Нет доступных случайных чисел");
         }
-        return integerList.removeFirst();
+        int nextNumber = randomNumbersQueue.poll(); // Извлекаем первое число из очереди
+        System.out.println("Число извлечено из очереди: " + nextNumber);
+        return nextNumber;
+    }
+
+    // Метод для вывода текущего состояния очереди
+    private void printQueueState() {
+        System.out.println("Текущее состояние очереди: " + randomNumbersQueue);
     }
 
     // Метод для получения статистики использования API
@@ -128,18 +137,18 @@ public class RandomNumberProvider {
                 .POST(HttpRequest.BodyPublishers.ofString(jsonRequest))
                 .build();
 
-        System.out.println("Отправка запроса на проверку использования API");
+        System.out.println("1. Отправка запроса на проверку использования API");
 
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            System.out.println("Получен ответ с кодом: " + response.statusCode());
+            System.out.println("2. Получен ответ с кодом: " + response.statusCode());
             if (response.statusCode() == 200) {
                 parseUsageResponse(response.body());
             } else {
-                System.err.println("Неожиданный код ответа: " + response.statusCode());
+                System.err.println("? Неожиданный код ответа: " + response.statusCode());
             }
         } catch (IOException | InterruptedException e) {
-            System.err.println("Не удалось получить данные об использовании API");
+            System.err.println("? Не удалось получить данные об использовании API");
             e.printStackTrace();
         }
     }
@@ -161,4 +170,5 @@ public class RandomNumberProvider {
             e.printStackTrace();
         }
     }
+
 }

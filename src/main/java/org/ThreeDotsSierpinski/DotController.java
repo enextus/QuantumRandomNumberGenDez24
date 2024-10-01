@@ -13,9 +13,11 @@ public class DotController extends JPanel {
     private final RandomNumberProvider randomNumberProvider; // Провайдер случайных чисел
     private int dotCounter; // Счетчик точек
     private String errorMessage; // Сообщение об ошибке
+    private Point currentPoint;
 
     // Конструктор, инициализирующий панель и параметры
     public DotController() {
+        currentPoint = new Point(SIZE / 2, SIZE / 2); // Начальная точка в центре
         setPreferredSize(new Dimension(SIZE, SIZE)); // Устанавливаем размер панели
         setBackground(new Color(176, 224, 230)); // Задаем цвет фона
         dots = new ArrayList<>(); // Инициализируем список точек
@@ -25,57 +27,56 @@ public class DotController extends JPanel {
     }
 
     // Метод для перемещения точки на новую позицию
+// Метод для перемещения точки на новую позицию
     public void moveDot() {
         try {
-            int randomValue = randomNumberProvider.getNextRandomNumber(); // Получаем случайное число
-            Point newPoint = calculateNewDotPosition(randomValue); // Вычисляем новую позицию точки
-            Dot newDot = new Dot(newPoint); // Создаем новую точку
-            dots.add(newDot); // Добавляем точку в список
-            dotCounter++; // Увеличиваем счетчик точек
-            repaint(); // Перерисовываем панель для отображения новой точки
-
+            for (int i = 0; i < 1000; i++) {
+                int randomValue = randomNumberProvider.getNextRandomNumber();
+                currentPoint = calculateNewDotPosition(currentPoint, randomValue); // Обновляем текущую точку
+                Dot newDot = new Dot(new Point(currentPoint)); // Создаем новую точку
+                dots.add(newDot);
+                dotCounter++;
+                System.out.println("RandomValue: " + randomValue + ", New Point: " + currentPoint);
+            }
+            repaint();
             System.out.println("Перерисовано!");
-
         } catch (Exception e) {
-            errorMessage = "Error: Cannot connect to Random Number Provider."; // Устанавливаем сообщение об ошибке
-            repaint(); // Перерисовываем панель для отображения ошибки
+            errorMessage = "Error: Cannot connect to Random Number Provider.";
+            repaint();
         }
     }
 
     // Метод для вычисления новой позиции точки на основе случайного числа
-    private Point calculateNewDotPosition(int randomValue) {
-
+    private Point calculateNewDotPosition(Point currentPoint, int randomValue) {
         int MinValue = -99999999;
         int MaxValue = 100000000;
 
-        System.out.println("RandomValue => " + randomValue + ";");
+        // Фиксированные вершины треугольника
+        Point A = new Point(SIZE / 2, 0); // Вершина сверху
+        Point B = new Point(0, SIZE); // Левая нижняя вершина
+        Point C = new Point(SIZE, SIZE); // Правая нижняя вершина
 
-        // Текущие координаты центра панели
-        int x = SIZE / 2;
-        int y = SIZE / 2;
-
-        // Вычисляем трети диапазона
         int rangePart = (MaxValue - MinValue) / 3;
 
-        // Пример логики для вычисления новой позиции
-        if (randomValue <= (MinValue + rangePart)) {
-            // Двигаемся к точке A (например, половина расстояния)
-            x = x / 2;
-            y = y / 2;
-        } else if (randomValue <= (MinValue + 2 * rangePart)) {
-            // Двигаемся к точке B (половина расстояния к другой вершине)
-            x = SIZE / 2 + x / 2;
-            y = y / 2;
+        int x = currentPoint.x;
+        int y = currentPoint.y;
+
+        if (randomValue <= MinValue + rangePart) {
+            // Двигаемся к точке A
+            x = (x + A.x) / 2;
+            y = (y + A.y) / 2;
+        } else if (randomValue <= MinValue + 2 * rangePart) {
+            // Двигаемся к точке B
+            x = (x + B.x) / 2;
+            y = (y + B.y) / 2;
         } else {
-            // Двигаемся к точке C (третья вершина)
-            x = x / 2;
-            y = SIZE / 2 + y / 2;
+            // Двигаемся к точке C
+            x = (x + C.x) / 2;
+            y = (y + C.y) / 2;
         }
 
-        // Возвращаем новую позицию точки
         return new Point(x, y);
     }
-
 
     // Метод для отрисовки точек и ошибок
     @Override
@@ -96,4 +97,5 @@ public class DotController extends JPanel {
     public int getDotCounter() {
         return dotCounter;
     }
+
 }

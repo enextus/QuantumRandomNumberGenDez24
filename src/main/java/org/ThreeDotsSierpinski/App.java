@@ -8,7 +8,7 @@ public class App {
     public static final String DOT_MOVER = "Dot Mover";
     public static final String DOT_MOVER_DOTS = "Dot Mover - Dots: ";
     public static final String RANDOM_VALUE_STRING = "Random Value: ";
-    public static final int DELAY = 1000; // 1 запрос в секунду, чтобы не превышать лимит
+    public static final int DELAY = 4000; // 1 запрос в секунду, чтобы не превышать лимит
 
     public static void main(String[] args) {
         // Создание объектов для управления точками и случайными числами
@@ -57,4 +57,5 @@ public class App {
             frame.setVisible(true);
         });
     }
+
 }
