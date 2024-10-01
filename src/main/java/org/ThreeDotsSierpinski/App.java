@@ -8,29 +8,12 @@ public class App {
     public static final String CLOSING_PARENTHESIS = ")";
     public static final String DOT_MOVER = "Dot Mover";
     public static final String DOT_MOVER_DOTS = "Dot Mover - Dots: ";
-    public static final int DELAY = 5000; // 1 запрос в 5 секунд, чтобы не превышать лимит
+    public static final int DELAY = 1000; // Интервал между обновлениями (меньше для плавности)
 
     public static void main(String[] args) {
         // Создание объектов для управления точками и случайными числами
         RandomNumberProvider randomNumberProvider = new RandomNumberProvider();
         DotController dotController = new DotController(randomNumberProvider);
-
-        // Проверка использования API при запуске
-        randomNumberProvider.getUsage();
-
-        // Сбор выборки случайных чисел
-        int sampleSize = 1000; // Размер выборки
-        int[] sample = randomNumberProvider.getRandomNumbersSample(sampleSize);
-
-        // Проведение теста Колмогорова-Смирнова
-        double alpha = 0.05; // Уровень значимости
-        boolean isUniform = KolmogorovSmirnovTest.test(sample, alpha);
-
-        if (isUniform) {
-            System.out.println("Тест Колмогорова-Смирнова: выборка соответствует равномерному распределению.");
-        } else {
-            System.out.println("Тест Колмогорова-Смирнова: выборка НЕ соответствует равномерному распределению.");
-        }
 
         // Запуск GUI в отдельном потоке
         SwingUtilities.invokeLater(() -> {
@@ -64,5 +47,4 @@ public class App {
             frame.setVisible(true);
         });
     }
-
 }

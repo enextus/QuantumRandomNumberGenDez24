@@ -8,7 +8,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 public class DotController extends JPanel {
     private static final int SIZE = 900; // Размер панели
-    private static final int DOT_SIZE = 5; // Размер точки
+    private static final int DOT_SIZE = 2; // Размер точки (уменьшен для лучшей визуализации)
     private final List<Dot> dots; // Список точек
     private final RandomNumberProvider randomNumberProvider; // Провайдер случайных чисел
     private int dotCounter; // Счетчик точек
@@ -35,8 +35,11 @@ public class DotController extends JPanel {
         new SwingWorker<Void, Dot>() {
             @Override
             protected Void doInBackground() throws Exception {
-                for (int i = 0; i < 1000; i++) {
-                    int randomValue = randomNumberProvider.getNextRandomNumber();
+                long MinValue = -99999999L;
+                long MaxValue = 100000000L;
+
+                for (int i = 0; i < 10000; i++) {
+                    long randomValue = randomNumberProvider.getNextRandomNumberInRange(MinValue, MaxValue);
                     currentPoint = calculateNewDotPosition(currentPoint, randomValue); // Обновляем текущую точку
                     Dot newDot = new Dot(new Point(currentPoint)); // Создаем новую точку
                     dotCounter++;
@@ -55,16 +58,16 @@ public class DotController extends JPanel {
     }
 
     // Метод для вычисления новой позиции точки на основе случайного числа
-    private Point calculateNewDotPosition(Point currentPoint, int randomValue) {
-        int MinValue = -99999999;
-        int MaxValue = 100000000;
+    private Point calculateNewDotPosition(Point currentPoint, long randomValue) {
+        long MinValue = -99999999L;
+        long MaxValue = 100000000L;
 
         // Фиксированные вершины треугольника
         Point A = new Point(SIZE / 2, 0); // Вершина сверху
         Point B = new Point(0, SIZE); // Левая нижняя вершина
         Point C = new Point(SIZE, SIZE); // Правая нижняя вершина
 
-        int rangePart = (MaxValue - MinValue) / 3;
+        long rangePart = (MaxValue - MinValue) / 3;
 
         int x = currentPoint.x;
         int y = currentPoint.y;
@@ -91,7 +94,7 @@ public class DotController extends JPanel {
         Graphics2D g2d = offscreenImage.createGraphics();
         g2d.setColor(Color.BLACK);
         for (Dot dot : newDots) {
-            g2d.fillRect(dot.getPoint().x, dot.getPoint().y, DOT_SIZE, DOT_SIZE);
+            g2d.fillRect(dot.point().x, dot.point().y, DOT_SIZE, DOT_SIZE);
         }
         g2d.dispose();
     }
