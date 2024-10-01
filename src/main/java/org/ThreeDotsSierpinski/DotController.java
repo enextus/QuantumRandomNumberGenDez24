@@ -7,43 +7,51 @@ import java.util.List;
 
 public class DotController extends JPanel {
     private static final int SIZE = 900; // Размер панели
-    private static final int DOTWIDTH = 7; // Ширина точки
-    private static final int DOTHEIGHT = 7; // Высота точки
+    private static final int DOTWIDTH = 2; // Ширина точки
+    private static final int DOTHEIGHT = 2; // Высота точки
     private final List<Dot> dots; // Список точек
     private final RandomNumberProvider randomNumberProvider; // Провайдер случайных чисел
     private int dotCounter; // Счетчик точек
     private String errorMessage; // Сообщение об ошибке
     private Point currentPoint;
 
-    // Конструктор, инициализирующий панель и параметры
-    public DotController() {
+    // Конструктор, принимающий RandomNumberProvider
+    public DotController(RandomNumberProvider randomNumberProvider) {
         currentPoint = new Point(SIZE / 2, SIZE / 2); // Начальная точка в центре
         setPreferredSize(new Dimension(SIZE, SIZE)); // Устанавливаем размер панели
-        setBackground(new Color(176, 224, 230)); // Задаем цвет фона
+        setBackground(new Color(255, 255, 255)); // Белый фон для лучшей видимости
         dots = new ArrayList<>(); // Инициализируем список точек
-        randomNumberProvider = new RandomNumberProvider(); // Инициализируем провайдер случайных чисел
+        this.randomNumberProvider = randomNumberProvider; // Принимаем провайдер случайных чисел
         dotCounter = 0; // Инициализируем счетчик точек
         errorMessage = null; // Изначально ошибки нет
     }
 
     // Метод для перемещения точки на новую позицию
-// Метод для перемещения точки на новую позицию
     public void moveDot() {
-        try {
-            for (int i = 0; i < 1000; i++) {
-                int randomValue = randomNumberProvider.getNextRandomNumber();
-                currentPoint = calculateNewDotPosition(currentPoint, randomValue); // Обновляем текущую точку
-                Dot newDot = new Dot(new Point(currentPoint)); // Создаем новую точку
-                dots.add(newDot);
-                dotCounter++;
-                System.out.println("RandomValue: " + randomValue + ", New Point: " + currentPoint);
+        new SwingWorker<Void, Dot>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                for (int i = 0; i < 1000; i++) {
+                    int randomValue = randomNumberProvider.getNextRandomNumber();
+                    currentPoint = calculateNewDotPosition(currentPoint, randomValue); // Обновляем текущую точку
+                    Dot newDot = new Dot(new Point(currentPoint)); // Создаем новую точку
+                    dotCounter++;
+                    publish(newDot); // Передаем точку для отрисовки
+                }
+                return null;
             }
-            repaint();
-            System.out.println("Перерисовано!");
-        } catch (Exception e) {
-            errorMessage = "Error: Cannot connect to Random Number Provider.";
-            repaint();
-        }
+
+            @Override
+            protected void process(List<Dot> chunks) {
+                dots.addAll(chunks); // Добавляем новые точки в список
+                repaint(); // Перерисовываем панель
+            }
+
+            @Override
+            protected void done() {
+                // Дополнительные действия после завершения (если необходимо)
+            }
+        }.execute();
     }
 
     // Метод для вычисления новой позиции точки на основе случайного числа
@@ -86,9 +94,9 @@ public class DotController extends JPanel {
             g.setColor(Color.RED); // Цвет ошибки
             g.drawString(errorMessage, 10, 20); // Отрисовываем сообщение об ошибке
         } else {
+            g.setColor(Color.BLACK); // Цвет точек
             for (Dot dot : dots) {
-                g.setColor(Color.BLACK); // Цвет точки
-                g.fillOval(dot.getPoint().x, dot.getPoint().y, DOTWIDTH, DOTHEIGHT); // Рисуем точку
+                g.fillRect(dot.getPoint().x, dot.getPoint().y, DOTWIDTH, DOTHEIGHT); // Рисуем точку
             }
         }
     }
@@ -97,5 +105,4 @@ public class DotController extends JPanel {
     public int getDotCounter() {
         return dotCounter;
     }
-
 }

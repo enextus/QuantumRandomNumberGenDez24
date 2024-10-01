@@ -1,6 +1,7 @@
 package org.ThreeDotsSierpinski;
 
 import javax.swing.*;
+import java.awt.*;
 import java.util.NoSuchElementException;
 
 public class App {
@@ -12,8 +13,8 @@ public class App {
 
     public static void main(String[] args) {
         // Создание объектов для управления точками и случайными числами
-        DotController dotController = new DotController();
         RandomNumberProvider randomNumberProvider = new RandomNumberProvider();
+        DotController dotController = new DotController(randomNumberProvider);
         NumberDisplayWindow displayWindow = new NumberDisplayWindow();
         displayWindow.setVisible(true);
 
@@ -23,24 +24,19 @@ public class App {
         // Запуск GUI в отдельном потоке
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame(DOT_MOVER);
-            frame.add(dotController);
+            frame.setLayout(new BorderLayout()); // Устанавливаем BorderLayout
+            frame.add(dotController, BorderLayout.CENTER); // Добавляем панель в центр
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
 
-            // Таймер, запускающий обновление позиции точки и получение случайных чисел
+            // Таймер, запускающий обновление позиции точки
             Timer timer = new Timer(DELAY, e -> {
                 try {
-                    // Двигаем точку и получаем случайное число
+                    // Двигаем точки
                     dotController.moveDot();
-                    int randomValue = randomNumberProvider.getNextRandomNumber();
 
-                    System.out.println("randomValue:-> " + randomValue + "\n");
-
-                    // Обновляем заголовок окна с информацией о точке и случайном числе
-                    frame.setTitle(String.format("%s%d%s%d%s", DOT_MOVER_DOTS, dotController.getDotCounter(), RANDOM_VALUE_STRING, randomValue, CLOSING_PARENTHESIS));
-
-                    // Отображаем случайное число в дополнительном окне
-                    displayWindow.addNumber(randomValue);
+                    // Обновляем заголовок окна с информацией о количестве точек
+                    frame.setTitle(String.format("%s%d%s", DOT_MOVER_DOTS, dotController.getDotCounter(), CLOSING_PARENTHESIS));
                 } catch (NoSuchElementException ex) {
                     // Сообщение об ошибке в случае отсутствия доступных случайных чисел
                     JOptionPane.showMessageDialog(frame, "Нет доступных случайных чисел. Попробуйте позже.", "Ошибка", JOptionPane.ERROR_MESSAGE);
@@ -57,5 +53,4 @@ public class App {
             frame.setVisible(true);
         });
     }
-
 }
