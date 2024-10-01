@@ -8,7 +8,7 @@ public class App {
     public static final String CLOSING_PARENTHESIS = ")";
     public static final String DOT_MOVER = "Dot Mover";
     public static final String DOT_MOVER_DOTS = "Dot Mover - Dots: ";
-    public static final int DELAY = 1000; // Интервал между обновлениями (меньше для плавности)
+    public static final int DELAY = 1000; // Интервал между обновлениями
 
     public static void main(String[] args) {
         // Создание объектов для управления точками и случайными числами
@@ -33,7 +33,7 @@ public class App {
                     frame.setTitle(String.format("%s%d%s", DOT_MOVER_DOTS, dotController.getDotCounter(), CLOSING_PARENTHESIS));
                 } catch (NoSuchElementException ex) {
                     // Сообщение об ошибке в случае отсутствия доступных случайных чисел
-                    JOptionPane.showMessageDialog(frame, "Нет доступных случайных чисел. Попробуйте позже.", "Ошибка", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(frame, ex.getMessage(), "Ошибка", JOptionPane.ERROR_MESSAGE);
                     ((Timer) e.getSource()).stop(); // Останавливаем таймер
                 } catch (Exception ex) {
                     // Сообщение об ошибке в случае проблем с подключением к API

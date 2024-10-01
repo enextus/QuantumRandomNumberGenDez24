@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 public class RandomNumberProvider {
     private static final String API_URL = "https://lfdr.de/qrng_api/qrng";
+    private static final int MAX_API_REQUESTS = 100; // Максимальное количество запросов к API
     private final BlockingQueue<Integer> randomNumbersQueue;
     private final ObjectMapper objectMapper;
     private int apiRequestCount = 0; // Счетчик запросов к API
@@ -30,6 +31,12 @@ public class RandomNumberProvider {
 
     // Метод для загрузки данных
     private void loadInitialData() {
+        // Проверяем, достигли ли мы максимального количества запросов
+        if (apiRequestCount >= MAX_API_REQUESTS) {
+            System.err.println("Достигнуто максимальное количество запросов к API: " + MAX_API_REQUESTS);
+            return;
+        }
+
         int n = 1024; // Количество случайных байтов для загрузки
         String requestUrl = API_URL + "?length=" + n + "&format=HEX";
 
@@ -111,7 +118,12 @@ public class RandomNumberProvider {
         try {
             Integer nextNumber = randomNumbersQueue.poll(5, TimeUnit.SECONDS);
             if (nextNumber == null) {
-                throw new NoSuchElementException("Нет доступных случайных чисел");
+                // Если достигли максимального количества запросов и очередь пуста
+                if (apiRequestCount >= MAX_API_REQUESTS) {
+                    throw new NoSuchElementException("Достигнуто максимальное количество запросов к API и нет доступных случайных чисел");
+                } else {
+                    throw new NoSuchElementException("Нет доступных случайных чисел");
+                }
             }
             // Если осталось мало чисел в очереди, загружаем новые
             if (randomNumbersQueue.size() < 1000) {
@@ -131,5 +143,15 @@ public class RandomNumberProvider {
         long range = max - min;
         long scaledNum = min + (long)(normalized * range);
         return scaledNum;
+    }
+
+    // Добавьте этот метод в ваш класс RandomNumberProvider
+    // Метод для получения выборки случайных чисел заданного размера
+    public int[] getRandomNumbersSample(int sampleSize) {
+        int[] sample = new int[sampleSize];
+        for (int i = 0; i < sampleSize; i++) {
+            sample[i] = getNextRandomNumber();
+        }
+        return sample;
     }
 }

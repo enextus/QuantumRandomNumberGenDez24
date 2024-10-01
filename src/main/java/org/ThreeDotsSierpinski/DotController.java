@@ -4,11 +4,12 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class DotController extends JPanel {
     private static final int SIZE = 900; // Размер панели
-    private static final int DOT_SIZE = 2; // Размер точки (уменьшен для лучшей визуализации)
+    private static final int DOT_SIZE = 2; // Размер точки
     private final List<Dot> dots; // Список точек
     private final RandomNumberProvider randomNumberProvider; // Провайдер случайных чисел
     private int dotCounter; // Счетчик точек
@@ -34,16 +35,21 @@ public class DotController extends JPanel {
     public void moveDot() {
         new SwingWorker<Void, Dot>() {
             @Override
-            protected Void doInBackground() throws Exception {
+            protected Void doInBackground() {
                 long MinValue = -99999999L;
                 long MaxValue = 100000000L;
 
-                for (int i = 0; i < 10000; i++) {
-                    long randomValue = randomNumberProvider.getNextRandomNumberInRange(MinValue, MaxValue);
-                    currentPoint = calculateNewDotPosition(currentPoint, randomValue); // Обновляем текущую точку
-                    Dot newDot = new Dot(new Point(currentPoint)); // Создаем новую точку
-                    dotCounter++;
-                    publish(newDot); // Передаем точку для отрисовки
+                try {
+                    for (int i = 0; i < 10000; i++) {
+                        long randomValue = randomNumberProvider.getNextRandomNumberInRange(MinValue, MaxValue);
+                        currentPoint = calculateNewDotPosition(currentPoint, randomValue); // Обновляем текущую точку
+                        Dot newDot = new Dot(new Point(currentPoint)); // Создаем новую точку
+                        dotCounter++;
+                        publish(newDot); // Передаем точку для отрисовки
+                    }
+                } catch (NoSuchElementException e) {
+                    errorMessage = e.getMessage();
+                    cancel(true);
                 }
                 return null;
             }
@@ -53,6 +59,13 @@ public class DotController extends JPanel {
                 dots.addAll(chunks); // Добавляем новые точки в список
                 drawDots(chunks); // Рисуем новые точки на буфере
                 repaint(); // Перерисовываем панель
+            }
+
+            @Override
+            protected void done() {
+                if (errorMessage != null) {
+                    repaint(); // Перерисовываем панель, чтобы отобразить сообщение об ошибке
+                }
             }
         }.execute();
     }
