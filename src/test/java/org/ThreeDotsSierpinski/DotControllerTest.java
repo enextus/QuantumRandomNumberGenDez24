@@ -10,11 +10,6 @@ import static org.junit.jupiter.api.Assertions.*;
 class DotControllerTest {
     DotController dotController;
 
-    @BeforeEach
-    void setUp() {
-        dotController = new DotController();
-    }
-
     @Test
     void testInitialDotCounter() {
         assertEquals(0, dotController.getDotCounter(), "Initial dot counter must be 0");

@@ -2,85 +2,120 @@ package org.ThreeDotsSierpinski;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.cookie.StandardCookieSpec;
+import org.apache.hc.client5.http.impl.classic.*;
+import org.apache.hc.core5.http.*;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
+import org.apache.hc.core5.http.io.entity.StringEntity;
+import org.apache.hc.core5.http.message.StatusLine;
+import org.apache.hc.core5.http.protocol.HttpContext;
+import org.json.JSONObject;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.util.LinkedList;
+import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
-import java.util.Queue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 public class RandomNumberProvider {
-    private static final String API_URL = "https://api.random.org/json-rpc/4/invoke"; // API URL RANDOM.ORG
-    private final HttpClient httpClient;
-    private final Queue<Integer> randomNumbersQueue; // Очередь для накопления случайных чисел
+    private static final String API_URL = "https://api.random.org/json-rpc/4/invoke";
+    private final BlockingQueue<Integer> randomNumbersQueue;
     private final ObjectMapper objectMapper;
     private final String apiKey;
 
     // Конструктор
     public RandomNumberProvider() {
         apiKey = System.getenv("RANDOM_ORG_API_KEY");
+
         if (apiKey == null || apiKey.isEmpty()) {
             throw new IllegalStateException("API ключ не найден!");
         }
 
-        httpClient = HttpClient.newHttpClient();
-        randomNumbersQueue = new LinkedList<>(); // Инициализируем очередь
+        randomNumbersQueue = new LinkedBlockingQueue<>();
         objectMapper = new ObjectMapper();
-        loadInitialData(); // Загружаем начальные данные при инициализации
+        loadInitialData();
     }
 
-    // Метод для получения случайных чисел (загружаем пакет чисел)
+    // Метод для загрузки данных
     private void loadInitialData() {
-        String jsonRequest = """
-                {
-                    "jsonrpc": "2.0",
-                    "method": "generateIntegers",
-                    "params": {
-                        "apiKey": "%s",
-                        "n": 10,
-                        "min": -99999999,
-                        "max": 100000000,
-                        "replacement": true
-                    },
-                    "id": 6004
-                }
-                """.formatted(apiKey);
+        // Формирование JSON-запроса
+        JSONObject params = new JSONObject();
+        params.put("apiKey", apiKey);
+        params.put("n", 100);
+        params.put("min", -99999999);
+        params.put("max", 100000000);
+        params.put("replacement", true);
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_URL))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(jsonRequest))
-                .build();
+        JSONObject requestJson = new JSONObject();
+        requestJson.put("jsonrpc", "2.0");
+        requestJson.put("method", "generateIntegers");
+        requestJson.put("params", params);
+        requestJson.put("id", 6004);
 
-        System.out.println("Отправка запроса к RANDOM.ORG API");
+        String jsonRequest = requestJson.toString();
 
-        try {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            System.out.println("--------------------------------------------------------------------");
-            System.out.println("Получен ответ с кодом: " + response.statusCode());
-            System.out.println("Тело ответа: " + response.body());
-            System.out.println("--------------------------------------------------------------------");
+        System.out.println("Отправляемый JSON-запрос:");
+        System.out.println(jsonRequest);
 
-            if (response.statusCode() == 200) {
-                int[] data = parseJsonResponse(response.body());
-                System.out.println("Получено случайных чисел: " + data.length);
-                // Добавляем числа в очередь и выводим их в консоль
-                for (int num : data) {
-                    randomNumbersQueue.add(num);
-                    System.out.println("Число добавлено в очередь: " + num);
-                }
-            } else {
-                System.err.println("Неожиданный код ответа: " + response.statusCode());
+        // Настройка HTTP-клиента
+        try (CloseableHttpClient httpClient = HttpClients.custom()
+                .setDefaultRequestConfig(RequestConfig.custom()
+                        .setCookieSpec(StandardCookieSpec.IGNORE).build())
+                .build()) {
+
+            HttpPost httpPost = new HttpPost(API_URL);
+            httpPost.setEntity(new StringEntity(jsonRequest, ContentType.APPLICATION_JSON));
+
+            // Установка заголовков
+            httpPost.setHeader("Accept", "application/json");
+            httpPost.setHeader("User-Agent", "Apache-HttpClient");
+
+            // Логирование заголовков запроса
+            System.out.println("Заголовки запроса:");
+            for (Header header : httpPost.getHeaders()) {
+                System.out.println(header.getName() + ": " + header.getValue());
             }
-        } catch (IOException | InterruptedException e) {
+
+            // Отправка запроса
+            System.out.println("Отправка запроса к RANDOM.ORG API");
+            CloseableHttpResponse response = httpClient.execute(httpPost);
+
+            try {
+                int responseCode = response.getCode();
+                System.out.println("--------------------------------------------------------------------");
+                System.out.println("Получен ответ с кодом: " + responseCode);
+
+                String responseBody = "";
+                if (response.getEntity() != null) {
+                    responseBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+                }
+
+                System.out.println("Тело ответа: " + responseBody);
+                System.out.println("--------------------------------------------------------------------");
+
+                if (responseCode == 200) {
+                    int[] data = parseJsonResponse(responseBody);
+                    for (int num : data) {
+                        randomNumbersQueue.offer(num);
+                    }
+                } else {
+                    System.err.println("Неожиданный код ответа: " + responseCode);
+                    System.err.println("Сообщение об ошибке: " + responseBody);
+                }
+            } catch (ParseException e) {
+                throw new RuntimeException(e);
+            } finally {
+                response.close();
+            }
+
+        } catch (IOException e) {
             System.err.println("Не удалось получить данные от RANDOM.ORG API");
             e.printStackTrace();
         }
     }
-
 
     // Метод для парсинга случайных чисел из ответа
     private int[] parseJsonResponse(String jsonResponse) {
@@ -100,55 +135,90 @@ public class RandomNumberProvider {
     }
 
     // Метод для получения следующего случайного числа
-    public synchronized int getNextRandomNumber() {
-        if (randomNumbersQueue.isEmpty()) {
-            System.out.println("Очередь пуста, загружаем новые данные...");
-            loadInitialData(); // Если очередь пуста, загружаем новый пакет
+    public int getNextRandomNumber() {
+        try {
+            Integer nextNumber = randomNumbersQueue.poll(5, TimeUnit.SECONDS);
+            if (nextNumber == null) {
+                throw new NoSuchElementException("Нет доступных случайных чисел");
+            }
+            // Если осталось мало чисел в очереди, загружаем новые
+            if (randomNumbersQueue.size() < 1000) {
+                loadInitialData();
+            }
+            return nextNumber;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new NoSuchElementException("Ожидание случайного числа было прервано");
         }
-        if (randomNumbersQueue.isEmpty()) {
-            throw new NoSuchElementException("Нет доступных случайных чисел");
-        }
-        int nextNumber = randomNumbersQueue.poll(); // Извлекаем первое число из очереди
-        System.out.println("Число извлечено из очереди: " + nextNumber);
-        return nextNumber;
-    }
-
-    // Метод для вывода текущего состояния очереди
-    private void printQueueState() {
-        System.out.println("Текущее состояние очереди: " + randomNumbersQueue);
     }
 
     // Метод для получения статистики использования API
     public void getUsage() {
-        String jsonRequest = """
-                {
-                    "jsonrpc": "2.0",
-                    "method": "getUsage",
-                    "params": {
-                        "apiKey": "%s"
-                    },
-                    "id": 6005
-                }
-                """.formatted(apiKey);
+        // Формирование JSON-запроса
+        JSONObject params = new JSONObject();
+        params.put("apiKey", apiKey);
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_URL))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(jsonRequest))
-                .build();
+        JSONObject requestJson = new JSONObject();
+        requestJson.put("jsonrpc", "2.0");
+        requestJson.put("method", "getUsage");
+        requestJson.put("params", params);
+        requestJson.put("id", 6005);
 
-        System.out.println("1. Отправка запроса на проверку использования API");
+        String jsonRequest = requestJson.toString();
 
-        try {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            System.out.println("2. Получен ответ с кодом: " + response.statusCode());
-            if (response.statusCode() == 200) {
-                parseUsageResponse(response.body());
-            } else {
-                System.err.println("? Неожиданный код ответа: " + response.statusCode());
+        System.out.println("Отправляемый JSON-запрос для getUsage:");
+        System.out.println(jsonRequest);
+
+        // Настройка HTTP-клиента
+        try (CloseableHttpClient httpClient = HttpClients.custom()
+                .setDefaultRequestConfig(RequestConfig.custom()
+                        .setCookieSpec(StandardCookieSpec.IGNORE).build())
+                .build()) {
+
+            HttpPost httpPost = new HttpPost(API_URL);
+            httpPost.setEntity(new StringEntity(jsonRequest, ContentType.APPLICATION_JSON));
+
+            // Установка заголовков
+            httpPost.setHeader("Accept", "application/json");
+            httpPost.setHeader("User-Agent", "Apache-HttpClient");
+
+            // Логирование заголовков запроса
+            System.out.println("Заголовки запроса:");
+            for (Header header : httpPost.getHeaders()) {
+                System.out.println(header.getName() + ": " + header.getValue());
             }
-        } catch (IOException | InterruptedException e) {
-            System.err.println("? Не удалось получить данные об использовании API");
+
+            // Отправка запроса
+            System.out.println("Отправка запроса на проверку использования API");
+            CloseableHttpResponse response = httpClient.execute(httpPost);
+
+            try {
+                int responseCode = response.getCode();
+                System.out.println("--------------------------------------------------------------------");
+                System.out.println("Получен ответ с кодом: " + responseCode);
+
+                String responseBody = "";
+                if (response.getEntity() != null) {
+                    responseBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+                }
+
+                System.out.println("Тело ответа: " + responseBody);
+                System.out.println("--------------------------------------------------------------------");
+
+                if (responseCode == 200) {
+                    parseUsageResponse(responseBody);
+                } else {
+                    System.err.println("Неожиданный код ответа: " + responseCode);
+                    System.err.println("Сообщение об ошибке: " + responseBody);
+                }
+            } catch (ParseException e) {
+                throw new RuntimeException(e);
+            } finally {
+                response.close();
+            }
+
+        } catch (IOException e) {
+            System.err.println("Не удалось получить данные об использовании API");
             e.printStackTrace();
         }
     }
@@ -171,4 +241,12 @@ public class RandomNumberProvider {
         }
     }
 
+    // Метод для получения выборки случайных чисел
+    public int[] getRandomNumbersSample(int sampleSize) {
+        int[] sample = new int[sampleSize];
+        for (int i = 0; i < sampleSize; i++) {
+            sample[i] = getNextRandomNumber();
+        }
+        return sample;
+    }
 }

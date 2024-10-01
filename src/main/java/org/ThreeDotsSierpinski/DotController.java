@@ -2,28 +2,32 @@ package org.ThreeDotsSierpinski;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.ArrayList;
+import java.awt.image.BufferedImage;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class DotController extends JPanel {
     private static final int SIZE = 900; // Размер панели
-    private static final int DOTWIDTH = 2; // Ширина точки
-    private static final int DOTHEIGHT = 2; // Высота точки
+    private static final int DOT_SIZE = 5; // Размер точки
     private final List<Dot> dots; // Список точек
     private final RandomNumberProvider randomNumberProvider; // Провайдер случайных чисел
     private int dotCounter; // Счетчик точек
     private String errorMessage; // Сообщение об ошибке
     private Point currentPoint;
+    private BufferedImage offscreenImage; // Буфер для отрисовки
 
     // Конструктор, принимающий RandomNumberProvider
     public DotController(RandomNumberProvider randomNumberProvider) {
         currentPoint = new Point(SIZE / 2, SIZE / 2); // Начальная точка в центре
         setPreferredSize(new Dimension(SIZE, SIZE)); // Устанавливаем размер панели
-        setBackground(new Color(255, 255, 255)); // Белый фон для лучшей видимости
-        dots = new ArrayList<>(); // Инициализируем список точек
+        setBackground(Color.WHITE); // Белый фон для лучшей видимости
+        dots = new CopyOnWriteArrayList<>(); // Инициализируем потокобезопасный список точек
         this.randomNumberProvider = randomNumberProvider; // Принимаем провайдер случайных чисел
         dotCounter = 0; // Инициализируем счетчик точек
         errorMessage = null; // Изначально ошибки нет
+
+        // Инициализируем буферизованное изображение
+        offscreenImage = new BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_ARGB);
     }
 
     // Метод для перемещения точки на новую позицию
@@ -44,12 +48,8 @@ public class DotController extends JPanel {
             @Override
             protected void process(List<Dot> chunks) {
                 dots.addAll(chunks); // Добавляем новые точки в список
+                drawDots(chunks); // Рисуем новые точки на буфере
                 repaint(); // Перерисовываем панель
-            }
-
-            @Override
-            protected void done() {
-                // Дополнительные действия после завершения (если необходимо)
             }
         }.execute();
     }
@@ -86,7 +86,17 @@ public class DotController extends JPanel {
         return new Point(x, y);
     }
 
-    // Метод для отрисовки точек и ошибок
+    // Метод для рисования новых точек на буфере
+    private void drawDots(List<Dot> newDots) {
+        Graphics2D g2d = offscreenImage.createGraphics();
+        g2d.setColor(Color.BLACK);
+        for (Dot dot : newDots) {
+            g2d.fillRect(dot.getPoint().x, dot.getPoint().y, DOT_SIZE, DOT_SIZE);
+        }
+        g2d.dispose();
+    }
+
+    // Метод для отрисовки панели
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -94,10 +104,7 @@ public class DotController extends JPanel {
             g.setColor(Color.RED); // Цвет ошибки
             g.drawString(errorMessage, 10, 20); // Отрисовываем сообщение об ошибке
         } else {
-            g.setColor(Color.BLACK); // Цвет точек
-            for (Dot dot : dots) {
-                g.fillRect(dot.getPoint().x, dot.getPoint().y, DOTWIDTH, DOTHEIGHT); // Рисуем точку
-            }
+            g.drawImage(offscreenImage, 0, 0, null); // Рисуем буферизованное изображение
         }
     }
 
@@ -105,4 +112,5 @@ public class DotController extends JPanel {
     public int getDotCounter() {
         return dotCounter;
     }
+
 }

@@ -2,14 +2,12 @@ package org.ThreeDotsSierpinski;
 
 import java.awt.*;
 
-public class Dot {
-    protected Point point; // Координаты точки
-    protected long creationNanoTime; // Время создания точки
+public final class Dot {
+    private final Point point; // Координаты точки
 
     // Конструктор, принимающий начальные координаты точки
     public Dot(Point point) {
-        this.point = point;
-        this.creationNanoTime = System.nanoTime(); // Запоминаем время создания в наносекундах
+        this.point = new Point(point); // Создаем копию для иммутабельности
     }
 
     // Метод для получения копии точки (чтобы избежать изменения оригинала)
@@ -17,8 +15,4 @@ public class Dot {
         return new Point(point); // Возвращаем копию точки для безопасности
     }
 
-    // Метод для получения времени создания точки
-    public long getCreationNanoTime() {
-        return creationNanoTime;
-    }
 }
