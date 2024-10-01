@@ -144,14 +144,4 @@ public class RandomNumberProvider {
         long scaledNum = min + (long)(normalized * range);
         return scaledNum;
     }
-
-    // Добавьте этот метод в ваш класс RandomNumberProvider
-    // Метод для получения выборки случайных чисел заданного размера
-    public int[] getRandomNumbersSample(int sampleSize) {
-        int[] sample = new int[sampleSize];
-        for (int i = 0; i < sampleSize; i++) {
-            sample[i] = getNextRandomNumber();
-        }
-        return sample;
-    }
 }
