@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 public class RandomNumberProvider {
     private static final String API_URL = "https://lfdr.de/qrng_api/qrng";
-    private static final int MAX_API_REQUESTS = 100; // Максимальное количество запросов к API
+    private static final int MAX_API_REQUESTS = 50; // Ограничение на 50 запросов
     private final BlockingQueue<Integer> randomNumbersQueue;
     private final ObjectMapper objectMapper;
     private int apiRequestCount = 0; // Счетчик запросов к API
@@ -122,11 +122,17 @@ public class RandomNumberProvider {
                 if (apiRequestCount >= MAX_API_REQUESTS) {
                     throw new NoSuchElementException("Достигнуто максимальное количество запросов к API и нет доступных случайных чисел");
                 } else {
-                    throw new NoSuchElementException("Нет доступных случайных чисел");
+                    // Если лимит не достигнут, но очередь пуста, пытаемся загрузить новые данные
+                    loadInitialData();
+                    // После загрузки пытаемся снова получить число
+                    nextNumber = randomNumbersQueue.poll(5, TimeUnit.SECONDS);
+                    if (nextNumber == null) {
+                        throw new NoSuchElementException("Нет доступных случайных чисел");
+                    }
                 }
             }
-            // Если осталось мало чисел в очереди, загружаем новые
-            if (randomNumbersQueue.size() < 1000) {
+            // Если осталось мало чисел в очереди и лимит не достигнут, загружаем новые
+            if (randomNumbersQueue.size() < 1000 && apiRequestCount < MAX_API_REQUESTS) {
                 loadInitialData();
             }
             return nextNumber;

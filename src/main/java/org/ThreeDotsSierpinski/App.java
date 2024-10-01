@@ -3,12 +3,16 @@ package org.ThreeDotsSierpinski;
 import javax.swing.*;
 import java.awt.*;
 import java.util.NoSuchElementException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class App {
     public static final String CLOSING_PARENTHESIS = ")";
     public static final String DOT_MOVER = "Dot Mover";
     public static final String DOT_MOVER_DOTS = "Dot Mover - Dots: ";
-    public static final int DELAY = 1000; // Интервал между обновлениями
+    public static final int DELAY = 1000; // Интервал между обновлениями (в миллисекундах)
+
+    // Флаг, указывающий, выполняется ли сейчас метод moveDot()
+    private static final AtomicBoolean isMoving = new AtomicBoolean(false);
 
     public static void main(String[] args) {
         // Создание объектов для управления точками и случайными числами
@@ -25,20 +29,15 @@ public class App {
 
             // Таймер, запускающий обновление позиции точки
             Timer timer = new Timer(DELAY, e -> {
-                try {
-                    // Двигаем точки
-                    dotController.moveDot();
-
-                    // Обновляем заголовок окна с информацией о количестве точек
+                // Проверяем, не выполняется ли сейчас moveDot() и нет ли сообщения об ошибке
+                if (!isMoving.get() && dotController.getErrorMessage() == null) {
+                    isMoving.set(true); // Устанавливаем флаг, что moveDot() выполняется
+                    dotController.moveDot(() -> isMoving.set(false)); // Передаем обратный вызов для сброса флага
                     frame.setTitle(String.format("%s%d%s", DOT_MOVER_DOTS, dotController.getDotCounter(), CLOSING_PARENTHESIS));
-                } catch (NoSuchElementException ex) {
-                    // Сообщение об ошибке в случае отсутствия доступных случайных чисел
-                    JOptionPane.showMessageDialog(frame, ex.getMessage(), "Ошибка", JOptionPane.ERROR_MESSAGE);
-                    ((Timer) e.getSource()).stop(); // Останавливаем таймер
-                } catch (Exception ex) {
-                    // Сообщение об ошибке в случае проблем с подключением к API
-                    JOptionPane.showMessageDialog(frame, "Ошибка: Не удалось подключиться к провайдеру случайных чисел.", "Ошибка", JOptionPane.ERROR_MESSAGE);
-                    ((Timer) e.getSource()).stop(); // Останавливаем таймер
+                } else if (dotController.getErrorMessage() != null) {
+                    // Останавливаем таймер, так как достигнут лимит запросов или произошла ошибка
+                    ((Timer) e.getSource()).stop();
+                    JOptionPane.showMessageDialog(frame, dotController.getErrorMessage(), "Ошибка", JOptionPane.ERROR_MESSAGE);
                 }
             });
 

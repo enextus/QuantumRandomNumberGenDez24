@@ -31,25 +31,33 @@ public class DotController extends JPanel {
         offscreenImage = new BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_ARGB);
     }
 
-    // Метод для перемещения точки на новую позицию
-    public void moveDot() {
+    /**
+     * Метод для перемещения точки на новую позицию.
+     * Принимает обратный вызов, который будет вызван после завершения работы.
+     *
+     * @param callback Runnable, который будет вызван после завершения.
+     */
+    public void moveDot(Runnable callback) {
         new SwingWorker<Void, Dot>() {
             @Override
             protected Void doInBackground() {
                 long MinValue = -99999999L;
                 long MaxValue = 100000000L;
 
-                try {
-                    for (int i = 0; i < 10000; i++) {
+                for (int i = 0; i < 10000; i++) {
+                    try {
                         long randomValue = randomNumberProvider.getNextRandomNumberInRange(MinValue, MaxValue);
                         currentPoint = calculateNewDotPosition(currentPoint, randomValue); // Обновляем текущую точку
                         Dot newDot = new Dot(new Point(currentPoint)); // Создаем новую точку
                         dotCounter++;
                         publish(newDot); // Передаем точку для отрисовки
+                    } catch (NoSuchElementException e) {
+                        // Устанавливаем сообщение об ошибке, если оно еще не установлено
+                        if (errorMessage == null) {
+                            errorMessage = e.getMessage();
+                        }
+                        break; // Выходим из цикла, прекращая дальнейшую работу
                     }
-                } catch (NoSuchElementException e) {
-                    errorMessage = e.getMessage();
-                    cancel(true);
                 }
                 return null;
             }
@@ -64,7 +72,10 @@ public class DotController extends JPanel {
             @Override
             protected void done() {
                 if (errorMessage != null) {
-                    repaint(); // Перерисовываем панель, чтобы отобразить сообщение об ошибке
+                    repaint(); // Перерисовываем панель для отображения сообщения об ошибке
+                }
+                if (callback != null) {
+                    callback.run(); // Вызываем обратный вызов для сброса флага isMoving
                 }
             }
         }.execute();
@@ -116,11 +127,10 @@ public class DotController extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
+        g.drawImage(offscreenImage, 0, 0, null); // Рисуем буферизованное изображение
         if (errorMessage != null) {
             g.setColor(Color.RED); // Цвет ошибки
             g.drawString(errorMessage, 10, 20); // Отрисовываем сообщение об ошибке
-        } else {
-            g.drawImage(offscreenImage, 0, 0, null); // Рисуем буферизованное изображение
         }
     }
 
@@ -129,4 +139,8 @@ public class DotController extends JPanel {
         return dotCounter;
     }
 
+    // Геттер для errorMessage
+    public String getErrorMessage() {
+        return errorMessage;
+    }
 }
