@@ -15,7 +15,7 @@ public class DotController extends JPanel {
     private int dotCounter; // Счетчик точек
     private String errorMessage; // Сообщение об ошибке
     private Point currentPoint;
-    private BufferedImage offscreenImage; // Буфер для отрисовки
+    private final BufferedImage offscreenImage; // Буфер для отрисовки
 
     // Конструктор, принимающий RandomNumberProvider
     public DotController(RandomNumberProvider randomNumberProvider) {
@@ -32,12 +32,21 @@ public class DotController extends JPanel {
     }
 
     /**
-     * Метод для перемещения точки на новую позицию.
-     * Принимает обратный вызов, который будет вызван после завершения работы.
+     * Получает сообщение об ошибке.
      *
-     * @param callback Runnable, который будет вызван после завершения.
+     * @return Сообщение об ошибке или null, если ошибки нет.
      */
-    public void moveDot(Runnable callback) {
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
+    // Метод для перемещения точки на новую позицию
+    public void moveDot() {
+        // Если уже есть сообщение об ошибке, не продолжаем
+        if (errorMessage != null) {
+            return;
+        }
+
         new SwingWorker<Void, Dot>() {
             @Override
             protected Void doInBackground() {
@@ -52,11 +61,10 @@ public class DotController extends JPanel {
                         dotCounter++;
                         publish(newDot); // Передаем точку для отрисовки
                     } catch (NoSuchElementException e) {
-                        // Устанавливаем сообщение об ошибке, если оно еще не установлено
-                        if (errorMessage == null) {
+                        if (errorMessage == null) { // Устанавливаем сообщение об ошибке только один раз
                             errorMessage = e.getMessage();
                         }
-                        break; // Выходим из цикла, прекращая дальнейшую работу
+                        break; // Выходим из цикла
                     }
                 }
                 return null;
@@ -72,10 +80,7 @@ public class DotController extends JPanel {
             @Override
             protected void done() {
                 if (errorMessage != null) {
-                    repaint(); // Перерисовываем панель для отображения сообщения об ошибке
-                }
-                if (callback != null) {
-                    callback.run(); // Вызываем обратный вызов для сброса флага isMoving
+                    repaint(); // Перерисовываем панель, чтобы отобразить сообщение об ошибке
                 }
             }
         }.execute();
@@ -137,10 +142,5 @@ public class DotController extends JPanel {
     // Метод для получения количества созданных точек
     public int getDotCounter() {
         return dotCounter;
-    }
-
-    // Геттер для errorMessage
-    public String getErrorMessage() {
-        return errorMessage;
     }
 }

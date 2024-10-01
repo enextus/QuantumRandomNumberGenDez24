@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 public class RandomNumberProvider {
     private static final String API_URL = "https://lfdr.de/qrng_api/qrng";
-    private static final int MAX_API_REQUESTS = 50; // Ограничение на 50 запросов
+    private static final int MAX_API_REQUESTS = 50; // Ограничение до 50 запросов
     private final BlockingQueue<Integer> randomNumbersQueue;
     private final ObjectMapper objectMapper;
     private int apiRequestCount = 0; // Счетчик запросов к API
@@ -113,7 +113,12 @@ public class RandomNumberProvider {
         return data;
     }
 
-    // Метод для получения следующего случайного числа
+    /**
+     * Получает следующее случайное число из очереди.
+     *
+     * @return Случайное число от 0 до 255.
+     * @throws NoSuchElementException Если нет доступных случайных чисел или достигнут лимит запросов.
+     */
     public int getNextRandomNumber() {
         try {
             Integer nextNumber = randomNumbersQueue.poll(5, TimeUnit.SECONDS);
@@ -131,7 +136,7 @@ public class RandomNumberProvider {
                     }
                 }
             }
-            // Если осталось мало чисел в очереди и лимит не достигнут, загружаем новые
+            // Если осталось мало чисел и лимит не достигнут
             if (randomNumbersQueue.size() < 1000 && apiRequestCount < MAX_API_REQUESTS) {
                 loadInitialData();
             }
@@ -142,7 +147,13 @@ public class RandomNumberProvider {
         }
     }
 
-    // Метод для получения случайного числа в заданном диапазоне
+    /**
+     * Получает случайное число в заданном диапазоне.
+     *
+     * @param min Нижняя граница диапазона.
+     * @param max Верхняя граница диапазона.
+     * @return Случайное число типа long в диапазоне [min, max].
+     */
     public long getNextRandomNumberInRange(long min, long max) {
         int randomNum = getNextRandomNumber(); // Получаем число от 0 до 255
         double normalized = randomNum / 255.0;
