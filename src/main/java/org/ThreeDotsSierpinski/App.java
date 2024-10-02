@@ -7,9 +7,8 @@ import java.util.logging.Logger;
 import java.util.logging.Level;
 
 public class App {
-    private static final String CLOSING_PARENTHESIS = ")";
     private static final String DOT_MOVER = "Dot Mover";
-    private static final String DOT_MOVER_DOTS = "Dot Mover - Dots: ";
+    private static final String DOT_MOVER_DOTS = "Dots: ";
     private static final int DELAY = 1000; // Interval between updates in milliseconds
 
     private static final Logger LOGGER = LoggerConfig.getLogger();
@@ -34,7 +33,7 @@ public class App {
                 // Checking if there is no error message
                 if (dotController.getErrorMessage() == null) {
                     dotController.moveDot(); // Moving the dots
-                    frame.setTitle(String.format("%s%d%s", DOT_MOVER_DOTS, dotController.getDotCounter(), CLOSING_PARENTHESIS));
+                    frame.setTitle(String.format("%s%d%s", DOT_MOVER_DOTS, dotController.getDotCounter(), ")"));
                     LOGGER.fine("Dots updated. Current count: " + dotController.getDotCounter());
                 } else {
                     // Stopping the timer

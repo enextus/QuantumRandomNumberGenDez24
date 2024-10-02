@@ -12,6 +12,11 @@ target/
 *.iml
 *.ipr
 
+### Logging
+*.log
+*.log.*
+dots.txt
+
 src/main/resources/config.properties
 ### Application Config ###
 config.properties

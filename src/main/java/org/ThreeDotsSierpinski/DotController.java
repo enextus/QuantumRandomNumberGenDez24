@@ -16,7 +16,7 @@ import java.util.logging.Level;
  * The controller for managing and displaying points of the Sierpinski fractal.
  */
 public class DotController extends JPanel {
-    private static final int SIZE = 900; // Panel size
+    private static final int SIZE = 1000; // Panel size
     private static final int DOT_SIZE = 2; // Dot size
     private final List<Dot> dots; // List of dots
     private final RandomNumberProvider randomNumberProvider; // Random number provider

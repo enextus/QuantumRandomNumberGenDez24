@@ -1,7 +1,6 @@
 package org.ThreeDotsSierpinski;
 
 import java.awt.*;
-import java.util.logging.Logger;
 
 /**
  * The Dot record represents a point with coordinates on a plane.
