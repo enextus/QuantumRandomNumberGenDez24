@@ -7,47 +7,58 @@ import java.util.logging.*;
 public class LoggerConfig {
     private static final Logger LOGGER = Logger.getLogger(LoggerConfig.class.getName());
     private static final String LOG_FILE_NAME = "app.log";
+    private static boolean isInitialized = false;
 
-    static {
+    /**
+     * Инициализирует конфигурацию логгера.
+     * Удаляет существующий лог-файл и настраивает новый FileHandler.
+     */
+    public static synchronized void initializeLogger() {
+        if (isInitialized) {
+            return; // Предотвращает повторную инициализацию
+        }
+
         try {
-            // Define the path to the log file
+            // Определение пути к файлу лога
             Path logFilePath = Paths.get(LOG_FILE_NAME);
 
-            // Delete the log file if it exists to ensure a fresh start
+            // Удаление файла лога, если он существует, для обеспечения чистого старта
             Files.deleteIfExists(logFilePath);
 
-            // Initialize FileHandler with append set tоo false to overwrite the log file
+            // Инициализация FileHandler с append=false для перезаписи файла лога
             FileHandler fileHandler = new FileHandler(LOG_FILE_NAME, false);
-
-            // Set a simple formatter
             fileHandler.setFormatter(new SimpleFormatter());
 
-            // Add the handler to the root logger
+            // Получение корневого логгера
             Logger rootLogger = Logger.getLogger("");
-            // Remove default handlers to prevent duplicate logging to console
+            // Удаление стандартных консольных обработчиков для предотвращения дублирования логов
             Handler[] handlers = rootLogger.getHandlers();
             for (Handler handler : handlers) {
                 if (handler instanceof ConsoleHandler) {
                     rootLogger.removeHandler(handler);
                 }
             }
+
+            // Добавление FileHandler к корневому логгеру
             rootLogger.addHandler(fileHandler);
+            rootLogger.setLevel(Level.ALL); // Установка желаемого уровня логгирования
 
-            // Set the desired log level
-            rootLogger.setLevel(Level.ALL);
-
-            LOGGER.info("Logging initialized successfully.");
+            LOGGER.info("Логгирование успешно инициализировано.");
+            isInitialized = true;
         } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Failed to initialize logger handler.", e);
+            LOGGER.log(Level.SEVERE, "Не удалось инициализировать FileHandler для логгера.", e);
         }
     }
 
     /**
-     * Retrieves the global logger instance.
+     * Получает глобальный экземпляр логгера.
      *
-     * @return The global Logger.
+     * @return Глобальный Logger.
      */
     public static Logger getLogger() {
+        if (!isInitialized) {
+            initializeLogger();
+        }
         return Logger.getLogger("");
     }
 }

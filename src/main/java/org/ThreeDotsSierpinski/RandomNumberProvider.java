@@ -15,113 +15,133 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
 /**
- * Class for fetching random numbers from an external API and providing them to the application.
- * <p>
  * Класс для получения случайных чисел из внешнего API и предоставления их приложению.
  */
 public class RandomNumberProvider {
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
-    private static final String API_URL = "https://lfdr.de/qrng_api/qrng"; // API URL for fetching random numbers
-    private static final int MAX_API_REQUESTS = 50; // Maximum number of API requests
-    private final BlockingQueue<Integer> randomNumbersQueue; // Queue for storing random numbers
-    private final ObjectMapper objectMapper; // Object for handling JSON
-    private int apiRequestCount = 0; // Counter for the number of API requests made
+    private static final String API_URL = "https://lfdr.de/qrng_api/qrng"; // URL API для получения случайных чисел
+    private static final int MAX_API_REQUESTS = 50; // Максимальное количество запросов к API
+    private final BlockingQueue<Integer> randomNumbersQueue; // Очередь для хранения случайных чисел
+    private final ObjectMapper objectMapper; // Объект для обработки JSON
+    private int apiRequestCount = 0; // Счетчик количества выполненных API-запросов
+    private final Object lock = new Object(); // Блокировка для синхронизации вызовов loadInitialData
+
+    private final ExecutorService executorService; // Пул потоков для асинхронных задач
+    private volatile boolean isLoading = false; // Флаг загрузки данных
 
     /**
-     * Constructor for the RandomNumberProvider class.
-     * Initializes the random numbers queue and the JSON handler object,
-     * then loads the initial data.
-     * <p>
-     * Конструктор класса RandomNumberProvider.
+     * Конструктор для класса RandomNumberProvider.
      * Инициализирует очередь случайных чисел и объект для обработки JSON,
      * затем загружает начальные данные.
      */
     public RandomNumberProvider() {
-        randomNumbersQueue = new LinkedBlockingQueue<>(); // Initializing a thread-safe queue
-        objectMapper = new ObjectMapper(); // Initializing ObjectMapper for JSON processing
-        loadInitialData(); // Loading initial data
+        randomNumbersQueue = new LinkedBlockingQueue<>(); // Инициализация потокобезопасной очереди
+        objectMapper = new ObjectMapper(); // Инициализация ObjectMapper для обработки JSON
+        executorService = Executors.newSingleThreadExecutor(); // Инициализация пула потоков с одним потоком
+        loadInitialDataAsync(); // Асинхронная загрузка начальных данных
     }
 
     /**
-     * Method to load random numbers from the API.
-     * Checks if the maximum number of requests has been reached,
-     * forms an API request, processes the response, and adds numbers to the queue.
-     * <p>
+     * Метод для асинхронной загрузки случайных чисел из API.
+     * Использует ExecutorService для выполнения загрузки в фоновом потоке.
+     */
+    private void loadInitialDataAsync() {
+        synchronized (lock) {
+            if (isLoading || apiRequestCount >= MAX_API_REQUESTS) {
+                if (apiRequestCount >= MAX_API_REQUESTS) {
+                    LOGGER.warning("Достигнуто максимальное количество запросов к API: " + MAX_API_REQUESTS);
+                }
+                return; // Предотвращает одновременные вызовы
+            }
+            isLoading = true; // Устанавливаем флаг загрузки
+            executorService.submit(this::loadInitialData); // Отправляем задачу в пул потоков
+        }
+    }
+
+    /**
      * Метод для загрузки случайных чисел из API.
-     * Проверяет, достигнуто ли максимальное количество запросов,
-     * формирует запрос к API, обрабатывает ответ и добавляет числа в очередь.
+     * Выполняется в фоновом потоке.
      */
     private void loadInitialData() {
-        // Checking if the maximum number of requests has been reached
-        if (apiRequestCount >= MAX_API_REQUESTS) {
-            LOGGER.warning("Maximum number of API requests reached: " + MAX_API_REQUESTS);
-            return;
-        }
-
-        int n = 1024; // Number of random bytes to load
-        String requestUrl = API_URL + "?length=" + n + "&format=HEX"; // Forming the request URL
-
-        LOGGER.info("Sending request: " + requestUrl);
-
         try {
-            URI uri = new URI(requestUrl); // Creating URI from the request string
-            URL url = uri.toURL(); // Converting URI to URL
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection(); // Opening connection
-            conn.setRequestMethod("GET"); // Setting the request method
+            int n = 1024; // Количество случайных байт для загрузки
+            String requestUrl = API_URL + "?length=" + n + "&format=HEX"; // Формирование URL запроса
 
-            // Reading the response
+            LOGGER.info("Отправка запроса: " + requestUrl);
+
+            URI uri = new URI(requestUrl); // Создание URI из строки запроса
+            URL url = uri.toURL(); // Преобразование URI в URL
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection(); // Открытие соединения
+            conn.setRequestMethod("GET"); // Установка метода запроса
+            conn.setConnectTimeout(5000); // Установка таймаута подключения
+            conn.setReadTimeout(5000); // Установка таймаута чтения
+
+            // Чтение ответа
             String responseBody = getResponseBody(conn);
-            LOGGER.info("Received response: " + responseBody);
+            LOGGER.info("Получен ответ: " + responseBody);
 
-            // Parsing the JSON response
+            // Парсинг JSON-ответа
             JsonNode rootNode = objectMapper.readTree(responseBody);
 
             if (rootNode.has("qrn")) {
-                String hexData = rootNode.get("qrn").asText(); // Extracting HEX string with numbers
-                int length = rootNode.get("length").asInt(); // Extracting data length
+                String hexData = rootNode.get("qrn").asText(); // Извлечение HEX-строки с числами
+                int length = rootNode.get("length").asInt(); // Извлечение длины данных
 
-                // Converting HEX string to byte array
+                // Преобразование HEX-строки в массив байтов
                 byte[] byteArray = hexStringToByteArray(hexData);
 
-                // Converting bytes to integers
+                // Преобразование байтов в целые числа
                 for (byte b : byteArray) {
-                    int num = b & 0xFF; // Converting unsigned byte to int (0 to 255)
+                    int num = b & 0xFF; // Преобразование беззнакового байта в int (0 до 255)
                     try {
-                        randomNumbersQueue.put(num); // Adding number to the queue
+                        randomNumbersQueue.put(num); // Добавление числа в очередь
                     } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt(); // Restoring the interrupt status
-                        LOGGER.log(Level.WARNING, "Thread was interrupted while adding number to the queue: " + num, e);
+                        Thread.currentThread().interrupt(); // Восстановление статуса прерывания
+                        LOGGER.log(Level.WARNING, "Поток был прерван при добавлении числа в очередь: " + num, e);
                     }
                 }
-                LOGGER.info("Loaded " + length + " random numbers.");
-                apiRequestCount++; // Incrementing the API request counter
-                LOGGER.info("Number of API requests: " + apiRequestCount);
+                LOGGER.info("Загружено " + length + " случайных чисел.");
+                synchronized (lock) {
+                    apiRequestCount++; // Увеличение счетчика запросов к API
+                }
+                LOGGER.info("Количество запросов к API: " + apiRequestCount);
             } else if (rootNode.has("error")) {
                 String errorMsg = rootNode.get("error").asText();
-                LOGGER.severe("Error while fetching random numbers: " + errorMsg);
+                LOGGER.severe("Ошибка при получении случайных чисел: " + errorMsg);
             } else {
-                LOGGER.warning("Unexpected response from the server.");
+                LOGGER.warning("Неожиданный ответ от сервера.");
             }
 
-            conn.disconnect(); // Disconnecting the connection
+            conn.disconnect(); // Отключение соединения
         } catch (URISyntaxException e) {
-            LOGGER.log(Level.SEVERE, "Incorrect URL: " + requestUrl, e);
+            LOGGER.log(Level.SEVERE, "Некорректный URL: " + API_URL, e);
         } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Failed to fetch data from QRNG API.", e);
+            LOGGER.log(Level.SEVERE, "Не удалось получить данные из QRNG API.", e);
+        } finally {
+            synchronized (lock) {
+                isLoading = false; // Сбрасываем флаг загрузки
+            }
+            // Проверяем, нужно ли загрузить еще данные
+            if (randomNumbersQueue.size() < 1000 && apiRequestCount < MAX_API_REQUESTS) {
+                loadInitialDataAsync();
+            }
         }
     }
 
     /**
-     * Helper method to read the response body from the connection.
+     * Вспомогательный метод для чтения тела ответа из соединения.
      *
-     * @param conn The HttpURLConnection object
-     * @return The response body as a String
-     * @throws IOException If an I/O error occurs
+     * @param conn Объект HttpURLConnection
+     * @return Тело ответа в виде строки
+     * @throws IOException Если произошла ошибка ввода-вывода
      */
     private static @NotNull String getResponseBody(HttpURLConnection conn) throws IOException {
         BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
@@ -129,89 +149,101 @@ public class RandomNumberProvider {
         String responseLine;
 
         while ((responseLine = in.readLine()) != null) {
-            response.append(responseLine.trim()); // Reading and appending the line to the response
+            response.append(responseLine.trim()); // Чтение и добавление строки к ответу
         }
-        in.close(); // Closing the input stream
+        in.close(); // Закрытие потока ввода
 
         return response.toString();
     }
 
     /**
-     * Converts a HEX string to a byte array.
-     * <p>
-     * Метод для преобразования HEX-строки в массив байтов.
+     * Преобразует HEX-строку в массив байтов.
      *
-     * @param s HEX string to convert
-     * @return Byte array
-     * @throws IllegalArgumentException If the HEX string is invalid
+     * @param s HEX-строка для преобразования
+     * @return Массив байтов
+     * @throws IllegalArgumentException Если HEX-строка некорректна
      */
     private byte[] hexStringToByteArray(String s) {
         int len = s.length();
         if (len % 2 != 0) {
-            throw new IllegalArgumentException("Invalid HEX string length.");
+            throw new IllegalArgumentException("Некорректная длина HEX-строки.");
         }
         byte[] data = new byte[len / 2];
         for(int i = 0; i < len; i += 2){
             int high = Character.digit(s.charAt(i),16);
             int low = Character.digit(s.charAt(i+1),16);
             if (high == -1 || low == -1) {
-                throw new IllegalArgumentException("Invalid HEX character detected.");
+                throw new IllegalArgumentException("Обнаружен некорректный символ в HEX-строке.");
             }
-            data[i / 2] = (byte) ((high << 4) + low); // Converting two characters into one byte
+            data[i / 2] = (byte) ((high << 4) + low); // Преобразование двух символов в один байт
         }
         return data;
     }
 
     /**
-     * Gets the next random number from the queue.
-     * <p>
      * Получает следующее случайное число из очереди.
      *
-     * @return A random number between 0 and 255.
-     * @throws NoSuchElementException If there are no available random numbers or the request limit has been reached.
+     * @return Случайное число от 0 до 255.
+     * @throws NoSuchElementException Если нет доступных случайных чисел или достигнут предел запросов.
      */
     public int getNextRandomNumber() {
         try {
-            Integer nextNumber = randomNumbersQueue.poll(5, TimeUnit.SECONDS); // Attempting to retrieve a number with a 5-second wait
+            Integer nextNumber = randomNumbersQueue.poll(5, TimeUnit.SECONDS); // Попытка получить число с ожиданием 5 секунд
             if (nextNumber == null) {
-                if (apiRequestCount >= MAX_API_REQUESTS) {
-                    throw new NoSuchElementException("Maximum number of API requests reached and no available random numbers.");
-                } else {
-                    loadInitialData(); // Attempting to load new data
-                    nextNumber = randomNumbersQueue.poll(5, TimeUnit.SECONDS);
-                    if (nextNumber == null) {
-                        throw new NoSuchElementException("No available random numbers.");
+                synchronized (lock) {
+                    if (apiRequestCount >= MAX_API_REQUESTS) {
+                        throw new NoSuchElementException("Достигнуто максимальное количество запросов к API и нет доступных случайных чисел.");
                     }
                 }
+                loadInitialDataAsync(); // Асинхронная загрузка новых данных
+                nextNumber = randomNumbersQueue.poll(5, TimeUnit.SECONDS);
+                if (nextNumber == null) {
+                    throw new NoSuchElementException("Нет доступных случайных чисел.");
+                }
             }
-            // If there are few numbers left and the limit has not been reached
-            if (randomNumbersQueue.size() < 1000 && apiRequestCount < MAX_API_REQUESTS) {
-                loadInitialData(); // Loading additional data
+            // Если осталось мало чисел и лимит запросов не достигнут
+            if (randomNumbersQueue.size() < 1000) {
+                loadInitialDataAsync(); // Асинхронная загрузка дополнительных данных
             }
-            return nextNumber; // Returning the random number
+            return nextNumber; // Возврат случайного числа
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt(); // Restoring the interrupt status
-            throw new NoSuchElementException("Waiting for a random number was interrupted.");
+            Thread.currentThread().interrupt(); // Восстановление статуса прерывания
+            throw new NoSuchElementException("Ожидание случайного числа было прервано.");
         }
     }
 
     /**
-     * Gets a random number within a specified range.
-     * <p>
      * Получает случайное число в заданном диапазоне.
      *
-     * @param min The lower bound of the range.
-     *            Нижняя граница диапазона.
-     * @param max The upper bound of the range.
-     *            Верхняя граница диапазона.
-     * @return A random long number in the range [min, max].
-     *         Случайное число типа long в диапазоне [min, max].
+     * @param min Нижняя граница диапазона.
+     * @param max Верхняя граница диапазона.
+     * @return Случайное число типа long в диапазоне [min, max].
      */
     public long getNextRandomNumberInRange(long min, long max) {
-        int randomNum = getNextRandomNumber(); // Getting a number between 0 and 255
-        double normalized = randomNum / 255.0; // Normalizing the number to the range [0.0, 1.0]
-        long range = max - min; // Calculating the range
-        long scaledNum = min + (long)(normalized * range); // Scaling the number to the specified range
-        return scaledNum; // Returning the scaled number
+        int randomNum = getNextRandomNumber(); // Получение числа от 0 до 255
+        double normalized = randomNum / 255.0; // Нормализация числа к диапазону [0.0, 1.0]
+        long range = max - min; // Вычисление диапазона
+        long scaledNum = min + (long)(normalized * range); // Масштабирование числа к заданному диапазону
+        return scaledNum; // Возврат масштабированного числа
+    }
+
+    /**
+     * Метод для корректного завершения работы ExecutorService.
+     * Должен вызываться при завершении работы приложения.
+     */
+    public void shutdown() {
+        executorService.shutdown(); // Запрос на завершение работы пула потоков
+        try {
+            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                executorService.shutdownNow(); // Принудительное завершение, если не успели корректно завершиться
+                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                    LOGGER.severe("ExecutorService не завершился.");
+                }
+            }
+        } catch (InterruptedException e) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+        LOGGER.info("ExecutorService успешно завершен.");
     }
 }

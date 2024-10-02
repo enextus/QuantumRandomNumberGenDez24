@@ -3,35 +3,35 @@ package org.ThreeDotsSierpinski;
 import java.awt.*;
 
 /**
- * The Dot record represents a point with coordinates on a plane.
+ * Запись Dot представляет точку с координатами на плоскости.
  *
- * @param point The coordinates of the point
+ * @param point Координаты точки
  */
 public record Dot(Point point) {
     /**
-     * Constructor that takes the initial coordinates of the point.
-     * Creates a copy of the passed point to ensure immutability.
+     * Конструктор, принимающий начальные координаты точки.
+     * Создает копию переданной точки для обеспечения неизменяемости.
      *
-     * @param point The initial point
+     * @param point Начальная точка
      */
     public Dot(Point point) {
-        this.point = new Point(point); // Creates a copy to ensure immutability
+        this.point = new Point(point); // Создает копию для обеспечения неизменяемости
     }
 
     /**
-     * Returns a copy of the point to prevent modification of the original.
+     * Возвращает копию точки для предотвращения изменения оригинала.
      *
-     * @return A copy of the point
+     * @return Копия точки
      */
     @Override
     public Point point() {
-        return new Point(point); // Returns a copy of the point for safety
+        return new Point(point); // Возвращает копию точки для безопасности
     }
 
     /**
-     * Overrides the toString method to provide a comma-separated representation.
+     * Переопределяет метод toString для предоставления представления через запятую.
      *
-     * @return A string in the format "x,y"
+     * @return Строка в формате "x,y"
      */
     @Override
     public String toString() {

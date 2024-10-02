@@ -8,58 +8,59 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Collections;
+import java.util.ArrayList;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
 /**
- * The controller for managing and displaying points of the Sierpinski fractal.
+ * Контроллер для управления и отображения точек фрактала Серпинского.
  */
 public class DotController extends JPanel {
-    private static final int SIZE = 1000; // Panel size
-    private static final int DOT_SIZE = 2; // Dot size
-    private final List<Dot> dots; // List of dots
-    private final RandomNumberProvider randomNumberProvider; // Random number provider
-    private int dotCounter; // Dot counter
-    private String errorMessage; // Error message
-    private Point currentPoint; // Current point position
-    private final BufferedImage offscreenImage; // Offscreen image buffer for drawing
+    private static final int SIZE = 1000; // Размер панели
+    private static final int DOT_SIZE = 2; // Размер точки
+    private final List<Dot> dots; // Список точек
+    private final RandomNumberProvider randomNumberProvider; // Провайдер случайных чисел
+    private int dotCounter; // Счетчик точек
+    private volatile String errorMessage; // Сообщение об ошибке
+    private Point currentPoint; // Текущее положение точки
+    private final BufferedImage offscreenImage; // Буфер оффскрина для рисования
 
-    private static final Logger LOGGER = LoggerUtility.getLogger();
+    private static final Logger LOGGER = LoggerConfig.getLogger();
 
     /**
-     * Constructor that takes a RandomNumberProvider.
+     * Конструктор, принимающий RandomNumberProvider.
      *
-     * @param randomNumberProvider Random number provider
+     * @param randomNumberProvider Провайдер случайных чисел
      */
     public DotController(RandomNumberProvider randomNumberProvider) {
-        currentPoint = new Point(SIZE / 2, SIZE / 2); // Initial point in the center
-        setPreferredSize(new Dimension(SIZE, SIZE)); // Setting the panel size
-        setBackground(Color.WHITE); // White background for better visibility
-        dots = new CopyOnWriteArrayList<>(); // Initializing a thread-safe list of dots
-        this.randomNumberProvider = randomNumberProvider; // Assigning the random number provider
-        dotCounter = 0; // Initializing the dot counter
-        errorMessage = null; // Initially, there is no error
+        currentPoint = new Point(SIZE / 2, SIZE / 2); // Начальная точка в центре
+        setPreferredSize(new Dimension(SIZE, SIZE)); // Установка размера панели
+        setBackground(Color.WHITE); // Белый фон для лучшей видимости
+        dots = Collections.synchronizedList(new ArrayList<>()); // Инициализация синхронизированного списка точек
+        this.randomNumberProvider = randomNumberProvider; // Назначение провайдера случайных чисел
+        dotCounter = 0; // Инициализация счетчика точек
+        errorMessage = null; // Изначально отсутствует ошибка
 
-        // Initializing the offscreen image buffer
+        // Инициализация буфера оффскрина
         offscreenImage = new BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_ARGB);
     }
 
     /**
-     * Gets the error message.
+     * Получает сообщение об ошибке.
      *
-     * @return The error message or null if there is no error.
+     * @return Сообщение об ошибке или null, если ошибки нет.
      */
     public String getErrorMessage() {
         return errorMessage;
     }
 
     /**
-     * Moves the dot to a new position.
-     * Starts a background task to update the dot's position and add new dots.
+     * Перемещает точку в новое положение.
+     * Запускает фоновую задачу для обновления положения точки и добавления новых точек.
      */
     public void moveDot() {
-        // If there is already an error message, do not continue
+        // Если уже есть сообщение об ошибке, не продолжаем
         if (errorMessage != null) {
             return;
         }
@@ -67,26 +68,26 @@ public class DotController extends JPanel {
         new SwingWorker<Void, Dot>() {
             @Override
             protected Void doInBackground() {
-                long MinValue = -99999999L; // Minimum value for the random number range
-                long MaxValue = 100000000L; // Maximum value for the random number range
+                long MinValue = -99999999L; // Минимальное значение диапазона случайных чисел
+                long MaxValue = 100000000L; // Максимальное значение диапазона случайных чисел
 
-                for (int i = 0; i < 10000; i++) { // Loop to add 10,000 dots
+                for (int i = 0; i < 10000; i++) { // Цикл добавления 10,000 точек
                     try {
-                        // Getting the next random number in the specified range
+                        // Получение следующего случайного числа в указанном диапазоне
                         long randomValue = randomNumberProvider.getNextRandomNumberInRange(MinValue, MaxValue);
-                        // Calculating the new dot position based on the random number
+                        // Вычисление нового положения точки на основе случайного числа
                         currentPoint = calculateNewDotPosition(currentPoint, randomValue);
-                        // Creating a new dot
+                        // Создание новой точки
                         Dot newDot = new Dot(new Point(currentPoint));
-                        dotCounter++; // Incrementing the dot counter
-                        publish(newDot); // Publishing the dot for drawing
+                        dotCounter++; // Увеличение счетчика точек
+                        publish(newDot); // Публикация точки для рисования
                     } catch (NoSuchElementException e) {
-                        // Setting the error message only once
+                        // Установка сообщения об ошибке только один раз
                         if (errorMessage == null) {
                             errorMessage = e.getMessage();
-                            LOGGER.log(Level.WARNING, "No more random numbers available: " + e.getMessage());
+                            LOGGER.log(Level.WARNING, "Больше нет доступных случайных чисел: " + e.getMessage());
                         }
-                        break; // Exiting the loop
+                        break; // Выход из цикла
                     }
                 }
                 return null;
@@ -94,115 +95,117 @@ public class DotController extends JPanel {
 
             @Override
             protected void process(List<Dot> chunks) {
-                dots.addAll(chunks); // Adding new dots to the list
-                drawDots(chunks); // Drawing new dots on the buffer
-                repaint(); // Repainting the panel
-                LOGGER.fine("Processed " + chunks.size() + " new dots.");
+                dots.addAll(chunks); // Добавление новых точек в список
+                drawDots(chunks); // Рисование новых точек на буфере
+                repaint(); // Перерисовка панели
+                LOGGER.fine("Обработано " + chunks.size() + " новых точек.");
             }
 
             @Override
             protected void done() {
                 if (errorMessage != null) {
-                    repaint(); // Repainting the panel to display the error message
-                    LOGGER.severe("Error encountered during dot movement: " + errorMessage);
+                    repaint(); // Перерисовка панели для отображения сообщения об ошибке
+                    LOGGER.severe("Обнаружена ошибка при перемещении точек: " + errorMessage);
                 }
             }
-        }.execute(); // Starting the SwingWorker
+        }.execute(); // Запуск SwingWorker
     }
 
     /**
-     * Calculates the new dot position based on a random number.
+     * Вычисляет новое положение точки на основе случайного числа.
      *
-     * @param currentPoint Current point position
-     * @param randomValue  Random number to determine the movement direction
-     * @return New dot position
+     * @param currentPoint Текущее положение точки
+     * @param randomValue  Случайное число для определения направления движения
+     * @return Новое положение точки
      */
     private Point calculateNewDotPosition(Point currentPoint, long randomValue) {
-        long MinValue = -99999999L; // Minimum range value
-        long MaxValue = 100000000L; // Maximum range value
+        long MinValue = -99999999L; // Минимальное значение диапазона
+        long MaxValue = 100000000L; // Максимальное значение диапазона
 
-        // Fixed vertices of the triangle
-        Point A = new Point(SIZE / 2, 0); // Top vertex
-        Point B = new Point(0, SIZE); // Bottom-left vertex
-        Point C = new Point(SIZE, SIZE); // Bottom-right vertex
+        // Фиксированные вершины треугольника
+        Point A = new Point(SIZE / 2, 0); // Верхняя вершина
+        Point B = new Point(0, SIZE); // Левый нижний угол
+        Point C = new Point(SIZE, SIZE); // Правый нижний угол
 
-        long rangePart = (MaxValue - MinValue) / 3; // Dividing the range into three parts
+        long rangePart = (MaxValue - MinValue) / 3; // Разделение диапазона на три части
 
         int x = currentPoint.x;
         int y = currentPoint.y;
 
         if (randomValue <= MinValue + rangePart) {
-            // Moving towards point A
+            // Движение к вершине A
             x = (x + A.x) / 2;
             y = (y + A.y) / 2;
         } else if (randomValue <= MinValue + 2 * rangePart) {
-            // Moving towards point B
+            // Движение к вершине B
             x = (x + B.x) / 2;
             y = (y + B.y) / 2;
         } else {
-            // Moving towards point C
+            // Движение к вершине C
             x = (x + C.x) / 2;
             y = (y + C.y) / 2;
         }
 
-        return new Point(x, y); // Returning the new dot position
+        return new Point(x, y); // Возвращение нового положения точки
     }
 
     /**
-     * Draws new dots on the buffer.
+     * Рисует новые точки на буфере.
      *
-     * @param newDots List of new dots to draw
+     * @param newDots Список новых точек для рисования
      */
     private void drawDots(List<Dot> newDots) {
-        Graphics2D g2d = offscreenImage.createGraphics(); // Obtaining the graphics context of the buffer
-        g2d.setColor(Color.BLACK); // Setting the color for drawing dots
+        Graphics2D g2d = offscreenImage.createGraphics(); // Получение контекста графики буфера
+        g2d.setColor(Color.BLACK); // Установка цвета для рисования точек
         for (Dot dot : newDots) {
-            g2d.fillRect(dot.point().x, dot.point().y, DOT_SIZE, DOT_SIZE); // Drawing the dot
+            g2d.fillRect(dot.point().x, dot.point().y, DOT_SIZE, DOT_SIZE); // Рисование точки
         }
-        g2d.dispose(); // Disposing of the graphics context
+        g2d.dispose(); // Освобождение контекста графики
     }
 
     /**
-     * Paints the panel.
+     * Отрисовывает панель.
      *
-     * @param g Graphics object for drawing
+     * @param g Объект Graphics для рисования
      */
     @Override
     protected void paintComponent(Graphics g) {
-        super.paintComponent(g); // Calling the superclass method for basic painting
-        g.drawImage(offscreenImage, 0, 0, null); // Drawing the offscreen image
+        super.paintComponent(g); // Вызов метода суперкласса для базовой отрисовки
+        g.drawImage(offscreenImage, 0, 0, null); // Отрисовка буферного изображения
         if (errorMessage != null) {
-            g.setColor(Color.RED); // Setting red color for the error text
-            g.drawString(errorMessage, 10, 20); // Drawing the error message
+            g.setColor(Color.RED); // Установка красного цвета для текста ошибки
+            g.drawString(errorMessage, 10, 20); // Отрисовка сообщения об ошибке
         }
     }
 
     /**
-     * Gets the number of created dots.
+     * Получает количество созданных точек.
      *
-     * @return Number of dots
+     * @return Количество точек
      */
     public int getDotCounter() {
         return dotCounter;
     }
 
     /**
-     * Exports the list of dots to a specified text file.
+     * Экспортирует список точек в указанный текстовый файл.
      *
-     * @param filename The name of the file to export the dots to.
-     * @throws IOException If an I/O error occurs.
+     * @param filename Имя файла для экспорта точек.
+     * @throws IOException Если произошла ошибка ввода-вывода.
      */
     public void exportDotsToFile(String filename) throws IOException {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
-            for (Dot dot : dots) {
-                Point p = dot.point();
-                writer.write(p.x + "," + p.y);
-                writer.newLine();
+        synchronized (dots) { // Синхронизация доступа к списку точек
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
+                for (Dot dot : dots) {
+                    Point p = dot.point();
+                    writer.write(p.x + "," + p.y);
+                    writer.newLine();
+                }
+                LOGGER.info("Точки успешно экспортированы в " + filename);
+            } catch (IOException e) {
+                LOGGER.log(Level.SEVERE, "Не удалось экспортировать точки в файл: " + filename, e);
+                throw e; // Проброс исключения для обработки на более высоком уровне
             }
-            LOGGER.info("Dots have been successfully exported to " + filename);
-        } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Failed to export dots to file: " + filename, e);
-            throw e; // Rethrow to allow higher-level handling
         }
     }
 }
