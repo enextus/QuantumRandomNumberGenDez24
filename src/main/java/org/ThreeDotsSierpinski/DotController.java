@@ -195,6 +195,12 @@ public class DotController extends JPanel {
      */
     public void exportDotsToFile(String filename) throws IOException {
         synchronized (dots) { // Синхронизация доступа к списку точек
+            // Проверка на пустоту списка dots
+            if (dots.isEmpty()) {
+                LOGGER.warning("Экспорт отменен: список точек пуст.");
+                return; // Если список пуст, выходим из метода
+            }
+
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
                 for (Dot dot : dots) {
                     Point p = dot.point();
@@ -208,4 +214,5 @@ public class DotController extends JPanel {
             }
         }
     }
+
 }

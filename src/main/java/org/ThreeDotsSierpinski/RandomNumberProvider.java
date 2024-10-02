@@ -17,7 +17,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
@@ -72,7 +72,7 @@ public class RandomNumberProvider {
      */
     private void loadInitialData() {
         try {
-            int n = 1024; // Количество случайных байт для загрузки
+            int n = 1024; // Количество случайных байтов для загрузки
             String requestUrl = API_URL + "?length=" + n + "&format=HEX"; // Формирование URL запроса
 
             LOGGER.info("Отправка запроса: " + requestUrl);
@@ -223,8 +223,8 @@ public class RandomNumberProvider {
         int randomNum = getNextRandomNumber(); // Получение числа от 0 до 255
         double normalized = randomNum / 255.0; // Нормализация числа к диапазону [0.0, 1.0]
         long range = max - min; // Вычисление диапазона
-        long scaledNum = min + (long)(normalized * range); // Масштабирование числа к заданному диапазону
-        return scaledNum; // Возврат масштабированного числа
+        // Масштабирование числа к заданному диапазону
+        return min + (long)(normalized * range); // Возврат масштабированного числа
     }
 
     /**

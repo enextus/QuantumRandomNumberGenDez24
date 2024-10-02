@@ -42,10 +42,6 @@ public class App {
                     ((Timer) e.getSource()).stop();
                     // Логгирование ошибки
                     LOGGER.severe("Обнаружена ошибка: " + dotController.getErrorMessage());
-                    // Отображение сообщения об ошибке пользователю
-                    JOptionPane.showMessageDialog(frame, "Не удалось экспортировать точки в файл.",
-                            "Ошибка экспорта", JOptionPane.ERROR_MESSAGE);
-
                     // Экспорт точек в файл
                     try {
                         dotController.exportDotsToFile("dots.txt");

@@ -31,7 +31,7 @@ public record Dot(Point point) {
     /**
      * Переопределяет метод toString для предоставления представления через запятую.
      *
-     * @return Строка в формате "x,y"
+     * @return Строка в формате "x, y"
      */
     @Override
     public String toString() {
