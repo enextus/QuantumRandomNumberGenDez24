@@ -2,14 +2,11 @@ package org.ThreeDotsSierpinski;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.IOException;
 import java.util.logging.Logger;
-import java.util.logging.Level;
 
 public class App {
     private static final String DOT_MOVER = "Dot Mover";
-    private static final String DOT_MOVER_DOTS = "Dots: ";
-    private static final int DELAY = 500; // Интервал между обновлениями в миллисекундах
+    private static final int DELAY = 100; // Интервал между обновлениями в миллисекундах
 
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
@@ -30,32 +27,8 @@ public class App {
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // Установка операции закрытия по умолчанию
             frame.setExtendedState(JFrame.MAXIMIZED_BOTH); // Развертывание окна на весь экран
 
-            // Таймер для обновления точек
-            Timer timer = new Timer(DELAY, e -> {
-                // Проверка отсутствия сообщения об ошибке
-                if (dotController.getErrorMessage() == null) {
-                    dotController.moveDot(); // Перемещение точек
-                    frame.setTitle(String.format("%s%d", DOT_MOVER_DOTS, dotController.getDotCounter()));
-                    LOGGER.fine("Точки обновлены. Текущее количество: " + dotController.getDotCounter());
-                } else {
-                    // Остановка таймера
-                    ((Timer) e.getSource()).stop();
-                    // Логгирование ошибки
-                    LOGGER.severe("Обнаружена ошибка: " + dotController.getErrorMessage());
-                    // Экспорт точек в файл
-                    try {
-                        dotController.exportDotsToFile("dots.txt");
-                        LOGGER.info("Точки успешно экспортированы в dots.txt.");
-                    } catch (IOException ex) {
-                        LOGGER.log(Level.SEVERE, "Не удалось экспортировать точки в файл.", ex);
-                        JOptionPane.showMessageDialog(frame, "Не удалось экспортировать точки в файл.",
-                                "Ошибка экспорта", JOptionPane.ERROR_MESSAGE);
-                    }
-                }
-            });
-
-            // Запуск таймера
-            timer.start();
+            // Запуск движения точек
+            dotController.startDotMovement();
             frame.setVisible(true); // Отображение окна
             LOGGER.info("GUI успешно запущен.");
 
@@ -70,5 +43,4 @@ public class App {
             });
         });
     }
-    
 }

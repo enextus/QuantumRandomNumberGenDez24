@@ -10,6 +10,9 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Collections;
 import java.util.ArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
@@ -18,13 +21,19 @@ import java.util.logging.Level;
  */
 public class DotController extends JPanel {
     private static final int SIZE = 1000; // Размер панели
-    private static final int DOT_SIZE = 2; // Размер точки
+    private static final int DOT_SIZE = 3; // Размер точки
+    private static final int TIMER_DELAY = 1; // Интервал между обновлениями в миллисекундах
+    private static final int DOTS_PER_UPDATE = 1; // Количество точек, добавляемых за одно обновление
+    private static final long MIN_RANDOM_VALUE = -99999999L; // Минимальное значение диапазона случайных чисел
+    private static final long MAX_RANDOM_VALUE = 100000000L; // Максимальное значение диапазона случайных чисел
+
     private final List<Dot> dots; // Список точек
     private final RandomNumberProvider randomNumberProvider; // Провайдер случайных чисел
     private int dotCounter; // Счетчик точек
     private volatile String errorMessage; // Сообщение об ошибке
     private Point currentPoint; // Текущее положение точки
-    private final BufferedImage offscreenImage; // Буфер оффскрина для рисования
+    private final BufferedImage offscreenImage; // Буфер офф-скрина для рисования
+    private final ScheduledExecutorService scheduler; // Планировщик для смены цвета точки
 
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
@@ -44,6 +53,7 @@ public class DotController extends JPanel {
 
         // Инициализация буфера оффскрина
         offscreenImage = new BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_ARGB);
+        scheduler = Executors.newScheduledThreadPool(1); // Инициализация планировщика
     }
 
     /**
@@ -56,59 +66,51 @@ public class DotController extends JPanel {
     }
 
     /**
-     * Перемещает точку в новое положение.
-     * Запускает фоновую задачу для обновления положения точки и добавления новых точек.
+     * Запускает обновление точек с использованием Timer.
      */
-    public void moveDot() {
-        // Если уже есть сообщение об ошибке, не продолжаем
-        if (errorMessage != null) {
-            return;
-        }
+    public void startDotMovement() {
+        Timer timer = new Timer(TIMER_DELAY, e -> {
+            if (errorMessage == null) {
+                List<Dot> newDots = new ArrayList<>();
 
-        new SwingWorker<Void, Dot>() {
-            @Override
-            protected Void doInBackground() {
-                long MinValue = -99999999L; // Минимальное значение диапазона случайных чисел
-                long MaxValue = 100000000L; // Максимальное значение диапазона случайных чисел
-
-                for (int i = 0; i < 10000; i++) { // Цикл добавления 10,000 точек
+                for (int i = 0; i < DOTS_PER_UPDATE; i++) { // Цикл добавления точек
                     try {
                         // Получение следующего случайного числа в указанном диапазоне
-                        long randomValue = randomNumberProvider.getNextRandomNumberInRange(MinValue, MaxValue);
+                        long randomValue = randomNumberProvider.getNextRandomNumberInRange(MIN_RANDOM_VALUE, MAX_RANDOM_VALUE);
                         // Вычисление нового положения точки на основе случайного числа
                         currentPoint = calculateNewDotPosition(currentPoint, randomValue);
                         // Создание новой точки
                         Dot newDot = new Dot(new Point(currentPoint));
                         dotCounter++; // Увеличение счетчика точек
-                        publish(newDot); // Публикация точки для рисования
-                    } catch (NoSuchElementException e) {
+                        newDots.add(newDot); // Добавление точки в список для публикации
+                    } catch (NoSuchElementException ex) {
                         // Установка сообщения об ошибке только один раз
                         if (errorMessage == null) {
-                            errorMessage = e.getMessage();
-                            LOGGER.log(Level.WARNING, "Больше нет доступных случайных чисел: " + e.getMessage());
+                            errorMessage = ex.getMessage();
+                            LOGGER.log(Level.WARNING, "Больше нет доступных случайных чисел: " + ex.getMessage());
                         }
+                        ((Timer) e.getSource()).stop();
                         break; // Выход из цикла
                     }
                 }
-                return null;
-            }
 
-            @Override
-            protected void process(List<Dot> chunks) {
-                dots.addAll(chunks); // Добавление новых точек в список
-                drawDots(chunks); // Рисование новых точек на буфере
-                repaint(); // Перерисовка панели
-                LOGGER.fine("Обработано " + chunks.size() + " новых точек.");
-            }
+                dots.addAll(newDots); // Добавление всех точек в список
+                drawDots(newDots, Color.RED); // Рисование новых точек красным цветом
+                repaint(); // Перерисовка панели после добавления всех точек
+                LOGGER.fine("Обработано " + newDots.size() + " новых точек.");
 
-            @Override
-            protected void done() {
-                if (errorMessage != null) {
-                    repaint(); // Перерисовка панели для отображения сообщения об ошибке
-                    LOGGER.severe("Обнаружена ошибка при перемещении точек: " + errorMessage);
-                }
+                // Планируем смену цвета точки на черный через 1 секунду
+                scheduler.schedule(() -> {
+                    drawDots(newDots, Color.BLACK); // Смена цвета на черный
+                    repaint();
+                }, 1, TimeUnit.SECONDS);
+            } else {
+                ((Timer) e.getSource()).stop();
+                repaint(); // Перерисовка панели для отображения сообщения об ошибке
+                LOGGER.severe("Обнаружена ошибка при перемещении точек: " + errorMessage);
             }
-        }.execute(); // Запуск SwingWorker
+        });
+        timer.start();
     }
 
     /**
@@ -153,10 +155,11 @@ public class DotController extends JPanel {
      * Рисует новые точки на буфере.
      *
      * @param newDots Список новых точек для рисования
+     * @param color   Цвет для рисования точек
      */
-    private void drawDots(List<Dot> newDots) {
+    private void drawDots(List<Dot> newDots, Color color) {
         Graphics2D g2d = offscreenImage.createGraphics(); // Получение контекста графики буфера
-        g2d.setColor(Color.BLACK); // Установка цвета для рисования точек
+        g2d.setColor(color); // Установка цвета для рисования точек
         for (Dot dot : newDots) {
             g2d.fillRect(dot.point().x, dot.point().y, DOT_SIZE, DOT_SIZE); // Рисование точки
         }
@@ -214,5 +217,4 @@ public class DotController extends JPanel {
             }
         }
     }
-
 }

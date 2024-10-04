@@ -4,6 +4,9 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.util.logging.*;
 
+/**
+ * Конфигурация логгера для приложения.
+ */
 public class LoggerConfig {
     private static final Logger LOGGER = Logger.getLogger(LoggerConfig.class.getName());
     private static final String LOG_FILE_NAME = "app.log";

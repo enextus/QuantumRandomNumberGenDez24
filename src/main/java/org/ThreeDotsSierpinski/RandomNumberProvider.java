@@ -17,7 +17,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
@@ -213,21 +212,6 @@ public class RandomNumberProvider {
     }
 
     /**
-     * Получает случайное число в заданном диапазоне.
-     *
-     * @param min Нижняя граница диапазона.
-     * @param max Верхняя граница диапазона.
-     * @return Случайное число типа long в диапазоне [min, max].
-     */
-    public long getNextRandomNumberInRange(long min, long max) {
-        int randomNum = getNextRandomNumber(); // Получение числа от 0 до 255
-        double normalized = randomNum / 255.0; // Нормализация числа к диапазону [0.0, 1.0]
-        long range = max - min; // Вычисление диапазона
-        // Масштабирование числа к заданному диапазону
-        return min + (long)(normalized * range); // Возврат масштабированного числа
-    }
-
-    /**
      * Метод для корректного завершения работы ExecutorService.
      * Должен вызываться при завершении работы приложения.
      */
@@ -246,4 +230,13 @@ public class RandomNumberProvider {
         }
         LOGGER.info("ExecutorService успешно завершен.");
     }
+
+    public long getNextRandomNumberInRange(long min, long max) {
+        int randomNum = getNextRandomNumber(); // Получение числа от 0 до 255
+        double normalized = randomNum / 255.0; // Нормализация числа к диапазону [0.0, 1.0]
+        long range = max - min; // Вычисление диапазона
+        return min + (long) (normalized * range); // Масштабирование числа к заданному диапазону
+    }
+
+
 }
