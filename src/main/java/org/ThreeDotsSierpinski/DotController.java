@@ -16,24 +16,21 @@ import java.util.logging.Level;
 public class DotController extends JPanel {
     // Константы для конфигурации
     private static final int SIZE = 1000; // Размер панели
-    private static final int DOT_SIZE = 3; // Размер точки
+    private static final int DOT_SIZE = 2; // Размер точки
     private static final int TIMER_DELAY = 0; // Интервал между обновлениями в миллисекундах
-    private static final int DOTS_PER_UPDATE = 3; // Количество точек, добавляемых за одно обновление
+    private static final int DOTS_PER_UPDATE = 25; // Количество точек, добавляемых за одно обновление
     private static final long MIN_RANDOM_VALUE = -99999999L; // Минимальное значение диапазона случайных чисел
     private static final long MAX_RANDOM_VALUE = 100000000L; // Максимальное значение диапазона случайных чисел
+
+    // Константы для сообщений и логирования
+    private static final String ERROR_NO_RANDOM_NUMBERS = "Больше нет доступных случайных чисел: ";
+    private static final String LOG_DOTS_PROCESSED = "Обработано %d новых точек.";
+    private static final String LOG_ERROR_MOVEMENT = "Обнаружена ошибка при перемещении точек: %s";
 
     // Константы для визуализации стека чисел
     private static final int COLUMN_WIDTH = 100; // Ширина колонки для чисел
     private static final int ROW_HEIGHT = 20; // Высота строки для каждого числа
     private static final int COLUMN_SPACING = 20; // Расстояние между колонками
-
-    // Константы для сообщений и логирования
-    private static final String ERROR_NO_RANDOM_NUMBERS = "Больше нет доступных случайных чисел: ";
-    private static final String LOG_DOTS_PROCESSED = "Обработано %d новых точек.";
-    private static final String LOG_EXPORT_EMPTY = "Экспорт отменен: список точек пуст.";
-    private static final String LOG_EXPORT_SUCCESS = "Точки успешно экспортированы в %s";
-    private static final String LOG_EXPORT_FAILURE = "Не удалось экспортировать точки в файл: %s";
-    private static final String LOG_ERROR_MOVEMENT = "Обнаружена ошибка при перемещении точек: %s";
 
     private final List<Dot> dots; // Список точек
     private final List<Long> usedRandomNumbers; // Список использованных случайных чисел для визуализации
@@ -50,7 +47,9 @@ public class DotController extends JPanel {
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
     /**
-     * Конструктор класса DotController.
+     * Конструктор, принимающий RandomNumberProvider.
+     *
+     * @param randomNumberProvider Провайдер случайных чисел
      */
     public DotController(RandomNumberProvider randomNumberProvider) {
         currentPoint = new Point(SIZE / 2, SIZE / 2); // Начальная точка в центре
@@ -123,22 +122,6 @@ public class DotController extends JPanel {
     }
 
     /**
-     * Рисует новые точки на буфере.
-     *
-     * @param newDots Список новых точек для рисования
-     * @param color   Цвет для рисования точек
-     */
-    private void drawDots(List<Dot> newDots, Color color) {
-        Graphics2D g2d = offscreenImage.createGraphics(); // Получение контекста графики буфера
-        g2d.setColor(color); // Установка цвета для рисования точек
-        for (Dot dot : newDots) {
-            g2d.fillRect(dot.point().x, dot.point().y, DOT_SIZE, DOT_SIZE); // Рисование точки
-        }
-        g2d.dispose(); // Освобождение контекста графики
-    }
-
-
-    /**
      * Отрисовывает панель.
      *
      * @param g Объект Graphics для рисования
@@ -176,7 +159,6 @@ public class DotController extends JPanel {
      * @return Новое положение точки
      */
     private Point calculateNewDotPosition(Point currentPoint, long randomValue) {
-        // Используем существующие константы MIN_RANDOM_VALUE и MAX_RANDOM_VALUE
         long MinValue = MIN_RANDOM_VALUE;
         long MaxValue = MAX_RANDOM_VALUE;
 
@@ -207,6 +189,20 @@ public class DotController extends JPanel {
         return new Point(x, y); // Возвращение нового положения точки
     }
 
+    /**
+     * Рисует новые точки на буфере.
+     *
+     * @param newDots Список новых точек для рисования
+     * @param color   Цвет для рисования точек
+     */
+    private void drawDots(List<Dot> newDots, Color color) {
+        Graphics2D g2d = offscreenImage.createGraphics(); // Получение контекста графики буфера
+        g2d.setColor(color); // Установка цвета для рисования точек
+        for (Dot dot : newDots) {
+            g2d.fillRect(dot.point().x, dot.point().y, DOT_SIZE, DOT_SIZE); // Рисование точки
+        }
+        g2d.dispose(); // Освобождение контекста графики
+    }
 
     /**
      * Отрисовывает стек использованных случайных чисел справа от треугольника.
@@ -215,14 +211,21 @@ public class DotController extends JPanel {
      */
     private void drawRandomNumbersStack(Graphics g) {
         g.setColor(Color.BLACK);
-        int column = 0;
-        int row = 0;
+
+        int maxColumns = 4; // Максимальное количество колонок для отображения
+        int maxRowsPerColumn = SIZE / ROW_HEIGHT; // Количество строк, помещающихся в одной колонке
 
         // Определение начальной позиции для рисования чисел
-        int startX = SIZE + 20; // Отступ от правого края треугольника
-        int startY = 20; // Отступ сверху
+        int startX = SIZE + 20; // Начальная позиция по оси X, справа от треугольника
+        int startY = 20; // Начальная позиция по оси Y, сверху панели
 
-        for (Long randomValue : usedRandomNumbers) {
+        int column = maxColumns - 1; // Начинаем с самой правой колонки
+        int row = 0; // Стартуем с самой верхней строки
+
+        // Перебор использованных случайных чисел в обратном порядке для заполнения справа налево
+        for (int i = usedRandomNumbers.size() - 1; i >= 0; i--) {
+            Long randomValue = usedRandomNumbers.get(i);
+
             // Определение позиции для текущего числа
             int x = startX + column * (COLUMN_WIDTH + COLUMN_SPACING);
             int y = startY + row * ROW_HEIGHT;
@@ -232,13 +235,17 @@ public class DotController extends JPanel {
 
             // Переход на следующую строку
             row++;
-            // Если достигли максимальной высоты панели, начинаем новую колонку
-            if (y + ROW_HEIGHT > SIZE) {
+
+            // Если достигли конца текущей колонки, переходим к следующей колонке слева
+            if (row >= maxRowsPerColumn) {
                 row = 0;
-                column++;
+                column--;
+
+                // Если колонок больше не осталось, прекращаем отображение чисел
+                if (column < 0) {
+                    break;
+                }
             }
         }
     }
-
 }
-
