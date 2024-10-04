@@ -18,7 +18,7 @@ public class DotController extends JPanel {
     private static final int SIZE = 1000; // Размер панели
     private static final int DOT_SIZE = 2; // Размер точки
     private static final int TIMER_DELAY = 0; // Интервал между обновлениями в миллисекундах
-    private static final int DOTS_PER_UPDATE = 25; // Количество точек, добавляемых за одно обновление
+    private static final int DOTS_PER_UPDATE = 8; // Количество точек, добавляемых за одно обновление
     private static final long MIN_RANDOM_VALUE = -99999999L; // Минимальное значение диапазона случайных чисел
     private static final long MAX_RANDOM_VALUE = 100000000L; // Максимальное значение диапазона случайных чисел
 
