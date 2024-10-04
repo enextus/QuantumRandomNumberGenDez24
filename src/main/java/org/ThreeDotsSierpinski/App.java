@@ -9,7 +9,7 @@ import java.util.logging.Level;
 public class App {
     private static final String DOT_MOVER = "Dot Mover";
     private static final String DOT_MOVER_DOTS = "Dots: ";
-    private static final int DELAY = 1000; // Интервал между обновлениями в миллисекундах
+    private static final int DELAY = 500; // Интервал между обновлениями в миллисекундах
 
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
