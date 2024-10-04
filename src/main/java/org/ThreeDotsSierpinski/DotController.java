@@ -20,12 +20,21 @@ import java.util.logging.Level;
  * Контроллер для управления и отображения точек фрактала Серпинского.
  */
 public class DotController extends JPanel {
+    // Константы для конфигурации
     private static final int SIZE = 1000; // Размер панели
     private static final int DOT_SIZE = 3; // Размер точки
-    private static final int TIMER_DELAY = 1; // Интервал между обновлениями в миллисекундах
-    private static final int DOTS_PER_UPDATE = 1; // Количество точек, добавляемых за одно обновление
+    private static final int TIMER_DELAY = 0; // Интервал между обновлениями в миллисекундах
+    private static final int DOTS_PER_UPDATE = 3; // Количество точек, добавляемых за одно обновление
     private static final long MIN_RANDOM_VALUE = -99999999L; // Минимальное значение диапазона случайных чисел
     private static final long MAX_RANDOM_VALUE = 100000000L; // Максимальное значение диапазона случайных чисел
+
+    // Константы для сообщений и логирования
+    private static final String ERROR_NO_RANDOM_NUMBERS = "Больше нет доступных случайных чисел: ";
+    private static final String LOG_DOTS_PROCESSED = "Обработано %d новых точек.";
+    private static final String LOG_EXPORT_EMPTY = "Экспорт отменен: список точек пуст.";
+    private static final String LOG_EXPORT_SUCCESS = "Точки успешно экспортированы в %s";
+    private static final String LOG_EXPORT_FAILURE = "Не удалось экспортировать точки в файл: %s";
+    private static final String LOG_ERROR_MOVEMENT = "Обнаружена ошибка при перемещении точек: %s";
 
     private final List<Dot> dots; // Список точек
     private final RandomNumberProvider randomNumberProvider; // Провайдер случайных чисел
@@ -34,6 +43,9 @@ public class DotController extends JPanel {
     private Point currentPoint; // Текущее положение точки
     private final BufferedImage offscreenImage; // Буфер офф-скрина для рисования
     private final ScheduledExecutorService scheduler; // Планировщик для смены цвета точки
+
+    private int currentRandomValueIndex = 0; // Порядковый номер текущего случайного числа
+    private Long currentRandomValue; // Текущее случайное число
 
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
@@ -57,15 +69,6 @@ public class DotController extends JPanel {
     }
 
     /**
-     * Получает сообщение об ошибке.
-     *
-     * @return Сообщение об ошибке или null, если ошибки нет.
-     */
-    public String getErrorMessage() {
-        return errorMessage;
-    }
-
-    /**
      * Запускает обновление точек с использованием Timer.
      */
     public void startDotMovement() {
@@ -75,8 +78,15 @@ public class DotController extends JPanel {
 
                 for (int i = 0; i < DOTS_PER_UPDATE; i++) { // Цикл добавления точек
                     try {
+                        // Увеличение порядкового номера случайного числа
+                        currentRandomValueIndex++;
+
                         // Получение следующего случайного числа в указанном диапазоне
                         long randomValue = randomNumberProvider.getNextRandomNumberInRange(MIN_RANDOM_VALUE, MAX_RANDOM_VALUE);
+
+                        // Сохранение текущего случайного числа
+                        currentRandomValue = randomValue;
+
                         // Вычисление нового положения точки на основе случайного числа
                         currentPoint = calculateNewDotPosition(currentPoint, randomValue);
                         // Создание новой точки
@@ -87,7 +97,7 @@ public class DotController extends JPanel {
                         // Установка сообщения об ошибке только один раз
                         if (errorMessage == null) {
                             errorMessage = ex.getMessage();
-                            LOGGER.log(Level.WARNING, "Больше нет доступных случайных чисел: " + ex.getMessage());
+                            LOGGER.log(Level.WARNING, ERROR_NO_RANDOM_NUMBERS + ex.getMessage());
                         }
                         ((Timer) e.getSource()).stop();
                         break; // Выход из цикла
@@ -97,7 +107,7 @@ public class DotController extends JPanel {
                 dots.addAll(newDots); // Добавление всех точек в список
                 drawDots(newDots, Color.RED); // Рисование новых точек красным цветом
                 repaint(); // Перерисовка панели после добавления всех точек
-                LOGGER.fine("Обработано " + newDots.size() + " новых точек.");
+                LOGGER.fine(String.format(LOG_DOTS_PROCESSED, newDots.size()));
 
                 // Планируем смену цвета точки на черный через 1 секунду
                 scheduler.schedule(() -> {
@@ -107,11 +117,27 @@ public class DotController extends JPanel {
             } else {
                 ((Timer) e.getSource()).stop();
                 repaint(); // Перерисовка панели для отображения сообщения об ошибке
-                LOGGER.severe("Обнаружена ошибка при перемещении точек: " + errorMessage);
+                LOGGER.severe(String.format(LOG_ERROR_MOVEMENT, errorMessage));
             }
         });
         timer.start();
     }
+
+    /**
+     * Рисует новые точки на буфере.
+     *
+     * @param newDots Список новых точек для рисования
+     * @param color   Цвет для рисования точек
+     */
+    private void drawDots(List<Dot> newDots, Color color) {
+        Graphics2D g2d = offscreenImage.createGraphics(); // Получение контекста графики буфера
+        g2d.setColor(color); // Установка цвета для рисования точек
+        for (Dot dot : newDots) {
+            g2d.fillRect(dot.point().x, dot.point().y, DOT_SIZE, DOT_SIZE); // Рисование точки
+        }
+        g2d.dispose(); // Освобождение контекста графики
+    }
+
 
     /**
      * Вычисляет новое положение точки на основе случайного числа.
@@ -121,8 +147,10 @@ public class DotController extends JPanel {
      * @return Новое положение точки
      */
     private Point calculateNewDotPosition(Point currentPoint, long randomValue) {
-        long MinValue = -99999999L; // Минимальное значение диапазона
-        long MaxValue = 100000000L; // Максимальное значение диапазона
+        // Используем существующие константы MIN_RANDOM_VALUE и MAX_RANDOM_VALUE
+        // вместо локальных переменных
+        long MinValue = MIN_RANDOM_VALUE; // Минимальное значение диапазона
+        long MaxValue = MAX_RANDOM_VALUE; // Максимальное значение диапазона
 
         // Фиксированные вершины треугольника
         Point A = new Point(SIZE / 2, 0); // Верхняя вершина
@@ -151,20 +179,6 @@ public class DotController extends JPanel {
         return new Point(x, y); // Возвращение нового положения точки
     }
 
-    /**
-     * Рисует новые точки на буфере.
-     *
-     * @param newDots Список новых точек для рисования
-     * @param color   Цвет для рисования точек
-     */
-    private void drawDots(List<Dot> newDots, Color color) {
-        Graphics2D g2d = offscreenImage.createGraphics(); // Получение контекста графики буфера
-        g2d.setColor(color); // Установка цвета для рисования точек
-        for (Dot dot : newDots) {
-            g2d.fillRect(dot.point().x, dot.point().y, DOT_SIZE, DOT_SIZE); // Рисование точки
-        }
-        g2d.dispose(); // Освобождение контекста графики
-    }
 
     /**
      * Отрисовывает панель.
@@ -175,46 +189,18 @@ public class DotController extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g); // Вызов метода суперкласса для базовой отрисовки
         g.drawImage(offscreenImage, 0, 0, null); // Отрисовка буферного изображения
+
+        g.setColor(Color.BLUE); // Установка синего цвета для текста с номером выборки
+        g.drawString("Порядковый номер выборки: " + currentRandomValueIndex, 10, 20); // Отрисовка порядкового номера
+
+        if (currentRandomValue != null) {
+            g.setColor(Color.BLACK); // Установка черного цвета для текста с текущим случайным числом
+            g.drawString("Текущее случайное число: " + currentRandomValue, 10, 40); // Отрисовка текущего случайного числа
+        }
+
         if (errorMessage != null) {
             g.setColor(Color.RED); // Установка красного цвета для текста ошибки
-            g.drawString(errorMessage, 10, 20); // Отрисовка сообщения об ошибке
-        }
-    }
-
-    /**
-     * Получает количество созданных точек.
-     *
-     * @return Количество точек
-     */
-    public int getDotCounter() {
-        return dotCounter;
-    }
-
-    /**
-     * Экспортирует список точек в указанный текстовый файл.
-     *
-     * @param filename Имя файла для экспорта точек.
-     * @throws IOException Если произошла ошибка ввода-вывода.
-     */
-    public void exportDotsToFile(String filename) throws IOException {
-        synchronized (dots) { // Синхронизация доступа к списку точек
-            // Проверка на пустоту списка dots
-            if (dots.isEmpty()) {
-                LOGGER.warning("Экспорт отменен: список точек пуст.");
-                return; // Если список пуст, выходим из метода
-            }
-
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
-                for (Dot dot : dots) {
-                    Point p = dot.point();
-                    writer.write(p.x + "," + p.y);
-                    writer.newLine();
-                }
-                LOGGER.info("Точки успешно экспортированы в " + filename);
-            } catch (IOException e) {
-                LOGGER.log(Level.SEVERE, "Не удалось экспортировать точки в файл: " + filename, e);
-                throw e; // Проброс исключения для обработки на более высоком уровне
-            }
+            g.drawString(errorMessage, 10, 60); // Отрисовка сообщения об ошибке
         }
     }
 }
