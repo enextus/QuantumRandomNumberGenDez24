@@ -233,10 +233,16 @@ public class RandomNumberProvider {
 
     public long getNextRandomNumberInRange(long min, long max) {
         int randomNum = getNextRandomNumber(); // Получение числа от 0 до 255
-        double normalized = randomNum / 255.0; // Нормализация числа к диапазону [0.0, 1.0]
+        int randomNum2 = getNextRandomNumber(); // Получение второго случайного числа для увеличения энтропии
+
+        // Комбинируем два случайных числа для получения большего разброса
+        int combined = (randomNum << 8) | randomNum2; // Объединение двух 8-битных чисел в одно 16-битное
+
+        double normalized = combined / (double) 65535; // Нормализация числа к диапазону [0.0, 1.0]
         long range = max - min; // Вычисление диапазона
         return min + (long) (normalized * range); // Масштабирование числа к заданному диапазону
     }
+
 
 
 }
