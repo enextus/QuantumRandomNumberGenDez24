@@ -30,6 +30,7 @@ public class KolmogorovSmirnovTest {
         }
     }
 
+
     public static boolean test(int[] sample, double alpha) {
         // Сортируем выборку по возрастанию
         Arrays.sort(sample);
