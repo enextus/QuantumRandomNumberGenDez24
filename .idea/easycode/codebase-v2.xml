@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="com.obiscr.chatgpt.settings.EasyCodeState">
+    <option name="projectFiles" value="$PROJECT_DIR$/src/main/java/org/ThreeDotsSierpinski/App.java;/home/enextus/dev/QuantumRandomNumberGen2024/src/main/java/org/ThreeDotsSierpinski/Dot.java;/home/enextus/dev/QuantumRandomNumberGen2024/src/main/java/org/ThreeDotsSierpinski/DotController.java;/home/enextus/dev/QuantumRandomNumberGen2024/src/main/java/org/ThreeDotsSierpinski/KolmogorovSmirnovTest.java;/home/enextus/dev/QuantumRandomNumberGen2024/src/main/java/org/ThreeDotsSierpinski/LoggerConfig.java;/home/enextus/dev/QuantumRandomNumberGen2024/src/main/java/org/ThreeDotsSierpinski/LoggerUtility.java;/home/enextus/dev/QuantumRandomNumberGen2024/src/main/java/org/ThreeDotsSierpinski/RandomNumberProvider.java;/home/enextus/dev/QuantumRandomNumberGen2024/src/test/java/org/ThreeDotsSierpinski/KolmogorovSmirnovTest.java;/home/enextus/dev/QuantumRandomNumberGen2024/src/test/java/org/ThreeDotsSierpinski/NISTRandomnessTests.java;/home/enextus/dev/QuantumRandomNumberGen2024/src/test/java/org/ThreeDotsSierpinski/RandomNumberGeneratorTest.java;/home/enextus/dev/QuantumRandomNumberGen2024/Readme.md" />
+  </component>
+</project>

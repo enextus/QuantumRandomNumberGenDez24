@@ -1,11 +1,9 @@
 package org.ThreeDotsSierpinski;
 
 import java.util.List;
-import java.util.ArrayList;
 import java.util.logging.Logger;
-import java.util.logging.Level;
 
-public class NISTRandomnessTests {
+public class NISTRandomnessTest {
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
     /**
