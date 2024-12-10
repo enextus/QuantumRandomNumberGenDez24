@@ -35,10 +35,9 @@ public class DotController extends JPanel {
     private final List<Dot> dots; // Список точек
     private final List<Long> usedRandomNumbers; // Список использованных случайных чисел для визуализации
     private final RandomNumberProvider randomNumberProvider; // Провайдер случайных чисел
-    private int dotCounter; // Счетчик точек
     private volatile String errorMessage; // Сообщение об ошибке
     private Point currentPoint; // Текущее положение точки
-    private final BufferedImage offscreenImage; // Буфер офф-скрина для рисования
+    private final BufferedImage offscreenImage; // Буфер оффскрина для рисования
     private final ScheduledExecutorService scheduler; // Планировщик для смены цвета точки
 
     private int currentRandomValueIndex = 0; // Порядковый номер текущего случайного числа
@@ -58,7 +57,6 @@ public class DotController extends JPanel {
         dots = Collections.synchronizedList(new ArrayList<>()); // Инициализация синхронизированного списка точек
         usedRandomNumbers = new ArrayList<>(); // Инициализация списка использованных случайных чисел
         this.randomNumberProvider = randomNumberProvider; // Назначение провайдера случайных чисел
-        dotCounter = 0; // Инициализация счетчика точек
         errorMessage = null; // Изначально отсутствует ошибка
 
         // Инициализация буфера оффскрина
@@ -90,7 +88,6 @@ public class DotController extends JPanel {
 
                         // Создание новой точки
                         Dot newDot = new Dot(new Point(currentPoint));
-                        dotCounter++;
                         newDots.add(newDot);
                     } catch (NoSuchElementException ex) {
                         if (errorMessage == null) {
@@ -160,14 +157,13 @@ public class DotController extends JPanel {
      */
     private Point calculateNewDotPosition(Point currentPoint, long randomValue) {
         long MinValue = MIN_RANDOM_VALUE;
-        long MaxValue = MAX_RANDOM_VALUE;
 
         // Фиксированные вершины треугольника
         Point A = new Point(SIZE / 2, 0); // Верхняя вершина
         Point B = new Point(0, SIZE); // Левый нижний угол
         Point C = new Point(SIZE, SIZE); // Правый нижний угол
 
-        long rangePart = (MaxValue - MinValue) / 3; // Разделение диапазона на три части
+        long rangePart = (MAX_RANDOM_VALUE - MinValue) / 3; // Разделение диапазона на три части
 
         int x = currentPoint.x;
         int y = currentPoint.y;
