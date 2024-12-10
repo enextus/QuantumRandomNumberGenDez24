@@ -12,7 +12,6 @@ public class App {
     private static final String LOG_APP_SHUTTING_DOWN = "Завершение работы приложения.";
 
     // Константы для параметров JFrame
-    private static final int FRAME_CLOSE_OPERATION = JFrame.EXIT_ON_CLOSE;
     private static final int FRAME_STATE = JFrame.MAXIMIZED_BOTH;
     private static final String FRAME_LAYOUT = BorderLayout.CENTER;
 
@@ -32,7 +31,7 @@ public class App {
             JFrame frame = new JFrame(APPLICATION_TITLE); // Создание окна приложения
             frame.setLayout(new BorderLayout()); // Установка менеджера компоновки
             frame.add(dotController, FRAME_LAYOUT); // Добавление контроллера точек в центр
-            frame.setDefaultCloseOperation(FRAME_CLOSE_OPERATION); // Установка операции закрытия по умолчанию
+            frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE); // Установка операции закрытия по умолчанию
             frame.setExtendedState(FRAME_STATE); // Развертывание окна на весь экран
 
             // Запуск движения точек
