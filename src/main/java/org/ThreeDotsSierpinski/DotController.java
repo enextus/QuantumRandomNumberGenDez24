@@ -14,23 +14,29 @@ import java.util.logging.Logger;
 import java.util.logging.Level;
 
 public class DotController extends JPanel {
-    // Константы для конфигурации
-    private static final int SIZE = 1000; // Размер панели
-    private static final int DOT_SIZE = 2; // Размер точки
-    private static final int TIMER_DELAY = 0; // Интервал между обновлениями в миллисекундах
-    private static final int DOTS_PER_UPDATE = 8; // Количество точек, добавляемых за одно обновление
-    private static final long MIN_RANDOM_VALUE = -99999999L; // Минимальное значение диапазона случайных чисел
-    private static final long MAX_RANDOM_VALUE = 100000000L; // Максимальное значение диапазона случайных чисел
+    // Параметры панели
+    private static final int SIZE_WIDTH = Config.getInt("panel.size.width");
+    private static final int SIZE_HEIGHT = Config.getInt("panel.size.height");
+
+    // Параметры точек и таймера
+    private static final int DOT_SIZE = Config.getInt("dot.size");
+    private static final int TIMER_DELAY = Config.getInt("timer.delay");
+    private static final int DOTS_PER_UPDATE = Config.getInt("dots.per.update");
+
+    // Диапазон случайных чисел
+    private static final long MIN_RANDOM_VALUE = Config.getLong("random.min.value");
+    private static final long MAX_RANDOM_VALUE = Config.getLong("random.max.value");
 
     // Константы для сообщений и логирования
     private static final String ERROR_NO_RANDOM_NUMBERS = "Больше нет доступных случайных чисел: ";
     private static final String LOG_DOTS_PROCESSED = "Обработано %d новых точек.";
     private static final String LOG_ERROR_MOVEMENT = "Обнаружена ошибка при перемещении точек: %s";
 
-    // Константы для визуализации стека чисел
-    private static final int COLUMN_WIDTH = 100; // Ширина колонки для чисел
-    private static final int ROW_HEIGHT = 20; // Высота строки для каждого числа
-    private static final int COLUMN_SPACING = 20; // Расстояние между колонками
+    // Параметры визуализации стека чисел
+    private static final int COLUMN_WIDTH = Config.getInt("column.width");
+    private static final int ROW_HEIGHT = Config.getInt("row.height");
+    private static final int COLUMN_SPACING = Config.getInt("column.spacing");
+    private static final int MAX_COLUMNS = Config.getInt("max.columns");
 
     private final List<Dot> dots; // Список точек
     private final List<Long> usedRandomNumbers; // Список использованных случайных чисел для визуализации
@@ -51,8 +57,8 @@ public class DotController extends JPanel {
      * @param randomNumberProvider Провайдер случайных чисел
      */
     public DotController(RandomNumberProvider randomNumberProvider) {
-        currentPoint = new Point(SIZE / 2, SIZE / 2); // Начальная точка в центре
-        setPreferredSize(new Dimension(SIZE + 300, SIZE)); // Увеличиваем ширину панели для отображения стека чисел
+        currentPoint = new Point(SIZE_WIDTH / 2, SIZE_HEIGHT / 2); // Начальная точка в центре
+        setPreferredSize(new Dimension(SIZE_WIDTH + 300, SIZE_HEIGHT)); // Увеличиваем ширину панели для отображения стека чисел
         setBackground(Color.WHITE); // Белый фон для лучшей видимости
         dots = Collections.synchronizedList(new ArrayList<>()); // Инициализация синхронизированного списка точек
         usedRandomNumbers = new ArrayList<>(); // Инициализация списка использованных случайных чисел
@@ -60,7 +66,7 @@ public class DotController extends JPanel {
         errorMessage = null; // Изначально отсутствует ошибка
 
         // Инициализация буфера оффскрина
-        offscreenImage = new BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_ARGB);
+        offscreenImage = new BufferedImage(SIZE_WIDTH, SIZE_HEIGHT, BufferedImage.TYPE_INT_ARGB);
         scheduler = Executors.newScheduledThreadPool(1); // Инициализация планировщика
     }
 
@@ -159,9 +165,9 @@ public class DotController extends JPanel {
         long MinValue = MIN_RANDOM_VALUE;
 
         // Фиксированные вершины треугольника
-        Point A = new Point(SIZE / 2, 0); // Верхняя вершина
-        Point B = new Point(0, SIZE); // Левый нижний угол
-        Point C = new Point(SIZE, SIZE); // Правый нижний угол
+        Point A = new Point(SIZE_WIDTH / 2, 0); // Верхняя вершина
+        Point B = new Point(0, SIZE_HEIGHT); // Левый нижний угол
+        Point C = new Point(SIZE_WIDTH, SIZE_HEIGHT); // Правый нижний угол
 
         long rangePart = (MAX_RANDOM_VALUE - MinValue) / 3; // Разделение диапазона на три части
 
@@ -208,11 +214,12 @@ public class DotController extends JPanel {
     private void drawRandomNumbersStack(Graphics g) {
         g.setColor(Color.BLACK);
 
-        int maxColumns = 4; // Максимальное количество колонок для отображения
-        int maxRowsPerColumn = SIZE / ROW_HEIGHT; // Количество строк, помещающихся в одной колонке
+        // Получение параметров из конфигурации
+        int maxColumns = MAX_COLUMNS;
+        int maxRowsPerColumn = SIZE_HEIGHT / ROW_HEIGHT;
 
         // Определение начальной позиции для рисования чисел
-        int startX = SIZE + 20; // Начальная позиция по оси X, справа от треугольника
+        int startX = SIZE_WIDTH + 20; // Начальная позиция по оси X, справа от треугольника
         int startY = 20; // Начальная позиция по оси Y, сверху панели
 
         int column = maxColumns - 1; // Начинаем с самой правой колонки

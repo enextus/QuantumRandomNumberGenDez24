@@ -11,10 +11,6 @@ public class App {
     private static final String LOG_GUI_STARTED = "GUI успешно запущен.";
     private static final String LOG_APP_SHUTTING_DOWN = "Завершение работы приложения.";
 
-    // Константы для параметров JFrame
-    private static final int FRAME_STATE = JFrame.MAXIMIZED_BOTH;
-    private static final String FRAME_LAYOUT = BorderLayout.CENTER;
-
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
     public static void main(String[] args) {
@@ -30,9 +26,16 @@ public class App {
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame(APPLICATION_TITLE); // Создание окна приложения
             frame.setLayout(new BorderLayout()); // Установка менеджера компоновки
-            frame.add(dotController, FRAME_LAYOUT); // Добавление контроллера точек в центр
-            frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE); // Установка операции закрытия по умолчанию
-            frame.setExtendedState(FRAME_STATE); // Развертывание окна на весь экран
+            frame.add(dotController, BorderLayout.CENTER); // Добавление контроллера точек в центр
+            frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+
+            // Получение размера панели из конфигурации
+            int panelWidth = Config.getInt("panel.size.width");
+            int panelHeight = Config.getInt("panel.size.height");
+            frame.setSize(panelWidth, panelHeight); // Установка размера окна
+
+            // Альтернативно, можно использовать максимальное развертывание, если это задано
+            // frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
 
             // Запуск движения точек
             dotController.startDotMovement();

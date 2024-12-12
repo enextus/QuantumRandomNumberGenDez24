@@ -9,7 +9,6 @@ import java.util.logging.*;
  */
 public class LoggerConfig {
     private static final Logger LOGGER = Logger.getLogger(LoggerConfig.class.getName());
-    private static final String LOG_FILE_NAME = "app.log";
     private static boolean isInitialized = false;
 
     /**
@@ -22,14 +21,17 @@ public class LoggerConfig {
         }
 
         try {
+            // Получение имени файла лога из конфигурации
+            String logFileName = Config.getString("log.file.name");
+
             // Определение пути к файлу лога
-            Path logFilePath = Paths.get(LOG_FILE_NAME);
+            Path logFilePath = Paths.get(logFileName);
 
             // Удаление файла лога, если он существует, для обеспечения чистого старта
             Files.deleteIfExists(logFilePath);
 
             // Инициализация FileHandler с append=false для перезаписи файла лога
-            FileHandler fileHandler = new FileHandler(LOG_FILE_NAME, false);
+            FileHandler fileHandler = new FileHandler(logFileName, false);
             fileHandler.setFormatter(new SimpleFormatter());
 
             // Получение корневого логгера
@@ -44,7 +46,7 @@ public class LoggerConfig {
 
             // Добавление FileHandler к корневому логгеру
             rootLogger.addHandler(fileHandler);
-            rootLogger.setLevel(Level.ALL); // Установка желаемого уровня логгирования
+            rootLogger.setLevel(Config.getLogLevel()); // Установка уровня логирования из конфигурации
 
             LOGGER.info("Логгирование успешно инициализировано.");
             isInitialized = true;

@@ -26,8 +26,12 @@ import java.util.logging.Level;
 public class RandomNumberProvider {
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
-    private static final String API_URL = "https://lfdr.de/qrng_api/qrng"; // URL API для получения случайных чисел
-    private static final int MAX_API_REQUESTS = 50; // Максимальное количество запросов к API
+    // Параметры API из конфигурации
+    private static final String API_URL = Config.getString("api.url");
+    private static final int MAX_API_REQUESTS = Config.getInt("api.max.requests");
+    private static final int CONNECT_TIMEOUT = Config.getInt("api.connect.timeout");
+    private static final int READ_TIMEOUT = Config.getInt("api.read.timeout");
+
     private final BlockingQueue<Integer> randomNumbersQueue; // Очередь для хранения случайных чисел
     private final ObjectMapper objectMapper; // Объект для обработки JSON
     private int apiRequestCount = 0; // Счетчик количества выполненных API-запросов
@@ -80,8 +84,8 @@ public class RandomNumberProvider {
             URL url = uri.toURL(); // Преобразование URI в URL
             HttpURLConnection conn = (HttpURLConnection) url.openConnection(); // Открытие соединения
             conn.setRequestMethod("GET"); // Установка метода запроса
-            conn.setConnectTimeout(5000); // Установка таймаута подключения
-            conn.setReadTimeout(5000); // Установка таймаута чтения
+            conn.setConnectTimeout(CONNECT_TIMEOUT); // Установка таймаута подключения из конфигурации
+            conn.setReadTimeout(READ_TIMEOUT); // Установка таймаута чтения из конфигурации
 
             // Чтение ответа
             String responseBody = getResponseBody(conn);
@@ -231,6 +235,13 @@ public class RandomNumberProvider {
         LOGGER.info("ExecutorService успешно завершен.");
     }
 
+    /**
+     * Генерирует случайное число в заданном диапазоне [min, max].
+     *
+     * @param min Нижняя граница диапазона
+     * @param max Верхняя граница диапазона
+     * @return Случайное число в диапазоне [min, max]
+     */
     public long getNextRandomNumberInRange(long min, long max) {
         int randomNum = getNextRandomNumber(); // Получение числа от 0 до 255
         int randomNum2 = getNextRandomNumber(); // Получение второго случайного числа для увеличения энтропии
@@ -242,7 +253,4 @@ public class RandomNumberProvider {
         long range = max - min; // Вычисление диапазона
         return min + (long) (normalized * range); // Масштабирование числа к заданному диапазону
     }
-
-
-
 }
