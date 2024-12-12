@@ -13,104 +13,116 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
-public class DotController extends JPanel {
-    // Параметры панели
+/**
+ * The DotController class manages the drawing and updating of dots on the panel.
+ * It also listens to data loading events to update the UI status.
+ */
+public class DotController extends JPanel implements DataLoadListener {
+    // Panel parameters
     private static final int SIZE_WIDTH = Config.getInt("panel.size.width");
     private static final int SIZE_HEIGHT = Config.getInt("panel.size.height");
 
-    // Параметры точек и таймера
+    // Dot and timer parameters
     private static final int DOT_SIZE = Config.getInt("dot.size");
     private static final int TIMER_DELAY = Config.getInt("timer.delay");
     private static final int DOTS_PER_UPDATE = Config.getInt("dots.per.update");
 
-    // Диапазон случайных чисел
+    // Random number range
     private static final long MIN_RANDOM_VALUE = Config.getLong("random.min.value");
     private static final long MAX_RANDOM_VALUE = Config.getLong("random.max.value");
 
-    // Константы для сообщений и логирования
-    private static final String ERROR_NO_RANDOM_NUMBERS = "Больше нет доступных случайных чисел: ";
-    private static final String LOG_DOTS_PROCESSED = "Обработано %d новых точек.";
-    private static final String LOG_ERROR_MOVEMENT = "Обнаружена ошибка при перемещении точек: %s";
+    // Constants for messages and logging
+    private static final String ERROR_NO_RANDOM_NUMBERS = "No available random numbers: ";
+    private static final String LOG_DOTS_PROCESSED = "Processed %d new dots.";
+    private static final String LOG_ERROR_MOVEMENT = "Error moving dots: %s";
 
-    // Параметры визуализации стека чисел
+    // Random number stack visualization parameters
     private static final int COLUMN_WIDTH = Config.getInt("column.width");
     private static final int ROW_HEIGHT = Config.getInt("row.height");
     private static final int COLUMN_SPACING = Config.getInt("column.spacing");
     private static final int MAX_COLUMNS = Config.getInt("max.columns");
 
-    private final List<Dot> dots; // Список точек
-    private final List<Long> usedRandomNumbers; // Список использованных случайных чисел для визуализации
-    private final RandomNumberProvider randomNumberProvider; // Провайдер случайных чисел
-    private volatile String errorMessage; // Сообщение об ошибке
-    private Point currentPoint; // Текущее положение точки
-    private final BufferedImage offscreenImage; // Буфер оффскрина для рисования
-    private final ScheduledExecutorService scheduler; // Планировщик для смены цвета точки
+    private final List<Dot> dots; // List of dots
+    private final List<Long> usedRandomNumbers; // List of used random numbers for visualization
+    private final RandomNumberProvider randomNumberProvider; // Provider for random numbers
+    private volatile String errorMessage; // Error message
+    private Point currentPoint; // Current position of the dot
+    private final BufferedImage offscreenImage; // Offscreen buffer for drawing
+    private final ScheduledExecutorService scheduler; // Scheduler for changing dot color
 
-    private int currentRandomValueIndex = 0; // Порядковый номер текущего случайного числа
-    private Long currentRandomValue; // Текущее случайное число
+    private int currentRandomValueIndex = 0; // Current random number index
+    private Long currentRandomValue; // Current random number
 
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
-    /**
-     * Конструктор, принимающий RandomNumberProvider.
-     *
-     * @param randomNumberProvider Провайдер случайных чисел
-     */
-    public DotController(RandomNumberProvider randomNumberProvider) {
-        currentPoint = new Point(SIZE_WIDTH / 2, SIZE_HEIGHT / 2); // Начальная точка в центре
-        setPreferredSize(new Dimension(SIZE_WIDTH + 300, SIZE_HEIGHT)); // Увеличиваем ширину панели для отображения стека чисел
-        setBackground(Color.WHITE); // Белый фон для лучшей видимости
-        dots = Collections.synchronizedList(new ArrayList<>()); // Инициализация синхронизированного списка точек
-        usedRandomNumbers = new ArrayList<>(); // Инициализация списка использованных случайных чисел
-        this.randomNumberProvider = randomNumberProvider; // Назначение провайдера случайных чисел
-        errorMessage = null; // Изначально отсутствует ошибка
+    private final JLabel statusLabel; // Status label to display loading status
 
-        // Инициализация буфера оффскрина
+    /**
+     * Constructor accepting RandomNumberProvider and JLabel for status updates.
+     *
+     * @param randomNumberProvider Provider for random numbers
+     * @param statusLabel          JLabel to display status messages
+     */
+    public DotController(RandomNumberProvider randomNumberProvider, JLabel statusLabel) {
+        this.statusLabel = statusLabel;
+        currentPoint = new Point(SIZE_WIDTH / 2, SIZE_HEIGHT / 2); // Starting point in the center
+        setPreferredSize(new Dimension(SIZE_WIDTH + 300, SIZE_HEIGHT)); // Increase panel width for random number stack visualization
+        setBackground(Color.WHITE); // White background for better visibility
+        dots = Collections.synchronizedList(new ArrayList<>()); // Initialize synchronized list of dots
+        usedRandomNumbers = new ArrayList<>(); // Initialize list of used random numbers
+        this.randomNumberProvider = randomNumberProvider; // Assign random number provider
+        errorMessage = null; // Initially no error
+
+        // Initialize offscreen buffer
         offscreenImage = new BufferedImage(SIZE_WIDTH, SIZE_HEIGHT, BufferedImage.TYPE_INT_ARGB);
-        scheduler = Executors.newScheduledThreadPool(1); // Инициализация планировщика
+        scheduler = Executors.newScheduledThreadPool(1); // Initialize scheduler
+
+        // Register as a listener to RandomNumberProvider
+        this.randomNumberProvider.addDataLoadListener(this);
     }
 
     /**
-     * Запускает обновление точек с использованием Timer.
+     * Starts the dot movement using a Timer.
      */
     public void startDotMovement() {
         Timer timer = new Timer(TIMER_DELAY, e -> {
             if (errorMessage == null) {
                 List<Dot> newDots = new ArrayList<>();
 
-                for (int i = 0; i < DOTS_PER_UPDATE; i++) { // Цикл добавления точек
+                for (int i = 0; i < DOTS_PER_UPDATE; i++) { // Loop to add dots
                     try {
                         currentRandomValueIndex++;
 
-                        // Получение следующего случайного числа в указанном диапазоне
+                        // Get the next random number in the specified range
                         long randomValue = randomNumberProvider.getNextRandomNumberInRange(MIN_RANDOM_VALUE, MAX_RANDOM_VALUE);
 
-                        // Сохранение текущего случайного числа и добавление его в список использованных чисел
+                        // Save the current random number and add it to the used numbers list
                         currentRandomValue = randomValue;
                         usedRandomNumbers.add(currentRandomValue);
 
-                        // Вычисление нового положения точки на основе случайного числа
+                        // Calculate the new dot position based on the random number
                         currentPoint = calculateNewDotPosition(currentPoint, randomValue);
 
-                        // Создание новой точки
+                        // Create a new dot
                         Dot newDot = new Dot(new Point(currentPoint));
                         newDots.add(newDot);
                     } catch (NoSuchElementException ex) {
                         if (errorMessage == null) {
                             errorMessage = ex.getMessage();
                             LOGGER.log(Level.WARNING, ERROR_NO_RANDOM_NUMBERS + ex.getMessage());
+                            updateStatusLabel("Error: " + ex.getMessage());
                         }
                         ((Timer) e.getSource()).stop();
-                        break; // Выход из цикла
+                        break; // Exit the loop
                     }
                 }
 
-                dots.addAll(newDots); // Добавление всех точек в список
-                drawDots(newDots, Color.RED); // Рисование новых точек красным цветом
-                repaint(); // Перерисовка панели после добавления всех точек
+                dots.addAll(newDots); // Add all new dots to the list
+                drawDots(newDots, Color.RED); // Draw new dots in red
+                repaint(); // Repaint the panel after adding new dots
                 LOGGER.fine(String.format(LOG_DOTS_PROCESSED, newDots.size()));
 
-                // Планируем смену цвета точки на черный через 1 секунду
+                // Schedule to change the color of the dots to black after 1 second
                 scheduler.schedule(() -> {
                     drawDots(newDots, Color.BLACK);
                     repaint();
@@ -125,130 +137,165 @@ public class DotController extends JPanel {
     }
 
     /**
-     * Отрисовывает панель.
+     * Paints the panel.
      *
-     * @param g Объект Graphics для рисования
+     * @param g The Graphics object for drawing.
      */
     @Override
     protected void paintComponent(Graphics g) {
-        super.paintComponent(g); // Вызов метода суперкласса для базовой отрисовки
-        g.drawImage(offscreenImage, 0, 0, null); // Отрисовка буферного изображения
+        super.paintComponent(g); // Call superclass method for basic painting
+        g.drawImage(offscreenImage, 0, 0, null); // Draw the offscreen image
 
-        // Отображение порядкового номера случайного числа
+        // Display the random number index
         g.setColor(Color.BLUE);
-        g.drawString("Порядковый номер выборки: " + currentRandomValueIndex, 10, 20);
+        g.drawString("Random sample index: " + currentRandomValueIndex, 10, 20);
 
-        // Отображение текущего случайного числа
+        // Display the current random number
         if (currentRandomValue != null) {
             g.setColor(Color.BLACK);
-            g.drawString("Текущее случайное число: " + currentRandomValue, 10, 40);
+            g.drawString("Current random number: " + currentRandomValue, 10, 40);
         }
 
-        // Отображение сообщения об ошибке, если есть
+        // Display error message if present
         if (errorMessage != null) {
             g.setColor(Color.RED);
             g.drawString(errorMessage, 10, 60);
         }
 
-        // Отрисовка стека использованных случайных чисел справа от треугольника
+        // Draw the stack of used random numbers to the right of the triangle
         drawRandomNumbersStack(g);
     }
 
     /**
-     * Вычисляет новое положение точки на основе случайного числа.
+     * Calculates the new position of the dot based on the random number.
      *
-     * @param currentPoint Текущее положение точки
-     * @param randomValue  Случайное число для определения направления движения
-     * @return Новое положение точки
+     * @param currentPoint Current position of the dot
+     * @param randomValue  Random number determining the movement direction
+     * @return New position of the dot
      */
     private Point calculateNewDotPosition(Point currentPoint, long randomValue) {
         long MinValue = MIN_RANDOM_VALUE;
 
-        // Фиксированные вершины треугольника
-        Point A = new Point(SIZE_WIDTH / 2, 0); // Верхняя вершина
-        Point B = new Point(0, SIZE_HEIGHT); // Левый нижний угол
-        Point C = new Point(SIZE_WIDTH, SIZE_HEIGHT); // Правый нижний угол
+        // Fixed vertices of the triangle
+        Point A = new Point(SIZE_WIDTH / 2, 0); // Top vertex
+        Point B = new Point(0, SIZE_HEIGHT); // Bottom-left vertex
+        Point C = new Point(SIZE_WIDTH, SIZE_HEIGHT); // Bottom-right vertex
 
-        long rangePart = (MAX_RANDOM_VALUE - MinValue) / 3; // Разделение диапазона на три части
+        long rangePart = (MAX_RANDOM_VALUE - MinValue) / 3; // Divide the range into three parts
 
         int x = currentPoint.x;
         int y = currentPoint.y;
 
         if (randomValue <= MinValue + rangePart) {
-            // Движение к вершине A
+            // Move towards vertex A
             x = (x + A.x) / 2;
             y = (y + A.y) / 2;
         } else if (randomValue <= MinValue + 2 * rangePart) {
-            // Движение к вершине B
+            // Move towards vertex B
             x = (x + B.x) / 2;
             y = (y + B.y) / 2;
         } else {
-            // Движение к вершине C
+            // Move towards vertex C
             x = (x + C.x) / 2;
             y = (y + C.y) / 2;
         }
 
-        return new Point(x, y); // Возвращение нового положения точки
+        return new Point(x, y); // Return new position
     }
 
     /**
-     * Рисует новые точки на буфере.
+     * Draws new dots on the offscreen buffer.
      *
-     * @param newDots Список новых точек для рисования
-     * @param color   Цвет для рисования точек
+     * @param newDots List of new dots to draw
+     * @param color   Color to draw the dots
      */
     private void drawDots(List<Dot> newDots, Color color) {
-        Graphics2D g2d = offscreenImage.createGraphics(); // Получение контекста графики буфера
-        g2d.setColor(color); // Установка цвета для рисования точек
+        Graphics2D g2d = offscreenImage.createGraphics(); // Get graphics context from buffer
+        g2d.setColor(color); // Set color for drawing
         for (Dot dot : newDots) {
-            g2d.fillRect(dot.point().x, dot.point().y, DOT_SIZE, DOT_SIZE); // Рисование точки
+            g2d.fillRect(dot.point().x, dot.point().y, DOT_SIZE, DOT_SIZE); // Draw the dot
         }
-        g2d.dispose(); // Освобождение контекста графики
+        g2d.dispose(); // Dispose graphics context
     }
 
     /**
-     * Отрисовывает стек использованных случайных чисел справа от треугольника.
+     * Draws the stack of used random numbers to the right of the triangle.
      *
-     * @param g Объект Graphics для рисования
+     * @param g The Graphics object for drawing.
      */
     private void drawRandomNumbersStack(Graphics g) {
         g.setColor(Color.BLACK);
 
-        // Получение параметров из конфигурации
+        // Get visualization parameters from configuration
         int maxColumns = MAX_COLUMNS;
         int maxRowsPerColumn = SIZE_HEIGHT / ROW_HEIGHT;
 
-        // Определение начальной позиции для рисования чисел
-        int startX = SIZE_WIDTH + 20; // Начальная позиция по оси X, справа от треугольника
-        int startY = 20; // Начальная позиция по оси Y, сверху панели
+        // Define starting position for drawing numbers
+        int startX = SIZE_WIDTH + 20; // Starting X position, to the right of the triangle
+        int startY = 20; // Starting Y position, top of the panel
 
-        int column = maxColumns - 1; // Начинаем с самой правой колонки
-        int row = 0; // Стартуем с самой верхней строки
+        int column = maxColumns - 1; // Start from the rightmost column
+        int row = 0; // Start from the top row
 
-        // Перебор использованных случайных чисел в обратном порядке для заполнения справа налево
+        // Iterate through used random numbers in reverse order to fill from right to left
         for (int i = usedRandomNumbers.size() - 1; i >= 0; i--) {
             Long randomValue = usedRandomNumbers.get(i);
 
-            // Определение позиции для текущего числа
+            // Determine position for the current number
             int x = startX + column * (COLUMN_WIDTH + COLUMN_SPACING);
             int y = startY + row * ROW_HEIGHT;
 
-            // Отрисовка числа
+            // Draw the number
             g.drawString(randomValue.toString(), x, y);
 
-            // Переход на следующую строку
+            // Move to the next row
             row++;
 
-            // Если достигли конца текущей колонки, переходим к следующей колонке слева
+            // If reached the end of the current column, move to the next column
             if (row >= maxRowsPerColumn) {
                 row = 0;
                 column--;
 
-                // Если колонок больше не осталось, прекращаем отображение чисел
+                // If no more columns are left, stop displaying numbers
                 if (column < 0) {
                     break;
                 }
             }
         }
+    }
+
+    /**
+     * Updates the status label with the given message.
+     *
+     * @param message The message to display.
+     */
+    private void updateStatusLabel(String message) {
+        SwingUtilities.invokeLater(() -> statusLabel.setText(message));
+    }
+
+    /**
+     * Called when data loading starts.
+     */
+    @Override
+    public void onLoadingStarted() {
+        updateStatusLabel("Loading data...");
+    }
+
+    /**
+     * Called when data loading completes successfully.
+     */
+    @Override
+    public void onLoadingCompleted() {
+        updateStatusLabel("Data loaded successfully.");
+    }
+
+    /**
+     * Called when an error occurs during data loading.
+     *
+     * @param errorMessage The error message.
+     */
+    @Override
+    public void onError(String errorMessage) {
+        updateStatusLabel("Error: " + errorMessage);
     }
 }

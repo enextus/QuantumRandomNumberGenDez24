@@ -4,50 +4,67 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.logging.Logger;
 
+/**
+ * The main application class that sets up the GUI and initializes components.
+ */
 public class App {
-    // Константы для строковых значений
+    // Constants for string values
     private static final String APPLICATION_TITLE = "Dot Mover";
-    private static final String LOG_APP_STARTED = "Приложение запущено.";
-    private static final String LOG_GUI_STARTED = "GUI успешно запущен.";
-    private static final String LOG_APP_SHUTTING_DOWN = "Завершение работы приложения.";
+    private static final String LOG_APP_STARTED = "Application started.";
+    private static final String LOG_GUI_STARTED = "GUI successfully launched.";
+    private static final String LOG_APP_SHUTTING_DOWN = "Shutting down application.";
 
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
     public static void main(String[] args) {
-        // Инициализация логгирования
+        // Initialize logging
         LoggerConfig.initializeLogger();
         LOGGER.info(LOG_APP_STARTED);
 
-        // Создание объектов
+        // Create objects
         RandomNumberProvider randomNumberProvider = new RandomNumberProvider();
-        DotController dotController = new DotController(randomNumberProvider);
+        JLabel statusLabel = new JLabel("Ready"); // Create status label
 
-        // Запуск GUI
+        // Launch GUI
         SwingUtilities.invokeLater(() -> {
-            JFrame frame = new JFrame(APPLICATION_TITLE); // Создание окна приложения
-            frame.setLayout(new BorderLayout()); // Установка менеджера компоновки
-            frame.add(dotController, BorderLayout.CENTER); // Добавление контроллера точек в центр
+            JFrame frame = new JFrame(APPLICATION_TITLE); // Create application window
+            frame.setLayout(new BorderLayout()); // Set layout manager
+
+            // Get panel size and window scaling factors from configuration
+            int basePanelWidth = Config.getInt("panel.size.width");
+            int basePanelHeight = Config.getInt("panel.size.height");
+            double scaleWidth = Config.getDouble("window.scale.width");
+            double scaleHeight = Config.getDouble("window.scale.height");
+
+            // Calculate final window size based on scaling factors
+            int finalWidth = (int) Math.round(basePanelWidth * scaleWidth);
+            int finalHeight = (int) Math.round(basePanelHeight * scaleHeight);
+
+            // Create DotController with reference to statusLabel
+            DotController dotController = new DotController(randomNumberProvider, statusLabel);
+
+            frame.add(dotController, BorderLayout.CENTER); // Add DotController to center
+
+            // Create and add status panel to the bottom of the window
+            JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            statusPanel.add(statusLabel);
+            frame.add(statusPanel, BorderLayout.SOUTH);
+
             frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+            frame.setSize(finalWidth, finalHeight); // Set window size
+            frame.setLocationRelativeTo(null); // Center the window on the screen
 
-            // Получение размера панели из конфигурации
-            int panelWidth = Config.getInt("panel.size.width");
-            int panelHeight = Config.getInt("panel.size.height");
-            frame.setSize(panelWidth, panelHeight); // Установка размера окна
-
-            // Альтернативно, можно использовать максимальное развертывание, если это задано
-            // frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
-
-            // Запуск движения точек
+            // Start dot movement
             dotController.startDotMovement();
-            frame.setVisible(true); // Отображение окна
+            frame.setVisible(true); // Display the window
             LOGGER.info(LOG_GUI_STARTED);
 
-            // Добавление обработчика закрытия окна для корректного завершения ExecutorService
+            // Add window listener to handle shutdown
             frame.addWindowListener(new java.awt.event.WindowAdapter() {
                 @Override
                 public void windowClosing(java.awt.event.WindowEvent windowEvent) {
                     LOGGER.info(LOG_APP_SHUTTING_DOWN);
-                    randomNumberProvider.shutdown(); // Корректное завершение пула потоков
+                    randomNumberProvider.shutdown(); // Gracefully shutdown ExecutorService
                     super.windowClosing(windowEvent);
                 }
             });
