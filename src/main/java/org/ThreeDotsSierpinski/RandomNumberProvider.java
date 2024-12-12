@@ -17,8 +17,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
@@ -34,15 +33,17 @@ public class RandomNumberProvider {
     private static final int CONNECT_TIMEOUT = Config.getInt("api.connect.timeout");
     private static final int READ_TIMEOUT = Config.getInt("api.read.timeout");
 
+    // Optimization parameters from configuration
+    private static final int LOAD_SIZE = Config.getInt("random.load.size"); // Number of numbers to load per request
+    private static final int QUEUE_MIN_SIZE = Config.getInt("random.queue.min.size"); // Minimum queue size before triggering load
+
     private final BlockingQueue<Integer> randomNumbersQueue; // Queue to store random numbers
     private final ObjectMapper objectMapper; // Object for handling JSON
     private int apiRequestCount = 0; // Counter for API requests
-    private final Object lock = new Object(); // Lock for synchronizing loadInitialData calls
-
-    private final ExecutorService executorService; // Thread pool for asynchronous tasks
-    private volatile boolean isLoading = false; // Flag indicating if data is being loaded
 
     private final List<DataLoadListener> listeners = new CopyOnWriteArrayList<>(); // Listeners for data load events
+
+    private volatile boolean isLoading = false; // Flag indicating if data is being loaded
 
     /**
      * Constructor for RandomNumberProvider.
@@ -52,7 +53,6 @@ public class RandomNumberProvider {
     public RandomNumberProvider() {
         randomNumbersQueue = new LinkedBlockingQueue<>(); // Initialize thread-safe queue
         objectMapper = new ObjectMapper(); // Initialize ObjectMapper for JSON handling
-        executorService = Executors.newSingleThreadExecutor(); // Initialize single-thread executor
         loadInitialDataAsync(); // Asynchronously load initial data
     }
 
@@ -76,10 +76,10 @@ public class RandomNumberProvider {
 
     /**
      * Asynchronously loads random numbers from the API.
-     * Uses ExecutorService to perform loading in a background thread.
+     * Uses CompletableFuture to perform loading asynchronously.
      */
     private void loadInitialDataAsync() {
-        synchronized (lock) {
+        synchronized (this) {
             if (isLoading || apiRequestCount >= MAX_API_REQUESTS) {
                 if (apiRequestCount >= MAX_API_REQUESTS) {
                     LOGGER.warning("Maximum number of API requests reached: " + MAX_API_REQUESTS);
@@ -87,18 +87,26 @@ public class RandomNumberProvider {
                 return; // Prevent concurrent loading
             }
             isLoading = true; // Set loading flag
-            executorService.submit(this::loadInitialData); // Submit load task to executor
         }
+
+        CompletableFuture.runAsync(this::loadInitialData)
+                .exceptionally(ex -> {
+                    LOGGER.log(Level.SEVERE, "Exception during data loading", ex);
+                    notifyError("Exception during data loading: " + ex.getMessage());
+                    synchronized (this) {
+                        isLoading = false;
+                    }
+                    return null;
+                });
     }
 
     /**
-     * Loads random numbers from the API in a background thread.
+     * Loads random numbers from the API.
      */
     private void loadInitialData() {
         notifyLoadingStarted();
         try {
-            int n = 1024; // Number of random bytes to fetch
-            String requestUrl = API_URL + "?length=" + n + "&format=HEX"; // Form the request URL
+            String requestUrl = API_URL + "?length=" + LOAD_SIZE + "&format=HEX"; // Form the request URL
 
             LOGGER.info("Sending request: " + requestUrl);
 
@@ -134,7 +142,7 @@ public class RandomNumberProvider {
                     }
                 }
                 LOGGER.info("Loaded " + length + " random numbers.");
-                synchronized (lock) {
+                synchronized (this) {
                     apiRequestCount++; // Increment API request count
                 }
                 LOGGER.info("API request count: " + apiRequestCount);
@@ -156,13 +164,11 @@ public class RandomNumberProvider {
             LOGGER.log(Level.SEVERE, "Failed to fetch data from QRNG API.", e);
             notifyError("Failed to fetch data from QRNG API.");
         } finally {
-            synchronized (lock) {
+            synchronized (this) {
                 isLoading = false; // Reset loading flag
             }
-            // Check if more data needs to be loaded
-            if (randomNumbersQueue.size() < 1000 && apiRequestCount < MAX_API_REQUESTS) {
-                loadInitialDataAsync();
-            }
+            // Check if more data needs to be loaded proactively
+            checkAndLoadMore();
         }
     }
 
@@ -218,21 +224,21 @@ public class RandomNumberProvider {
      */
     public int getNextRandomNumber() {
         try {
-            Integer nextNumber = randomNumbersQueue.poll(5, TimeUnit.SECONDS); // Try to get a number with 5 sec timeout
+            Integer nextNumber = randomNumbersQueue.poll(1, TimeUnit.SECONDS); // Reduce timeout to 1 sec
             if (nextNumber == null) {
-                synchronized (lock) {
+                synchronized (this) {
                     if (apiRequestCount >= MAX_API_REQUESTS) {
                         throw new NoSuchElementException("Reached maximum number of API requests and no available random numbers.");
                     }
                 }
                 loadInitialDataAsync(); // Asynchronously load new data
-                nextNumber = randomNumbersQueue.poll(5, TimeUnit.SECONDS);
+                nextNumber = randomNumbersQueue.poll(1, TimeUnit.SECONDS); // Poll again with 1 sec timeout
                 if (nextNumber == null) {
                     throw new NoSuchElementException("No available random numbers.");
                 }
             }
-            // If few numbers left and API request limit not reached
-            if (randomNumbersQueue.size() < 1000) {
+            // If queue size is below the minimum threshold and not already loading, trigger loading
+            if (randomNumbersQueue.size() < QUEUE_MIN_SIZE && apiRequestCount < MAX_API_REQUESTS && !isLoading) {
                 loadInitialDataAsync(); // Asynchronously load additional data
             }
             return nextNumber; // Return random number
@@ -243,23 +249,14 @@ public class RandomNumberProvider {
     }
 
     /**
-     * Shuts down the ExecutorService gracefully.
-     * Should be called when the application is closing.
+     * Shuts down the RandomNumberProvider gracefully.
+     * Currently, no ExecutorService is used since CompletableFuture is utilized.
+     * If future resources need to be managed, implement shutdown logic here.
      */
     public void shutdown() {
-        executorService.shutdown(); // Request shutdown of executor
-        try {
-            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                executorService.shutdownNow(); // Force shutdown if not terminated
-                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                    LOGGER.severe("ExecutorService did not terminate.");
-                }
-            }
-        } catch (InterruptedException e) {
-            executorService.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
-        LOGGER.info("ExecutorService successfully shut down.");
+        // No ExecutorService used since CompletableFuture is utilized.
+        // If any other resources need to be closed, do it here.
+        LOGGER.info("RandomNumberProvider is shutting down.");
     }
 
     /**
@@ -279,6 +276,15 @@ public class RandomNumberProvider {
         double normalized = combined / (double) 65535; // Normalize to [0.0, 1.0]
         long range = max - min; // Calculate range
         return min + (long) (normalized * range); // Scale number to [min, max]
+    }
+
+    /**
+     * Checks the queue size and triggers loading if below the minimum threshold.
+     */
+    private void checkAndLoadMore() {
+        if (randomNumbersQueue.size() < QUEUE_MIN_SIZE && apiRequestCount < MAX_API_REQUESTS && !isLoading) {
+            loadInitialDataAsync(); // Asynchronously load additional data
+        }
     }
 
     /**
