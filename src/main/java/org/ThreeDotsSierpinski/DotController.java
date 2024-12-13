@@ -226,43 +226,49 @@ public class DotController extends JPanel implements DataLoadListener {
     private void drawRandomNumbersStack(Graphics g) {
         g.setColor(Color.BLACK);
 
-        // Get visualization parameters from configuration
-        int maxColumns = MAX_COLUMNS;
+        // Получить параметры визуализации из конфигурации
+        int maxColumns = MAX_COLUMNS; // Всего 6 колонок
         int maxRowsPerColumn = SIZE_HEIGHT / ROW_HEIGHT;
 
-        // Define starting position for drawing numbers
-        int startX = SIZE_WIDTH + 20; // Starting X position, to the right of the triangle
-        int startY = 20; // Starting Y position, top of the panel
+        // Начальные позиции для рисования чисел
+        int startX = SIZE_WIDTH + 20; // Начальная X позиция, справа от треугольника
+        int startY = 20; // Начальная Y позиция, вверху панели
 
-        int column = maxColumns - 1; // Start from the rightmost column
-        int row = 0; // Start from the top row
+        // Списки для хранения чисел по разрядам
+        List<List<Long>> digitBuckets = new ArrayList<>();
+        for (int i = 0; i < maxColumns; i++) {
+            digitBuckets.add(new ArrayList<>());
+        }
 
-        // Iterate through used random numbers in reverse order to fill from right to left
-        for (int i = usedRandomNumbers.size() - 1; i >= 0; i--) {
-            Long randomValue = usedRandomNumbers.get(i);
+        // Распределяем числа по разрядам
+        for (Long randomValue : usedRandomNumbers) {
+            int numDigits = String.valueOf(Math.abs(randomValue)).length(); // Количество разрядов в числе
+            if (numDigits >= 3 && numDigits <= 8) { // Только числа от 3 до 8 разрядов
+                digitBuckets.get(numDigits - 3).add(randomValue);
+            }
+        }
 
-            // Determine position for the current number
-            int x = startX + column * (COLUMN_WIDTH + COLUMN_SPACING);
-            int y = startY + row * ROW_HEIGHT;
+        // Рисуем числа по колонкам
+        for (int column = 0; column < maxColumns; column++) {
+            List<Long> columnNumbers = digitBuckets.get(column);
+            int row = 0; // Начинаем с верхней строки
 
-            // Draw the number
-            g.drawString(randomValue.toString(), x, y);
-
-            // Move to the next row
-            row++;
-
-            // If reached the end of the current column, move to the next column
-            if (row >= maxRowsPerColumn) {
-                row = 0;
-                column--;
-
-                // If no more columns are left, stop displaying numbers
-                if (column < 0) {
-                    break;
+            for (Long number : columnNumbers) {
+                if (row >= maxRowsPerColumn) {
+                    break; // Если достигнут конец колонки, выходим
                 }
+                int x = startX + column * (COLUMN_WIDTH + COLUMN_SPACING); // X-координата
+                int y = startY + row * ROW_HEIGHT; // Y-координата
+
+                g.drawString(number.toString(), x, y); // Рисуем число
+                row++;
             }
         }
     }
+
+
+
+
 
     /**
      * Updates the status label with the given message.

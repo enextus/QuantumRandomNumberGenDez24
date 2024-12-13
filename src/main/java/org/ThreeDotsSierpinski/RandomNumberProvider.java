@@ -65,14 +65,6 @@ public class RandomNumberProvider {
         listeners.add(listener);
     }
 
-    /**
-     * Removes a listener for data loading events.
-     *
-     * @param listener The listener to remove.
-     */
-    public void removeDataLoadListener(DataLoadListener listener) {
-        listeners.remove(listener);
-    }
 
     /**
      * Asynchronously loads random numbers from the API.
