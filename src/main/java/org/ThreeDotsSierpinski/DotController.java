@@ -232,7 +232,7 @@ public class DotController extends JPanel implements DataLoadListener {
 
         // Начальные позиции для рисования чисел
         int startX = SIZE_WIDTH + 20; // Начальная X позиция, справа от треугольника
-        int startY = 20; // Начальная Y позиция, вверху панели
+        int startY = SIZE_HEIGHT - ROW_HEIGHT; // Начальная Y позиция, снизу панели
 
         // Списки для хранения чисел по разрядам
         List<List<Long>> digitBuckets = new ArrayList<>();
@@ -251,20 +251,21 @@ public class DotController extends JPanel implements DataLoadListener {
         // Рисуем числа по колонкам
         for (int column = 0; column < maxColumns; column++) {
             List<Long> columnNumbers = digitBuckets.get(column);
-            int row = 0; // Начинаем с верхней строки
+            int row = maxRowsPerColumn - 1; // Начинаем с нижней строки
 
-            for (Long number : columnNumbers) {
-                if (row >= maxRowsPerColumn) {
-                    break; // Если достигнут конец колонки, выходим
+            for (int i = columnNumbers.size() - 1; i >= 0; i--) { // Итерация в обратном порядке
+                if (row < 0) {
+                    break; // Если достигнут верх колонки, выходим
                 }
                 int x = startX + column * (COLUMN_WIDTH + COLUMN_SPACING); // X-координата
-                int y = startY + row * ROW_HEIGHT; // Y-координата
+                int y = startY - row * ROW_HEIGHT; // Y-координата
 
-                g.drawString(number.toString(), x, y); // Рисуем число
-                row++;
+                g.drawString(columnNumbers.get(i).toString(), x, y); // Рисуем число
+                row--;
             }
         }
     }
+
 
 
 
