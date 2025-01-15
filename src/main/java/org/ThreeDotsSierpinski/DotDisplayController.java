@@ -41,7 +41,6 @@ public class DotDisplayController extends JPanel implements RandomNumberLoadList
     private static final int ROW_HEIGHT = Config.getInt("row.height");
     private static final int COLUMN_SPACING = Config.getInt("column.spacing");
     private static final int MAX_COLUMNS = Config.getInt("max.columns");
-
     private final List<Dot> dots; // List of dots
     private final List<Long> usedRandomNumbers; // List of used random numbers for visualization
     private final RandomNumberProvider randomNumberProvider; // Provider for random numbers
@@ -49,12 +48,9 @@ public class DotDisplayController extends JPanel implements RandomNumberLoadList
     private Point currentPoint; // Current position of the dot
     private final BufferedImage offscreenImage; // Offscreen buffer for drawing
     private final ScheduledExecutorService scheduler; // Scheduler for changing dot color
-
     private int currentRandomValueIndex = 0; // Current random number index
     private Long currentRandomValue; // Current random number
-
     private static final Logger LOGGER = LoggerConfig.getLogger();
-
     private final JLabel statusLabel; // Status label to display loading status
 
     /**
@@ -300,4 +296,5 @@ public class DotDisplayController extends JPanel implements RandomNumberLoadList
     public void onError(String errorMessage) {
         updateStatusLabel("Error: " + errorMessage);
     }
+
 }
