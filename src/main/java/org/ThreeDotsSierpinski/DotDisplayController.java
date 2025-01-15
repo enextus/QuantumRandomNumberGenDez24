@@ -266,11 +266,6 @@ public class DotDisplayController extends JPanel implements RandomNumberLoadList
         }
     }
 
-
-
-
-
-
     /**
      * Updates the status label with the given message.
      *
