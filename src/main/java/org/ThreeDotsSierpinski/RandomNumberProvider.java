@@ -2,10 +2,12 @@ package org.ThreeDotsSierpinski;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.jetbrains.annotations.NotNull;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.HttpURLConnection;
