@@ -41,7 +41,7 @@ public class RandomNumberProvider {
     private final ObjectMapper objectMapper; // Object for handling JSON
     private int apiRequestCount = 0; // Counter for API requests
 
-    private final List<DataLoadListener> listeners = new CopyOnWriteArrayList<>(); // Listeners for data load events
+    private final List<RandomNumberLoadListener> listeners = new CopyOnWriteArrayList<>(); // Listeners for data load events
 
     private volatile boolean isLoading = false; // Flag indicating if data is being loaded
 
@@ -61,10 +61,9 @@ public class RandomNumberProvider {
      *
      * @param listener The listener to add.
      */
-    public void addDataLoadListener(DataLoadListener listener) {
+    public void addDataLoadListener(RandomNumberLoadListener listener) {
         listeners.add(listener);
     }
-
 
     /**
      * Asynchronously loads random numbers from the API.
@@ -197,9 +196,9 @@ public class RandomNumberProvider {
             throw new IllegalArgumentException("Invalid HEX string length.");
         }
         byte[] data = new byte[len / 2];
-        for(int i = 0; i < len; i += 2){
-            int high = Character.digit(s.charAt(i),16);
-            int low = Character.digit(s.charAt(i+1),16);
+        for (int i = 0; i < len; i += 2) {
+            int high = Character.digit(s.charAt(i), 16);
+            int low = Character.digit(s.charAt(i + 1), 16);
             if (high == -1 || low == -1) {
                 throw new IllegalArgumentException("Invalid character in HEX string.");
             }
@@ -283,7 +282,7 @@ public class RandomNumberProvider {
      * Notifies all listeners that loading has started.
      */
     private void notifyLoadingStarted() {
-        for (DataLoadListener listener : listeners) {
+        for (RandomNumberLoadListener listener : listeners) {
             listener.onLoadingStarted();
         }
     }
@@ -292,7 +291,7 @@ public class RandomNumberProvider {
      * Notifies all listeners that loading has completed successfully.
      */
     private void notifyLoadingCompleted() {
-        for (DataLoadListener listener : listeners) {
+        for (RandomNumberLoadListener listener : listeners) {
             listener.onLoadingCompleted();
         }
     }
@@ -303,8 +302,9 @@ public class RandomNumberProvider {
      * @param errorMessage The error message.
      */
     private void notifyError(String errorMessage) {
-        for (DataLoadListener listener : listeners) {
+        for (RandomNumberLoadListener listener : listeners) {
             listener.onError(errorMessage);
         }
     }
+
 }
