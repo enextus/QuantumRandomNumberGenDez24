@@ -3,7 +3,7 @@ package org.ThreeDotsSierpinski;
 /**
  * Interface for listening to data loading events from RandomNumberProvider.
  */
-public interface DataLoadListener {
+public interface RandomNumberLoadListener {
     /**
      * Called when data loading starts.
      */
