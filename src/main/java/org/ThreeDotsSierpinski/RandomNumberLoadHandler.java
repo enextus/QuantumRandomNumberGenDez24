@@ -2,6 +2,9 @@ package org.ThreeDotsSierpinski;
 
 import javax.swing.*;
 
+/**
+ * Class for handling data loading events from RandomNumberProvider.
+ */
 public class RandomNumberLoadHandler implements RandomNumberLoadListener {
     private final JLabel statusLabel;
 
@@ -23,4 +26,5 @@ public class RandomNumberLoadHandler implements RandomNumberLoadListener {
     public void onError(String errorMessage) {
         SwingUtilities.invokeLater(() -> statusLabel.setText("Error: " + errorMessage));
     }
+    
 }
