@@ -22,7 +22,7 @@ public class App {
         LOGGER.info(LOG_APP_STARTED);
 
         // Create objects
-        RandomNumberProvider randomNumberProvider = new RandomNumberProvider();
+        RNProvider randomNumberProvider = new RNProvider();
         JLabel statusLabel = new JLabel("Ready"); // Create status label
 
         // Launch GUI
@@ -70,4 +70,5 @@ public class App {
             });
         });
     }
+
 }

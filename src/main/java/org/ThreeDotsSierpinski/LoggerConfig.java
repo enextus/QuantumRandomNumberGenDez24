@@ -66,4 +66,5 @@ public class LoggerConfig {
         }
         return Logger.getLogger("");
     }
+
 }

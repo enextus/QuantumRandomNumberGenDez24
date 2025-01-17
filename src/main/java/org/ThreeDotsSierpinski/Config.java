@@ -70,4 +70,5 @@ public class Config {
     public static Level getLogLevel() {
         return Level.parse(properties.getProperty("log.level", "INFO"));
     }
+
 }

@@ -26,7 +26,7 @@ import java.util.logging.Level;
 /**
  * Class for fetching random numbers from an external API and providing them to the application.
  */
-public class RandomNumberProvider {
+public class RNProvider {
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
     // API parameters from configuration
@@ -43,16 +43,16 @@ public class RandomNumberProvider {
     private final ObjectMapper objectMapper; // Object for handling JSON
     private int apiRequestCount = 0; // Counter for API requests
 
-    private final List<RandomNumberLoadListener> listeners = new CopyOnWriteArrayList<>(); // Listeners for data load events
+    private final List<RNLoadListener> listeners = new CopyOnWriteArrayList<>(); // Listeners for data load events
 
     private volatile boolean isLoading = false; // Flag indicating if data is being loaded
 
     /**
-     * Constructor for RandomNumberProvider.
+     * Constructor for RNProvider.
      * Initializes the random number queue and JSON handler,
      * then loads initial data.
      */
-    public RandomNumberProvider() {
+    public RNProvider() {
         randomNumbersQueue = new LinkedBlockingQueue<>(); // Initialize thread-safe queue
         objectMapper = new ObjectMapper(); // Initialize ObjectMapper for JSON handling
         loadInitialDataAsync(); // Asynchronously load initial data
@@ -63,7 +63,7 @@ public class RandomNumberProvider {
      *
      * @param listener The listener to add.
      */
-    public void addDataLoadListener(RandomNumberLoadListener listener) {
+    public void addDataLoadListener(RNLoadListener listener) {
         listeners.add(listener);
     }
 
@@ -242,14 +242,14 @@ public class RandomNumberProvider {
     }
 
     /**
-     * Shuts down the RandomNumberProvider gracefully.
+     * Shuts down the RNProvider gracefully.
      * Currently, no ExecutorService is used since CompletableFuture is utilized.
      * If future resources need to be managed, implement shutdown logic here.
      */
     public void shutdown() {
         // No ExecutorService used since CompletableFuture is utilized.
         // If any other resources need to be closed, do it here.
-        LOGGER.info("RandomNumberProvider is shutting down.");
+        LOGGER.info("RNProvider is shutting down.");
     }
 
     /**
@@ -284,7 +284,7 @@ public class RandomNumberProvider {
      * Notifies all listeners that loading has started.
      */
     private void notifyLoadingStarted() {
-        for (RandomNumberLoadListener listener : listeners) {
+        for (RNLoadListener listener : listeners) {
             listener.onLoadingStarted();
         }
     }
@@ -293,7 +293,7 @@ public class RandomNumberProvider {
      * Notifies all listeners that loading has completed successfully.
      */
     private void notifyLoadingCompleted() {
-        for (RandomNumberLoadListener listener : listeners) {
+        for (RNLoadListener listener : listeners) {
             listener.onLoadingCompleted();
         }
     }
@@ -304,7 +304,7 @@ public class RandomNumberProvider {
      * @param errorMessage The error message.
      */
     private void notifyError(String errorMessage) {
-        for (RandomNumberLoadListener listener : listeners) {
+        for (RNLoadListener listener : listeners) {
             listener.onError(errorMessage);
         }
     }

@@ -38,4 +38,5 @@ public record Dot(Point point) {
     public String toString() {
         return point.x + "," + point.y; // Return a comma-separated string of the coordinates.
     }
+
 }

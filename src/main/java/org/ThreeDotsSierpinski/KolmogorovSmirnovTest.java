@@ -63,4 +63,5 @@ public class KolmogorovSmirnovTest {
             return (value - a) / (b - a);
         }
     }
+
 }
