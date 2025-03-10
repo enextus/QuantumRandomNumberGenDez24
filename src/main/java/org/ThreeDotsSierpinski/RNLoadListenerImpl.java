@@ -1,9 +1,9 @@
 package org.ThreeDotsSierpinski;
 
 class RNLoadListenerImpl implements RNLoadListener {
-    private final DotDisplayController controller;
+    private final dotController controller;
 
-    public RNLoadListenerImpl(DotDisplayController controller) {
+    public RNLoadListenerImpl(dotController controller) {
         this.controller = controller;
     }
 

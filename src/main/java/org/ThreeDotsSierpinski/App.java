@@ -41,7 +41,7 @@ public class App {
             int finalHeight = (int) Math.round(basePanelHeight * scaleHeight);
 
             // Create DotController with reference to statusLabel
-            DotDisplayController dotController = new DotDisplayController(randomNumberProvider, statusLabel);
+            dotController dotController = new dotController(randomNumberProvider, statusLabel);
 
             frame.add(dotController, BorderLayout.CENTER); // Add DotController to center
 
@@ -66,6 +66,19 @@ public class App {
                     LOGGER.info(LOG_APP_SHUTTING_DOWN);
                     randomNumberProvider.shutdown(); // Gracefully shutdown ExecutorService
                     super.windowClosing(windowEvent);
+                }
+            });
+
+            JButton testButton = new JButton("Проверить случайность");
+            statusPanel.add(testButton);
+            testButton.addActionListener(e -> {
+                RandomnessTest test = new KolmogorovSmirnovTest();
+                java.util.List<Long> numbers = dotController.getUsedRandomNumbers();
+                try {
+                    boolean result = test.test(numbers, 0.05);
+                    statusLabel.setText(test.getTestName() + ": " + (result ? "Пройден" : "Не пройден"));
+                } catch (IllegalArgumentException ex) {
+                    statusLabel.setText("Ошибка: " + ex.getMessage());
                 }
             });
         });

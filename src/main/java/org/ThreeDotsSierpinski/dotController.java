@@ -48,13 +48,13 @@ public class DotDisplayController extends JPanel {
     private static final Logger LOGGER = LoggerConfig.getLogger();
     private final JLabel statusLabel;
 
-    public DotDisplayController(RNProvider randomNumberProvider, JLabel statusLabel) {
+    public dotController(RNProvider randomNumberProvider, JLabel statusLabel) {
         this.statusLabel = statusLabel;
         currentPoint = new Point(SIZE_WIDTH / 2, SIZE_HEIGHT / 2);
         setPreferredSize(new Dimension(SIZE_WIDTH + 300, SIZE_HEIGHT));
         setBackground(Color.WHITE);
         dots = Collections.synchronizedList(new ArrayList<>());
-        usedRandomNumbers = new ArrayList<>();
+        usedRandomNumbers = Collections.synchronizedList(new ArrayList<>());
         this.randomNumberProvider = randomNumberProvider;
         errorMessage = null;
         offscreenImage = new BufferedImage(SIZE_WIDTH, SIZE_HEIGHT, BufferedImage.TYPE_INT_ARGB);
@@ -65,7 +65,7 @@ public class DotDisplayController extends JPanel {
     public void startDotMovement() {
         Timer timer = new Timer(TIMER_DELAY, e -> {
             if (errorMessage == null) {
-                List<Dot> newDots = new ArrayList<>();
+                ArrayList<Dot> newDots = new ArrayList<>();
                 for (int i = 0; i < DOTS_PER_UPDATE; i++) {
                     try {
                         currentRandomValueIndex++;

@@ -1,67 +1,65 @@
 package org.ThreeDotsSierpinski;
 
-import java.util.Arrays;
-import java.util.Random;
+import java.util.List;
+import java.util.Objects;
 
-public class KolmogorovSmirnovTest {
+/**
+ * Реализация теста Колмогорова-Смирнова для проверки равномерности распределения.
+ */
+public class KolmogorovSmirnovTest implements RandomnessTest {
+    private static long minRange = 0;
+    private static long maxRange = 0;
 
-    public static void main(String[] args) {
-        // Generate a sample of random numbers
-        int sampleSize = 1000;
-        int[] sample = new int[sampleSize];
-        Random random = new Random();
-        for (int i = 0; i < sampleSize; i++) {
-            sample[i] = random.nextInt(200000000) - 99999999; // Random numbers in the range [-99999999, 100000000]
+    /**
+     * Конструктор с настраиваемым диапазоном равномерного распределения.
+     *
+     * @param minRange Минимальное значение диапазона
+     * @param maxRange Максимальное значение диапазона
+     */
+    public KolmogorovSmirnovTest(long minRange, long maxRange) {
+        if (minRange >= maxRange) {
+            throw new IllegalArgumentException("minRange должен быть меньше maxRange");
         }
-
-        // Significance level
-        double alpha = 0.05;
-
-        // Test the sample for compliance with the theoretical distribution
-        boolean result = test(sample, alpha);
-
-        // Output the result to the console
-        if (result) {
-            System.out.println("The sample conforms to the theoretical distribution at the significance level of " + alpha);
-            System.out.println("Summary: Yes, everything is fine. The random numbers conform to the expected distribution.");
-        } else {
-            System.out.println("The sample does not conform to the theoretical distribution at the significance level of " + alpha);
-            System.out.println("Summary: No, the random numbers are of poor quality. They do not conform to the expected distribution.");
-        }
+        this.minRange = minRange;
+        this.maxRange = maxRange;
     }
 
-    public static boolean test(int[] sample, double alpha) {
-        // Sort the sample in ascending order
-        Arrays.sort(sample);
+    /**
+     * Конструктор с диапазоном по умолчанию (-99999999, 100000000).
+     */
+    public KolmogorovSmirnovTest() {
+        this(-99999999L, 100000000L);
+    }
 
-        // Calculate the empirical distribution function and find the maximum deviation
-        double maxDeviation = 0.0;
-        int n = sample.length;
-        for (int i = 0; i < n; i++) {
-            double empiricalCDF = (double) (i + 1) / n;
-            double theoreticalCDF = calculateTheoreticalCDF(sample[i]);
-
-            double deviation = Math.abs(empiricalCDF - theoreticalCDF);
-            maxDeviation = Math.max(maxDeviation, deviation);
+    public boolean test(List<Long> numbers, double alpha) {
+        // Проверка входных данных
+        Objects.requireNonNull(numbers, "Список чисел не может быть null");
+        if (numbers.isEmpty()) {
+            throw new IllegalArgumentException("Список чисел не может быть пустым");
+        }
+        if (alpha <= 0 || alpha >= 1) {
+            throw new IllegalArgumentException("alpha должен быть в диапазоне (0, 1)");
         }
 
-        // Calculate the critical value
-        double criticalValue = Math.sqrt(-0.5 * Math.log(alpha / 2)) / Math.sqrt(n);
+        // Преобразование в массив и сортировка
+        long[] sample = numbers.stream().mapToLong(Long::longValue).sorted().toArray();
+        int n = sample.length;
 
-        // Check the condition
+        // Вычисление максимального отклонения
+        double maxDeviation = 0.0;
+        for (int i = 0; i < n; i++) {
+            double empiricalCDF = (double) (i + 1) / n;
+            double theoreticalCDF = (sample[i] - minRange) / (double) (maxRange - minRange);
+            maxDeviation = Math.max(maxDeviation, Math.abs(empiricalCDF - theoreticalCDF));
+        }
+
+        // Критическое значение для двустороннего теста
+        double criticalValue = Math.sqrt(-0.5 * Math.log(alpha / 2)) / Math.sqrt(n);
         return maxDeviation <= criticalValue;
     }
 
-    private static double calculateTheoreticalCDF(double value) {
-        double a = -99999999;
-        double b = 100000000;
-        if (value < a) {
-            return 0.0;
-        } else if (value > b) {
-            return 1.0;
-        } else {
-            return (value - a) / (b - a);
-        }
+    @Override
+    public String getTestName() {
+        return "";
     }
-
 }
