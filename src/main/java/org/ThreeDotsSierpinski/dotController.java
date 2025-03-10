@@ -17,7 +17,7 @@ import java.util.logging.Level;
  * The DotController class manages the drawing and updating of dots on the panel.
  * It also listens to data loading events to update the UI status.
  */
-public class DotDisplayController extends JPanel {
+public class dotController extends JPanel {
 
     private static final int SIZE_WIDTH = Config.getInt("panel.size.width");
     private static final int SIZE_HEIGHT = Config.getInt("panel.size.height");
@@ -182,5 +182,8 @@ public class DotDisplayController extends JPanel {
         SwingUtilities.invokeLater(() -> statusLabel.setText(message));
     }
 
-}
+    public java.util.List<Long> getUsedRandomNumbers() {
+        return usedRandomNumbers;
+    }
 
+}
