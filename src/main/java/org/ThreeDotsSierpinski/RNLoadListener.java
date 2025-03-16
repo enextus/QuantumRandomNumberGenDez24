@@ -21,4 +21,10 @@ public interface RNLoadListener {
      */
     void onError(String errorMessage);
 
+
+    // Новый метод для получения «сырой» строки, полученной от API
+    void onRawDataReceived(String rawData);
+
+
+
 }
