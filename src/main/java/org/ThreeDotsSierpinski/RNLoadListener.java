@@ -20,4 +20,5 @@ public interface RNLoadListener {
      * @param errorMessage The error message.
      */
     void onError(String errorMessage);
+
 }
