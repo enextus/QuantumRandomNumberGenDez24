@@ -69,14 +69,14 @@ public class App {
                 }
             });
 
-            JButton testButton = new JButton("Проверить случайность");
+            JButton testButton = new JButton("Проверить качество случайных чисел.");
             statusPanel.add(testButton);
             testButton.addActionListener(e -> {
                 RandomnessTest test = new KolmogorovSmirnovTest();
                 java.util.List<Long> numbers = dotController.getUsedRandomNumbers();
                 try {
                     boolean result = test.test(numbers, 0.05);
-                    statusLabel.setText(test.getTestName() + ": " + (result ? "Пройден" : "Не пройден"));
+                    statusLabel.setText(test.getTestName() + ": " + (result ? "Тест успешно пройден." : "Тест не пройден."));
                 } catch (IllegalArgumentException ex) {
                     statusLabel.setText("Ошибка: " + ex.getMessage());
                 }
