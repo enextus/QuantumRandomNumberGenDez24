@@ -22,4 +22,9 @@ class RNLoadListenerImpl implements RNLoadListener {
         controller.updateStatusLabel("Error: " + errorMessage);
     }
 
+    @Override
+    public void onRawDataReceived(String rawData) {
+        rawDataTextArea.append(rawData + "\n");
+    }
+
 }
