@@ -20,8 +20,8 @@ public class KolmogorovSmirnovTest implements RandomnessTest {
         if (minRange >= maxRange) {
             throw new IllegalArgumentException("minRange должен быть меньше maxRange");
         }
-        this.minRange = minRange;
-        this.maxRange = maxRange;
+        KolmogorovSmirnovTest.minRange = minRange;
+        KolmogorovSmirnovTest.maxRange = maxRange;
     }
 
     /**
