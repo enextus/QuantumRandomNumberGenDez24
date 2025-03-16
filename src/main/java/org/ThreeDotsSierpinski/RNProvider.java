@@ -139,6 +139,11 @@ public class RNProvider {
                     apiRequestCount++; // Increment API request count
                 }
                 LOGGER.info("API request count: " + apiRequestCount);
+
+
+                // ВАЖНО: Вызываем новый метод уведомления
+                notifyRawDataReceived(hexData);
+
                 notifyLoadingCompleted();
             } else if (rootNode.has("error")) {
                 String errorMsg = rootNode.get("error").asText();
@@ -306,6 +311,12 @@ public class RNProvider {
     private void notifyError(String errorMessage) {
         for (RNLoadListener listener : listeners) {
             listener.onError(errorMessage);
+        }
+    }
+
+    private void notifyRawDataReceived(String rawData) {
+        for (RNLoadListener listener : listeners) {
+            listener.onRawDataReceived(rawData);
         }
     }
 
