@@ -62,4 +62,5 @@ public class KolmogorovSmirnovTest implements RandomnessTest {
     public String getTestName() {
         return "";
     }
+
 }
