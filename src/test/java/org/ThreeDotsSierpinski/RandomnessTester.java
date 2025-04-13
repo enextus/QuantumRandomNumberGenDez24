@@ -57,7 +57,8 @@ public class RandomnessTester extends JFrame {
                 results.append("Частотный тест: ").append(monobitTest(binary) ? "Пройден" : "Не пройден").append("\n");
                 results.append("Тест на последовательности: ").append(runsTest(binary) ? "Пройден" : "Не пройден").append("\n");
                 results.append("Тест на автокорреляцию (d=1): ").append(autocorrelationTest(binary, 1) ? "Пройден" : "Не пройден").append("\n");
-                results.append("Тест на аппроксимационную энтропию (m=2): ").append(approximateEntropyTest(binary, 2) ? "Пройден" : "Не пройден").append("\n\n");
+                results.append("Тест на аппроксимационную энтропию (m=2): ").append(approximateEntropyTest(binary, 2) ? "Пройден" : "Не пройден").append("\n");
+                results.append("Тест на апериодичность: ").append(aperiodicTest(binary) ? "Пройден" : "Не пройден").append("\n\n");
             }
         }
         outputArea.setText(results.toString());
@@ -155,6 +156,28 @@ public class RandomnessTester extends JFrame {
 
         // Проверка: тест пройден, если apEn близко к expectedApEn (порог 0.01)
         return Math.abs(apEn - expectedApEn) < 0.01;
+    }
+
+    // Тест на апериодичность (Aperiodic Test)
+    private boolean aperiodicTest(String binary) {
+        int n = binary.length();
+        if (n < 20) return false; // Минимальная длина для теста
+
+        int maxD = Math.min(10, n / 2); // Ограничиваем количество сдвигов
+        double threshold = 1.96 * Math.sqrt(n); // Пороговое значение для уровня значимости 0.05
+
+        for (int d = 1; d <= maxD; d++) {
+            int R = 0;
+            for (int i = 0; i < n - d; i++) {
+                int xi = binary.charAt(i) == '1' ? 1 : 0;
+                int xi_d = binary.charAt(i + d) == '1' ? 1 : 0;
+                R += (2 * xi - 1) * (2 * xi_d - 1);
+            }
+            if (Math.abs(R) >= threshold) {
+                return false; // Обнаружена значимая корреляция
+            }
+        }
+        return true; // Все корреляции в пределах нормы
     }
 
     // Запуск программы
