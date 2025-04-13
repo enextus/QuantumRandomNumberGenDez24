@@ -13,6 +13,7 @@ import java.net.URISyntaxException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
@@ -46,6 +47,7 @@ public class RNProvider {
     private final List<RNLoadListener> listeners = new CopyOnWriteArrayList<>(); // Listeners for data load events
 
     private volatile boolean isLoading = false; // Flag indicating if data is being loaded
+
 
     /**
      * Constructor for RNProvider.
@@ -93,57 +95,45 @@ public class RNProvider {
                 });
     }
 
-    /**
-     * Loads random numbers from the API.
-     */
     private void loadInitialData() {
         notifyLoadingStarted();
         try {
-            String requestUrl = API_URL + "?length=" + LOAD_SIZE + "&format=HEX"; // Form the request URL
-
+            String requestUrl = API_URL + "?length=" + LOAD_SIZE + "&format=HEX";
             LOGGER.info("Sending request: " + requestUrl);
 
-            URI uri = new URI(requestUrl); // Create URI from request string
-            URL url = uri.toURL(); // Convert URI to URL
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection(); // Open connection
-            conn.setRequestMethod("GET"); // Set request method
-            conn.setConnectTimeout(CONNECT_TIMEOUT); // Set connection timeout
-            conn.setReadTimeout(READ_TIMEOUT); // Set read timeout
+            URI uri = new URI(requestUrl);
+            URL url = uri.toURL();
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(CONNECT_TIMEOUT);
+            conn.setReadTimeout(READ_TIMEOUT);
 
-            // Read response
             String responseBody = getResponseBody(conn);
             LOGGER.info("Received response: " + responseBody);
 
-            // Parse JSON response
             JsonNode rootNode = objectMapper.readTree(responseBody);
 
             if (rootNode.has("qrn")) {
-                String hexData = rootNode.get("qrn").asText(); // Extract HEX string with numbers
-                int length = rootNode.get("length").asInt(); // Extract data length
+                String hexData = rootNode.get("qrn").asText();
+                int length = rootNode.get("length").asInt();
 
-                // Convert HEX string to byte array
-                byte[] byteArray = hexStringToByteArray(hexData);
-
-                // Convert bytes to integers
-                for (byte b : byteArray) {
-                    int num = b & 0xFF; // Convert unsigned byte to int (0 to 255)
+                // Используем getTrueRandomNumbersFromHex для обработки данных
+                List<Integer> randomNumbers = getTrueRandomNumbersFromHex(hexData);
+                for (int num : randomNumbers) {
                     try {
-                        randomNumbersQueue.put(num); // Add number to queue
+                        randomNumbersQueue.put(num); // Добавляем числа 0–999 в очередь
                     } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt(); // Restore interrupt status
+                        Thread.currentThread().interrupt();
                         LOGGER.log(Level.WARNING, "Thread interrupted while adding number to queue: " + num, e);
                     }
                 }
-                LOGGER.info("Loaded " + length + " random numbers.");
+                LOGGER.info("Loaded " + randomNumbers.size() + " random numbers.");
                 synchronized (this) {
-                    apiRequestCount++; // Increment API request count
+                    apiRequestCount++;
                 }
                 LOGGER.info("API request count: " + apiRequestCount);
 
-
-                // ВАЖНО: Вызываем новый метод уведомления
                 notifyRawDataReceived(hexData);
-
                 notifyLoadingCompleted();
             } else if (rootNode.has("error")) {
                 String errorMsg = rootNode.get("error").asText();
@@ -154,7 +144,7 @@ public class RNProvider {
                 notifyError("Unexpected response from server.");
             }
 
-            conn.disconnect(); // Disconnect
+            conn.disconnect();
         } catch (URISyntaxException e) {
             LOGGER.log(Level.SEVERE, "Invalid URL: " + API_URL, e);
             notifyError("Invalid URL: " + API_URL);
@@ -163,12 +153,13 @@ public class RNProvider {
             notifyError("Failed to fetch data from QRNG API.");
         } finally {
             synchronized (this) {
-                isLoading = false; // Reset loading flag
+                isLoading = false;
             }
-            // Check if more data needs to be loaded proactively
             checkAndLoadMore();
         }
     }
+
+
 
     /**
      * Helper method to read the response body from the connection.
@@ -319,5 +310,29 @@ public class RNProvider {
             listener.onRawDataReceived(rawData);
         }
     }
+
+    public List<Integer> getTrueRandomNumbersFromHex(String hexData) {
+        byte[] bytes = hexStringToByteArray(hexData);
+        List<Integer> trueRandomNumbers = new ArrayList<>();
+
+        int i = 0;
+        while (i < bytes.length - 1) { // берём по 2 байта за раз
+            int high = bytes[i] & 0xFF;
+            int low = bytes[i + 1] & 0xFF;
+            int combined = (high << 8) | low; // от 0 до 65535
+
+            if (combined < 65000) { // принимаем только числа < 65000
+                int number = combined % 1000; // теперь число строго от 000 до 999
+                trueRandomNumbers.add(number);
+            }
+            // иначе число игнорируем (это rejection sampling)
+
+            i += 2; // переходим к следующей паре байтов
+        }
+
+        return trueRandomNumbers;
+    }
+
+
 
 }
