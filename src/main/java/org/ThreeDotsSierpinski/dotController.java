@@ -69,7 +69,9 @@ public class dotController extends JPanel {
                 for (int i = 0; i < DOTS_PER_UPDATE; i++) {
                     try {
                         currentRandomValueIndex++;
+
                         long randomValue = randomNumberProvider.getNextRandomNumberInRange(MIN_RANDOM_VALUE, MAX_RANDOM_VALUE);
+
                         currentRandomValue = randomValue;
                         usedRandomNumbers.add(currentRandomValue);
                         currentPoint = calculateNewDotPosition(currentPoint, randomValue);
