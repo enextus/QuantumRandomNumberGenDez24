@@ -46,6 +46,10 @@ public class RNProvider {
         loadInitialDataAsync();
     }
 
+    public List<Integer> getTrueRandomNumbersFromHex(String hexData) {
+        return numberProcessor.processHexToNumbers(hexData);
+    }
+
     public void addDataLoadListener(RNLoadListener listener) {
         listeners.add(listener);
     }

@@ -24,6 +24,17 @@ public class LoggerConfig {
             // Получение имени файла лога из конфигурации
             String logFileName = Config.getString("log.file.name");
 
+            System.out.println("DEBUG Config resource = " +
+                    LoggerConfig.class.getClassLoader().getResource("config.properties"));
+
+            System.out.println("DEBUG log.file = " + Config.getString("log.file"));
+            System.out.println("DEBUG log.path = " + Config.getString("log.path"));
+            System.out.println("DEBUG logging.file = " + Config.getString("logging.file"));
+            System.out.println("DEBUG logging.path = " + Config.getString("logging.path"));
+            System.out.println("DEBUG user.dir = " + System.getProperty("user.dir"));
+
+
+
             // Определение пути к файлу лога
             Path logFilePath = Paths.get(logFileName);
 
