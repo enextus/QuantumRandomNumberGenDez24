@@ -41,7 +41,7 @@ public class App {
             int finalHeight = (int) Math.round(basePanelHeight * scaleHeight);
 
             // Create DotController with reference to statusLabel
-            dotController dotController = new dotController(randomNumberProvider, statusLabel);
+            DotController dotController = new DotController(randomNumberProvider, statusLabel);
 
             frame.add(dotController, BorderLayout.CENTER); // Add DotController to center
 
