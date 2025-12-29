@@ -19,17 +19,29 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
- * Класс для загрузки случайных чисел из внешнего API.
+ * Класс для загрузки случайных чисел из внешнего API (ANU QRNG).
+ *
+ * API Documentation: https://qrng.anu.edu.au/contact/api-documentation/
+ *
+ * Поддерживаемые типы данных:
+ * - uint8: целые числа 0-255
+ * - uint16: целые числа 0-65535
+ * - hex16: шестнадцатеричные блоки 00-ff
  */
 public class RNProvider {
     private static final Logger LOGGER = LoggerConfig.getLogger();
+
+    // API Configuration
     private static final String API_URL = Config.getString("api.url");
+    private static final String DATA_TYPE = Config.getString("api.data.type");
+    private static final int ARRAY_LENGTH = Config.getInt("api.array.length");
+    private static final int BLOCK_SIZE = Config.getInt("api.block.size");
     private static final int MAX_API_REQUESTS = Config.getInt("api.max.requests");
     private static final int CONNECT_TIMEOUT = Config.getInt("api.connect.timeout");
     private static final int READ_TIMEOUT = Config.getInt("api.read.timeout");
-    private static final int LOAD_SIZE = Config.getInt("random.load.size");
     private static final int QUEUE_MIN_SIZE = Config.getInt("random.queue.min.size");
 
     private final BlockingQueue<Integer> randomNumbersQueue;
@@ -76,48 +88,97 @@ public class RNProvider {
                 });
     }
 
+    /**
+     * Строит URL запроса согласно API документации.
+     *
+     * Формат: https://qrng.anu.edu.au/API/jsonI.php?length=[length]&type=[type]&size=[size]
+     *
+     * @return Полный URL для запроса
+     */
+    private String buildRequestUrl() {
+        StringBuilder url = new StringBuilder(API_URL);
+        url.append("?length=").append(Math.min(ARRAY_LENGTH, 1024)); // Max 1024
+        url.append("&type=").append(DATA_TYPE);
+
+        // size параметр нужен только для hex16
+        if ("hex16".equals(DATA_TYPE)) {
+            url.append("&size=").append(Math.min(BLOCK_SIZE, 1024));
+        }
+
+        return url.toString();
+    }
+
     private void loadInitialData() {
         notifyLoadingStarted();
+        HttpURLConnection conn = null;
+
         try {
-            String requestUrl = API_URL + "?length=" + LOAD_SIZE + "&format=HEX";
+            String requestUrl = buildRequestUrl();
             LOGGER.info("Sending request: " + requestUrl);
 
             URI uri = new URI(requestUrl);
             URL url = uri.toURL();
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(CONNECT_TIMEOUT);
             conn.setReadTimeout(READ_TIMEOUT);
 
+            int responseCode = conn.getResponseCode();
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                throw new IOException("HTTP error code: " + responseCode);
+            }
+
             String responseBody = getResponseBody(conn);
-            LOGGER.info("Received response: " + responseBody);
+            LOGGER.info("Received response: " + responseBody.substring(0, Math.min(200, responseBody.length())) + "...");
 
             JsonNode rootNode = objectMapper.readTree(responseBody);
 
-            if (rootNode.has("qrn")) {
-                String hexData = rootNode.get("qrn").asText();
-                List<Integer> randomNumbers = numberProcessor.processHexToNumbers(hexData);
-                randomNumbersQueue.addAll(randomNumbers);
-                LOGGER.info("Loaded " + randomNumbers.size() + " random numbers.");
-                synchronized (this) {
-                    apiRequestCount++;
+            // API возвращает данные в поле "data", а не "qrn"!
+            if (rootNode.has("data")) {
+                JsonNode dataNode = rootNode.get("data");
+
+                if (dataNode.isArray()) {
+                    int loadedCount = 0;
+
+                    for (JsonNode element : dataNode) {
+                        if ("hex16".equals(DATA_TYPE)) {
+                            // Для hex16 конвертируем строку в число
+                            String hexValue = element.asText();
+                            int intValue = Integer.parseInt(hexValue, 16);
+                            randomNumbersQueue.add(intValue);
+                        } else {
+                            // Для uint8 и uint16 значения уже числовые
+                            randomNumbersQueue.add(element.asInt());
+                        }
+                        loadedCount++;
+                    }
+
+                    LOGGER.info("Loaded " + loadedCount + " random numbers.");
+                    synchronized (this) {
+                        apiRequestCount++;
+                    }
+                    notifyRawDataReceived(responseBody);
+                    notifyLoadingCompleted();
+                } else {
+                    LOGGER.warning("'data' field is not an array.");
+                    notifyError("Invalid response format: 'data' is not an array.");
                 }
-                notifyRawDataReceived(hexData);
-                notifyLoadingCompleted();
             } else if (rootNode.has("error")) {
                 String errorMsg = rootNode.get("error").asText();
                 LOGGER.severe("Error fetching random numbers: " + errorMsg);
                 notifyError("Error from API: " + errorMsg);
             } else {
-                LOGGER.warning("Unexpected response from server.");
+                LOGGER.warning("Unexpected response from server: no 'data' field found.");
                 notifyError("Unexpected response from server.");
             }
 
-            conn.disconnect();
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Failed to fetch data from QRNG API.", e);
             notifyError("Failed to fetch data from QRNG API: " + e.getMessage());
         } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
             synchronized (this) {
                 isLoading = false;
             }
@@ -125,15 +186,14 @@ public class RNProvider {
         }
     }
 
+    /**
+     * Читает тело ответа из HttpURLConnection с использованием try-with-resources.
+     * ИСПРАВЛЕНО: Теперь ресурсы закрываются корректно даже при исключениях.
+     */
     private @NotNull String getResponseBody(HttpURLConnection conn) throws IOException {
-        BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-        StringBuilder response = new StringBuilder();
-        String responseLine;
-        while ((responseLine = in.readLine()) != null) {
-            response.append(responseLine.trim());
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
+            return in.lines().collect(Collectors.joining());
         }
-        in.close();
-        return response.toString();
     }
 
     public int getNextRandomNumber() {
@@ -191,5 +251,4 @@ public class RNProvider {
     private void notifyRawDataReceived(String rawData) {
         listeners.forEach(listener -> listener.onRawDataReceived(rawData));
     }
-
 }
