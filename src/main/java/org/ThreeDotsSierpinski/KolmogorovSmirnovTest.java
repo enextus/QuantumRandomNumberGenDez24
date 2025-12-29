@@ -52,6 +52,9 @@ public class KolmogorovSmirnovTest implements RandomnessTest {
         if (numbers.isEmpty()) {
             throw new IllegalArgumentException("Список чисел не может быть пустым");
         }
+        if (numbers.size() < 10) {
+            throw new IllegalArgumentException("Для теста требуется минимум 10 чисел, получено: " + numbers.size());
+        }
         if (alpha <= 0 || alpha >= 1) {
             throw new IllegalArgumentException("alpha должен быть в диапазоне (0, 1)");
         }

@@ -22,15 +22,19 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
- * Класс для загрузки случайных чисел из внешнего API (ANU QRNG).
+ * Класс для загрузки случайных чисел из ANU Quantum Numbers API.
  *
- * API Documentation: https://qrng.anu.edu.au/contact/api-documentation/
+ * Новый API: https://api.quantumnumbers.anu.edu.au
+ * Документация: https://quantumnumbers.anu.edu.au/documentation
+ *
+ * Требует API ключ в заголовке x-api-key.
  */
 public class RNProvider {
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
     // API Configuration
     private static final String API_URL = Config.getString("api.url");
+    private static final String API_KEY = Config.getString("api.key");
     private static final String DATA_TYPE = Config.getString("api.data.type");
     private static final int ARRAY_LENGTH = Config.getInt("api.array.length");
     private static final int BLOCK_SIZE = Config.getInt("api.block.size");
@@ -52,14 +56,18 @@ public class RNProvider {
         randomNumbersQueue = new LinkedBlockingQueue<>();
         objectMapper = new ObjectMapper();
         numberProcessor = new RandomNumberProcessor();
-        loadInitialDataAsync();
+
+        // Проверка наличия API ключа
+        if (API_KEY == null || API_KEY.isEmpty()) {
+            LOGGER.severe("API key is not configured! Please set api.key in config.properties");
+            lastError = "API key is not configured";
+        } else {
+            loadInitialDataAsync();
+        }
     }
 
     /**
      * Ожидает загрузки начальных данных.
-     *
-     * @param timeoutMs максимальное время ожидания в миллисекундах
-     * @return true если данные загружены, false если таймаут или ошибка
      */
     public boolean waitForInitialData(long timeoutMs) {
         long start = System.currentTimeMillis();
@@ -75,16 +83,10 @@ public class RNProvider {
         return !randomNumbersQueue.isEmpty();
     }
 
-    /**
-     * Возвращает последнюю ошибку загрузки.
-     */
     public String getLastError() {
         return lastError;
     }
 
-    /**
-     * Проверяет, доступны ли случайные числа.
-     */
     public boolean hasAvailableNumbers() {
         return !randomNumbersQueue.isEmpty();
     }
@@ -120,6 +122,10 @@ public class RNProvider {
                 });
     }
 
+    /**
+     * Строит URL запроса согласно API документации.
+     * Формат: https://api.quantumnumbers.anu.edu.au?length=[length]&type=[type]&size=[size]
+     */
     private String buildRequestUrl() {
         StringBuilder url = new StringBuilder(API_URL);
         url.append("?length=").append(Math.min(ARRAY_LENGTH, 1024));
@@ -147,9 +153,15 @@ public class RNProvider {
             conn.setConnectTimeout(CONNECT_TIMEOUT);
             conn.setReadTimeout(READ_TIMEOUT);
 
+            // ВАЖНО: Добавляем API ключ в заголовок
+            conn.setRequestProperty("x-api-key", API_KEY);
+
             int responseCode = conn.getResponseCode();
+
             if (responseCode != HttpURLConnection.HTTP_OK) {
-                throw new IOException("HTTP error code: " + responseCode);
+                String errorBody = getErrorBody(conn);
+                LOGGER.severe("HTTP error: " + responseCode + " - " + errorBody);
+                throw new IOException("HTTP error code: " + responseCode + " - " + errorBody);
             }
 
             String responseBody = getResponseBody(conn);
@@ -157,6 +169,7 @@ public class RNProvider {
 
             JsonNode rootNode = objectMapper.readTree(responseBody);
 
+            // API возвращает данные в поле "data"
             if (rootNode.has("data")) {
                 JsonNode dataNode = rootNode.get("data");
 
@@ -183,17 +196,18 @@ public class RNProvider {
                     notifyLoadingCompleted();
                 } else {
                     lastError = "Invalid response format: 'data' is not an array.";
-                    LOGGER.warning("'data' field is not an array.");
+                    LOGGER.warning(lastError);
                     notifyError(lastError);
                 }
-            } else if (rootNode.has("error")) {
-                String errorMsg = rootNode.get("error").asText();
-                lastError = "Error from API: " + errorMsg;
-                LOGGER.severe("Error fetching random numbers: " + errorMsg);
+            } else if (rootNode.has("message")) {
+                // Новый API может возвращать ошибки в поле "message"
+                String errorMsg = rootNode.get("message").asText();
+                lastError = "API Error: " + errorMsg;
+                LOGGER.severe(lastError);
                 notifyError(lastError);
             } else {
                 lastError = "Unexpected response from server.";
-                LOGGER.warning("Unexpected response from server: no 'data' field found.");
+                LOGGER.warning("Unexpected response: " + responseBody);
                 notifyError(lastError);
             }
 
@@ -212,10 +226,29 @@ public class RNProvider {
         }
     }
 
+    /**
+     * Читает тело ответа с использованием try-with-resources.
+     */
     private @NotNull String getResponseBody(HttpURLConnection conn) throws IOException {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
             return in.lines().collect(Collectors.joining());
         }
+    }
+
+    /**
+     * Читает тело ошибки при неуспешном ответе.
+     */
+    private String getErrorBody(HttpURLConnection conn) {
+        try {
+            if (conn.getErrorStream() != null) {
+                try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getErrorStream()))) {
+                    return in.lines().collect(Collectors.joining());
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.fine("Could not read error body: " + e.getMessage());
+        }
+        return "";
     }
 
     public int getNextRandomNumber() {
@@ -228,9 +261,10 @@ public class RNProvider {
                     }
                 }
                 loadInitialDataAsync();
-                nextNumber = randomNumbersQueue.poll(3, TimeUnit.SECONDS); // Увеличен таймаут
+                nextNumber = randomNumbersQueue.poll(5, TimeUnit.SECONDS);
                 if (nextNumber == null) {
-                    throw new NoSuchElementException("No available random numbers.");
+                    throw new NoSuchElementException("No available random numbers. " +
+                            (lastError != null ? lastError : "Check API connection."));
                 }
             }
             if (randomNumbersQueue.size() < QUEUE_MIN_SIZE && apiRequestCount < MAX_API_REQUESTS && !isLoading) {
@@ -249,7 +283,7 @@ public class RNProvider {
     }
 
     public void shutdown() {
-        LOGGER.info("RNProvider is shutting down.");
+        LOGGER.info("RNProvider is shutting down. Total API requests: " + apiRequestCount);
     }
 
     private void checkAndLoadMore() {

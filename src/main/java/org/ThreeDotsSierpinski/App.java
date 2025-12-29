@@ -8,11 +8,11 @@ import java.util.logging.Logger;
  * The main application class that sets up the GUI and initializes components.
  */
 public class App {
-    private static final String APPLICATION_TITLE = "Dot Mover";
+    private static final String APPLICATION_TITLE = "Quantum Sierpinski Triangle";
     private static final String LOG_APP_STARTED = "Application started.";
     private static final String LOG_GUI_STARTED = "GUI successfully launched.";
     private static final String LOG_APP_SHUTTING_DOWN = "Shutting down application.";
-    private static final String LOG_WAITING_FOR_DATA = "Waiting for initial random numbers...";
+    private static final String LOG_WAITING_FOR_DATA = "Waiting for initial random numbers from ANU Quantum API...";
     private static final String LOG_DATA_READY = "Initial data loaded, starting animation.";
     private static final String LOG_DATA_TIMEOUT = "Timeout waiting for initial data.";
 
@@ -55,14 +55,14 @@ public class App {
             LOGGER.info(LOG_GUI_STARTED);
 
             // Добавляем кнопку теста
-            JButton testButton = new JButton("Проверить качество случайных чисел.");
+            JButton testButton = new JButton("Проверить качество случайных чисел");
             statusPanel.add(testButton);
             testButton.addActionListener(e -> {
                 RandomnessTest test = new KolmogorovSmirnovTest();
                 java.util.List<Long> numbers = dotController.getUsedRandomNumbers();
                 try {
                     boolean result = test.test(numbers, 0.05);
-                    statusLabel.setText(test.getTestName() + ": " + (result ? "Тест успешно пройден." : "Тест не пройден."));
+                    statusLabel.setText(test.getTestName() + ": " + (result ? "Тест успешно пройден!" : "Тест не пройден."));
                 } catch (IllegalArgumentException ex) {
                     statusLabel.setText("Ошибка: " + ex.getMessage());
                 }
@@ -71,15 +71,15 @@ public class App {
             // Ожидаем загрузки данных в отдельном потоке
             new Thread(() -> {
                 LOGGER.info(LOG_WAITING_FOR_DATA);
-                SwingUtilities.invokeLater(() -> statusLabel.setText("Loading random numbers from QRNG API..."));
+                SwingUtilities.invokeLater(() -> statusLabel.setText("Connecting to ANU Quantum Numbers API..."));
 
-                // Ждём до 10 секунд
-                boolean dataReady = randomNumberProvider.waitForInitialData(10000);
+                // Ждём до 15 секунд
+                boolean dataReady = randomNumberProvider.waitForInitialData(15000);
 
                 if (dataReady) {
                     LOGGER.info(LOG_DATA_READY);
                     SwingUtilities.invokeLater(() -> {
-                        statusLabel.setText("Data loaded. Starting animation...");
+                        statusLabel.setText("Quantum random numbers loaded. Drawing Sierpinski triangle...");
                         dotController.startDotMovement();
                     });
                 } else {
