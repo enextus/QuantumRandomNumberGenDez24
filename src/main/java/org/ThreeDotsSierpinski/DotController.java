@@ -48,6 +48,10 @@ public class DotController extends JPanel {
     private static final Logger LOGGER = LoggerConfig.getLogger();
     private final JLabel statusLabel;
 
+    // Play/Stop functionality
+    private Timer animationTimer;
+    private volatile boolean isRunning = false;
+
     public DotController(RNProvider randomNumberProvider, JLabel statusLabel) {
         this.statusLabel = statusLabel;
         currentPoint = new Point(SIZE_WIDTH / 2, SIZE_HEIGHT / 2);
@@ -60,10 +64,16 @@ public class DotController extends JPanel {
         offscreenImage = new BufferedImage(SIZE_WIDTH, SIZE_HEIGHT, BufferedImage.TYPE_INT_ARGB);
         scheduler = Executors.newScheduledThreadPool(1);
         this.randomNumberProvider.addDataLoadListener(new RNLoadListenerImpl(this));
+
+        // Инициализация таймера (но не запуск)
+        initAnimationTimer();
     }
 
-    public void startDotMovement() {
-        Timer timer = new Timer(TIMER_DELAY, e -> {
+    /**
+     * Инициализирует таймер анимации.
+     */
+    private void initAnimationTimer() {
+        animationTimer = new Timer(TIMER_DELAY, e -> {
             if (errorMessage == null) {
                 ArrayList<Dot> newDots = new ArrayList<>();
                 for (int i = 0; i < DOTS_PER_UPDATE; i++) {
@@ -83,7 +93,7 @@ public class DotController extends JPanel {
                             LOGGER.log(Level.WARNING, ERROR_NO_RANDOM_NUMBERS + ex.getMessage());
                             updateStatusLabel("Error: " + ex.getMessage());
                         }
-                        ((Timer) e.getSource()).stop();
+                        stop();
                         break;
                     }
                 }
@@ -96,12 +106,60 @@ public class DotController extends JPanel {
                     repaint();
                 }, 1, TimeUnit.SECONDS);
             } else {
-                ((Timer) e.getSource()).stop();
+                stop();
                 repaint();
                 LOGGER.severe(String.format(LOG_ERROR_MOVEMENT, errorMessage));
             }
         });
-        timer.start();
+    }
+
+    /**
+     * Запускает анимацию (для обратной совместимости).
+     */
+    public void startDotMovement() {
+        start();
+    }
+
+    /**
+     * Запускает анимацию.
+     */
+    public void start() {
+        if (!isRunning && errorMessage == null) {
+            animationTimer.start();
+            isRunning = true;
+            LOGGER.info("Animation started.");
+        }
+    }
+
+    /**
+     * Останавливает анимацию (пауза).
+     */
+    public void stop() {
+        if (isRunning) {
+            animationTimer.stop();
+            isRunning = false;
+            LOGGER.info("Animation stopped.");
+        }
+    }
+
+    /**
+     * Переключает состояние анимации (Play/Stop).
+     * @return true если анимация запущена после переключения, false если остановлена
+     */
+    public boolean toggle() {
+        if (isRunning) {
+            stop();
+        } else {
+            start();
+        }
+        return isRunning;
+    }
+
+    /**
+     * Проверяет, запущена ли анимация.
+     */
+    public boolean isRunning() {
+        return isRunning;
     }
 
     @Override
@@ -188,4 +246,11 @@ public class DotController extends JPanel {
         return usedRandomNumbers;
     }
 
+    /**
+     * Очищает ресурсы при закрытии.
+     */
+    public void shutdown() {
+        stop();
+        scheduler.shutdown();
+    }
 }

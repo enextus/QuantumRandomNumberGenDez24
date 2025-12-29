@@ -16,6 +16,9 @@ public class App {
     private static final String LOG_DATA_READY = "Initial data loaded, starting animation.";
     private static final String LOG_DATA_TIMEOUT = "Timeout waiting for initial data.";
 
+    private static final String BUTTON_PLAY = "► Play";
+    private static final String BUTTON_STOP = "■ Stop";
+
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
     public static void main(String[] args) {
@@ -42,8 +45,24 @@ public class App {
 
             frame.add(dotController, BorderLayout.CENTER);
 
-            JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            // Панель статуса с фиксированными размерами элементов
+            JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+
+            // Фиксированная ширина для статус-лейбла (устанавливаем ДО добавления)
+            statusLabel.setPreferredSize(new Dimension(250, 20));
             statusPanel.add(statusLabel);
+
+            // Кнопка Play/Stop с фиксированным размером
+            JButton playStopButton = new JButton(BUTTON_STOP);
+            playStopButton.setEnabled(false); // Отключена до загрузки данных
+            playStopButton.setPreferredSize(new Dimension(90, 28));
+            statusPanel.add(playStopButton);
+
+            // Кнопка теста с фиксированным размером
+            JButton testButton = new JButton("Проверить качество");
+            testButton.setPreferredSize(new Dimension(160, 28));
+            statusPanel.add(testButton);
+
             frame.add(statusPanel, BorderLayout.SOUTH);
 
             frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -54,15 +73,24 @@ public class App {
             frame.setVisible(true);
             LOGGER.info(LOG_GUI_STARTED);
 
-            // Добавляем кнопку теста
-            JButton testButton = new JButton("Проверить качество случайных чисел");
-            statusPanel.add(testButton);
+            // Обработчик кнопки Play/Stop
+            playStopButton.addActionListener(e -> {
+                boolean running = dotController.toggle();
+                playStopButton.setText(running ? BUTTON_STOP : BUTTON_PLAY);
+                if (running) {
+                    statusLabel.setText("Drawing...");
+                } else {
+                    statusLabel.setText("Paused. Points: " + dotController.getUsedRandomNumbers().size());
+                }
+            });
+
+            // Обработчик кнопки теста
             testButton.addActionListener(e -> {
                 RandomnessTest test = new KolmogorovSmirnovTest();
                 java.util.List<Long> numbers = dotController.getUsedRandomNumbers();
                 try {
                     boolean result = test.test(numbers, 0.05);
-                    statusLabel.setText(test.getTestName() + ": " + (result ? "Тест успешно пройден!" : "Тест не пройден."));
+                    statusLabel.setText("K-S тест: " + (result ? "✓ Пройден" : "✗ Не пройден"));
                 } catch (IllegalArgumentException ex) {
                     statusLabel.setText("Ошибка: " + ex.getMessage());
                 }
@@ -71,7 +99,7 @@ public class App {
             // Ожидаем загрузки данных в отдельном потоке
             new Thread(() -> {
                 LOGGER.info(LOG_WAITING_FOR_DATA);
-                SwingUtilities.invokeLater(() -> statusLabel.setText("Connecting to ANU Quantum Numbers API..."));
+                SwingUtilities.invokeLater(() -> statusLabel.setText("Connecting to API..."));
 
                 // Ждём до 15 секунд
                 boolean dataReady = randomNumberProvider.waitForInitialData(15000);
@@ -79,14 +107,15 @@ public class App {
                 if (dataReady) {
                     LOGGER.info(LOG_DATA_READY);
                     SwingUtilities.invokeLater(() -> {
-                        statusLabel.setText("Quantum random numbers loaded. Drawing Sierpinski triangle...");
+                        statusLabel.setText("Drawing...");
+                        playStopButton.setEnabled(true);
                         dotController.startDotMovement();
                     });
                 } else {
                     LOGGER.warning(LOG_DATA_TIMEOUT);
                     String error = randomNumberProvider.getLastError();
                     SwingUtilities.invokeLater(() -> {
-                        statusLabel.setText("Error: " + (error != null ? error : "Timeout loading data"));
+                        statusLabel.setText("Error: " + (error != null ? error : "Timeout"));
                     });
                 }
             }).start();
@@ -96,6 +125,7 @@ public class App {
                 @Override
                 public void windowClosing(java.awt.event.WindowEvent windowEvent) {
                     LOGGER.info(LOG_APP_SHUTTING_DOWN);
+                    dotController.shutdown();
                     randomNumberProvider.shutdown();
                     super.windowClosing(windowEvent);
                 }
