@@ -3,10 +3,10 @@ package org.ThreeDotsSierpinski;
 import javax.swing.*;
 
 class RNLoadListenerImpl implements RNLoadListener {
-    private final dotController controller;
+    private final DotController controller;
     private final JTextArea rawDataTextArea; // поле для вывода
 
-    public RNLoadListenerImpl(dotController controller) {
+    public RNLoadListenerImpl(DotController controller) {
         this.controller = controller;
         this.rawDataTextArea = new JTextArea();
 

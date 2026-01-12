@@ -4,12 +4,24 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Класс для обработки случайных чисел из HEX-формата и генерации чисел в заданном диапазоне.
+ * Класс для обработки случайных чисел и генерации чисел в заданном диапазоне.
+ *
+ * Поддерживает работу с данными от ANU QRNG API:
+ * - uint8: 0-255
+ * - uint16: 0-65535
+ * - hex16: шестнадцатеричные строки
  */
 public class RandomNumberProcessor {
 
+    // Максимальное значение для uint16 (используется по умолчанию)
+    private static final int MAX_UINT16 = 65535;
+
+    // Максимальное значение для uint8
+    private static final int MAX_UINT8 = 255;
+
     /**
      * Преобразует HEX-строку в список чисел в диапазоне [0, 65535].
+     * Используется для обратной совместимости с hex16 форматом.
      *
      * @param hexData HEX-строка от API.
      * @return Список чисел (16-битные значения).
@@ -30,15 +42,40 @@ public class RandomNumberProcessor {
     }
 
     /**
-     * Генерирует число в заданном диапазоне [min, max] из 16-битного числа.
+     * Генерирует число в заданном диапазоне [min, max] из случайного числа.
      *
-     * @param number 16-битное число (0–65535).
+     * Автоматически определяет максимальное значение входного числа
+     * на основе его величины (uint8 или uint16).
+     *
+     * @param number Случайное число от API (0-255 или 0-65535).
      * @param min Минимальное значение диапазона.
      * @param max Максимальное значение диапазона.
      * @return Число в диапазоне [min, max].
      */
     public long generateNumberInRange(int number, long min, long max) {
-        double normalized = number / 65535.0; // Нормализация в [0.0, 1.0]
+        // Определяем максимальное значение на основе конфигурации
+        // По умолчанию используем uint16 (0-65535)
+        int maxValue = MAX_UINT16;
+
+        // Если число <= 255, возможно это uint8, но мы всё равно нормализуем к uint16
+        // для консистентности
+
+        double normalized = (double) number / maxValue; // Нормализация в [0.0, 1.0]
+        long range = max - min;
+        return min + (long) (normalized * range);
+    }
+
+    /**
+     * Генерирует число в заданном диапазоне с явным указанием максимального значения.
+     *
+     * @param number Случайное число от API.
+     * @param min Минимальное значение диапазона.
+     * @param max Максимальное значение диапазона.
+     * @param sourceMax Максимальное значение источника (255 для uint8, 65535 для uint16).
+     * @return Число в диапазоне [min, max].
+     */
+    public long generateNumberInRange(int number, long min, long max, int sourceMax) {
+        double normalized = (double) number / sourceMax;
         long range = max - min;
         return min + (long) (normalized * range);
     }
@@ -66,5 +103,4 @@ public class RandomNumberProcessor {
         }
         return data;
     }
-
 }

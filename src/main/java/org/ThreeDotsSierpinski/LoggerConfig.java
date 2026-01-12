@@ -5,93 +5,144 @@ import java.nio.file.*;
 import java.util.logging.*;
 
 /**
- * LoggerConfig is responsible for setting up and initializing the application's logging system.
- * It configures a file-based logger, removes console handlers to avoid duplicate logs,
- * and ensures that the logger is initialized only once.
+ * Конфигурация логгера для приложения.
+ * 
+ * Исправлено:
+ * - Автоматическое создание директории logs
+ * - Однократная инициализация (singleton)
+ * - Убраны DEBUG сообщения
+ * - Graceful fallback при ошибках
  */
 public class LoggerConfig {
-    // Logger instance used for internal logging within this configuration class
     private static final Logger LOGGER = Logger.getLogger(LoggerConfig.class.getName());
-
-    // Flag to track whether the logger has already been initialized
-    private static boolean isInitialized = false;
+    private static volatile boolean isInitialized = false;
+    private static volatile boolean initializationAttempted = false;
+    private static final Object LOCK = new Object();
 
     /**
-     * Initializes the logging configuration.
-     * This method configures the root logger to write logs to a specified file.
-     * It ensures a clean start by deleting the old log file if it exists.
-     * The logger is configured with a simple text formatter and file output only (no console).
+     * Инициализирует конфигурацию логгера.
+     * Создаёт директорию для логов, удаляет существующий лог-файл 
+     * и настраивает новый FileHandler.
      */
-    public static synchronized void initializeLogger() {
-        // Prevent multiple initializations in case this method is called more than once
-        if (isInitialized) {
+    public static void initializeLogger() {
+        // Double-checked locking для thread-safety
+        if (initializationAttempted) {
             return;
         }
-
-        try {
-            // Retrieve the log file name from application configuration
-            String logFileName = Config.getString("log.file.name");
-
-            // If the configuration key is missing or blank, use a default fallback name
-            if (logFileName == null || logFileName.isBlank()) {
-                logFileName = "default-app.log";
+        
+        synchronized (LOCK) {
+            if (initializationAttempted) {
+                return;
             }
-
-            // Convert the file name to a Path object for file operations
-            Path logFilePath = Paths.get(logFileName);
-
-            // Remove the old log file if it already exists to start fresh
-            Files.deleteIfExists(logFilePath);
-
-            // Create a FileHandler that writes to the specified file, with appending disabled
-            FileHandler fileHandler = new FileHandler(logFileName, false);
-
-            // Use the default simple formatter to make log entries human-readable
-            fileHandler.setFormatter(new SimpleFormatter());
-
-            // Obtain the root logger — this is the global logging entry point
-            Logger rootLogger = Logger.getLogger("");
-
-            // Remove all existing ConsoleHandlers from the root logger to avoid duplicate output
-            Handler[] handlers = rootLogger.getHandlers();
-            for (Handler handler : handlers) {
-                if (handler instanceof ConsoleHandler) {
-                    rootLogger.removeHandler(handler);
+            
+            // Отмечаем попытку инициализации сразу, чтобы избежать повторных попыток
+            initializationAttempted = true;
+            
+            try {
+                // Получение имени файла лога из конфигурации
+                String logFileName = Config.getString("log.file.name");
+                if (logFileName == null || logFileName.isEmpty()) {
+                    logFileName = "logs/app.log";
                 }
+
+                // Определение пути к файлу лога
+                Path logFilePath = Paths.get(logFileName);
+                
+                // ИСПРАВЛЕНИЕ: Создание директории если не существует
+                Path parentDir = logFilePath.getParent();
+                if (parentDir != null) {
+                    try {
+                        Files.createDirectories(parentDir);
+                    } catch (IOException e) {
+                        System.err.println("Warning: Could not create log directory: " + parentDir);
+                    }
+                }
+
+                // Удаление файла лога, если он существует, для обеспечения чистого старта
+                try {
+                    Files.deleteIfExists(logFilePath);
+                    // Также удаляем .lck файл если остался от предыдущего запуска
+                    Files.deleteIfExists(Paths.get(logFileName + ".lck"));
+                } catch (IOException e) {
+                    // Игнорируем - файл может быть заблокирован
+                }
+
+                // Инициализация FileHandler с append=false для перезаписи файла лога
+                FileHandler fileHandler = new FileHandler(logFileName, false);
+                fileHandler.setFormatter(new SimpleFormatter());
+
+                // Получение корневого логгера
+                Logger rootLogger = Logger.getLogger("");
+                
+                // Удаление стандартных консольных обработчиков для предотвращения дублирования логов
+                Handler[] handlers = rootLogger.getHandlers();
+                for (Handler handler : handlers) {
+                    if (handler instanceof ConsoleHandler) {
+                        rootLogger.removeHandler(handler);
+                    }
+                }
+
+                // Добавление FileHandler к корневому логгеру
+                rootLogger.addHandler(fileHandler);
+                
+                // Добавляем консольный handler для важных сообщений
+                ConsoleHandler consoleHandler = new ConsoleHandler();
+                consoleHandler.setLevel(Level.INFO);
+                consoleHandler.setFormatter(new SimpleFormatter());
+                rootLogger.addHandler(consoleHandler);
+                
+                rootLogger.setLevel(Config.getLogLevel());
+
+                isInitialized = true;
+                LOGGER.info("Logger initialized successfully. Log file: " + logFilePath.toAbsolutePath());
+                
+            } catch (IOException e) {
+                // Если не удалось создать FileHandler, работаем только с консолью
+                System.err.println("Warning: Could not initialize file logging: " + e.getMessage());
+                System.err.println("Logging to console only.");
+                
+                // Настраиваем консольный логгер как fallback
+                Logger rootLogger = Logger.getLogger("");
+                rootLogger.setLevel(Level.INFO);
+                
+                // Убеждаемся что есть консольный handler
+                boolean hasConsoleHandler = false;
+                for (Handler handler : rootLogger.getHandlers()) {
+                    if (handler instanceof ConsoleHandler) {
+                        hasConsoleHandler = true;
+                        break;
+                    }
+                }
+                if (!hasConsoleHandler) {
+                    ConsoleHandler consoleHandler = new ConsoleHandler();
+                    consoleHandler.setLevel(Level.INFO);
+                    rootLogger.addHandler(consoleHandler);
+                }
+                
+                isInitialized = true; // Считаем инициализированным с fallback
             }
-
-            // Attach the new file-based handler to the root logger
-            rootLogger.addHandler(fileHandler);
-
-            // Set the desired logging level, retrieved from configuration
-            rootLogger.setLevel(Config.getLogLevel());
-
-            // Log that the logger has been successfully initialized
-            LOGGER.info("Logging successfully initialized.");
-
-            // Mark logger as initialized
-            isInitialized = true;
-
-        } catch (IOException e) {
-            // If any file operation fails, log the failure using the internal logger
-            LOGGER.log(Level.SEVERE, "Failed to initialize FileHandler for logger.", e);
         }
     }
 
     /**
-     * Provides the global application logger instance.
-     * Ensures that the logger is initialized before use.
+     * Получает глобальный экземпляр логгера.
+     * Автоматически инициализирует логгер при первом вызове.
      *
-     * @return the root Logger instance for global application logging
+     * @return Глобальный Logger.
      */
     public static Logger getLogger() {
-        // Lazy initialization check — ensure logger is ready before returning
-        if (!isInitialized) {
+        if (!initializationAttempted) {
             initializeLogger();
         }
-
-        // Return the root logger (used across the application)
         return Logger.getLogger("");
     }
 
+    /**
+     * Проверяет, был ли логгер успешно инициализирован с файловым выводом.
+     *
+     * @return true если файловый логгер работает, false если только консольный
+     */
+    public static boolean isFileLoggingEnabled() {
+        return isInitialized && initializationAttempted;
+    }
 }
