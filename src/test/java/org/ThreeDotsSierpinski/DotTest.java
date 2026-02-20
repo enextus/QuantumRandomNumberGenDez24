@@ -76,4 +76,5 @@ class DotTest {
         assertEquals(-10, dot.point().x);
         assertEquals(-20, dot.point().y);
     }
+
 }

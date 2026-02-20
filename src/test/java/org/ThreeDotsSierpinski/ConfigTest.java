@@ -115,4 +115,5 @@ class ConfigTest {
         String value = Config.getString("non.existent.key");
         assertNull(value, "Несуществующий ключ должен возвращать null");
     }
+
 }

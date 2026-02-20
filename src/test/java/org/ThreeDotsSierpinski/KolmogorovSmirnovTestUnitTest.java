@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Unit тесты для класса KolmogorovSmirnovTest.
  * 
- * Примечание: Имя класса KolmogorovSmirnovTestUnitTest чтобы избежать
+ * Примечание: Имя класса KolmogorovSmirnovTestUnitTest, чтобы избежать
  * конфликта с основным классом KolmogorovSmirnovTest.
  */
 @DisplayName("KolmogorovSmirnovTest - тест равномерности распределения")
@@ -237,4 +237,5 @@ class KolmogorovSmirnovTestUnitTest {
             assertNotNull(test.getTestName());
         }
     }
+
 }
