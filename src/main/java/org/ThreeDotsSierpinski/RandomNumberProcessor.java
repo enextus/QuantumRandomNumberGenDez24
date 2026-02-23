@@ -53,20 +53,14 @@ public class RandomNumberProcessor {
      * @return Число в диапазоне [min, max].
      */
     public long generateNumberInRange(int number, long min, long max) {
-        // Определяем максимальное значение на основе конфигурации
-        // По умолчанию используем uint16 (0-65535)
-        int maxValue = MAX_UINT16;
-
-        // Если число <= 255, возможно это uint8, но мы всё равно нормализуем к uint16
-        // для консистентности
-
-        double normalized = (double) number / maxValue; // Нормализация в [0.0, 1.0]
-        long range = max - min;
-        return min + (long) (normalized * range);
+        return generateNumberInRange(number, min, max, MAX_UINT16);
     }
 
     /**
      * Генерирует число в заданном диапазоне с явным указанием максимального значения.
+     *
+     * Использует Math.round() для равномерного распределения по всему диапазону [min, max],
+     * включая граничные значения.
      *
      * @param number Случайное число от API.
      * @param min Минимальное значение диапазона.
@@ -75,9 +69,9 @@ public class RandomNumberProcessor {
      * @return Число в диапазоне [min, max].
      */
     public long generateNumberInRange(int number, long min, long max, int sourceMax) {
-        double normalized = (double) number / sourceMax;
+        double normalized = (double) number / sourceMax; // [0.0, 1.0]
         long range = max - min;
-        return min + (long) (normalized * range);
+        return min + Math.round(normalized * range);
     }
 
     /**
