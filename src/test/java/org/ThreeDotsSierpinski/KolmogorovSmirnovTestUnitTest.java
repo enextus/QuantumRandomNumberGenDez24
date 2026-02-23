@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit тесты для класса KolmogorovSmirnovTest.
- * 
+ * <p>
  * Примечание: Имя класса KolmogorovSmirnovTestUnitTest, чтобы избежать
  * конфликта с основным классом KolmogorovSmirnovTest.
  */
@@ -55,13 +55,8 @@ class KolmogorovSmirnovTestUnitTest {
         @Test
         @DisplayName("Выбрасывает исключение если min >= max")
         void testThrowsForInvalidRange() {
-            assertThrows(IllegalArgumentException.class, () -> {
-                new KolmogorovSmirnovTest(100, 100);
-            });
-            
-            assertThrows(IllegalArgumentException.class, () -> {
-                new KolmogorovSmirnovTest(200, 100);
-            });
+            assertThrows(IllegalArgumentException.class, () -> new KolmogorovSmirnovTest(100, 100));
+            assertThrows(IllegalArgumentException.class, () -> new KolmogorovSmirnovTest(200, 100));
         }
     }
 

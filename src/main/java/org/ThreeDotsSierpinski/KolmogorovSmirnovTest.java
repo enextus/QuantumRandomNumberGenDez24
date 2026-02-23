@@ -108,4 +108,5 @@ public class KolmogorovSmirnovTest implements RandomnessTest {
     public long getMaxRange() {
         return maxRange;
     }
+
 }

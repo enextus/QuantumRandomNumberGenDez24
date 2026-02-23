@@ -9,10 +9,6 @@ import java.util.logging.Level;
  * Класс для загрузки и предоставления конфигурационных параметров из файла config.properties.
  */
 public class Config {
-
-
-
-
     private static final Properties properties = new Properties();
 
     static {
@@ -65,9 +61,6 @@ public class Config {
     public static double getDouble(String key) {
         return Double.parseDouble(properties.getProperty(key));
     }
-
-
-
 
     /**
      * Получает уровень логирования.

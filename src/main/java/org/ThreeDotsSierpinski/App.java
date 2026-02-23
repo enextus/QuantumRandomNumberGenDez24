@@ -21,7 +21,7 @@ public class App {
 
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
-    public static void main(String[] args) {
+    static void main(String[] args) {
         LoggerConfig.initializeLogger();
         LOGGER.info(LOG_APP_STARTED);
 
@@ -114,9 +114,7 @@ public class App {
                 } else {
                     LOGGER.warning(LOG_DATA_TIMEOUT);
                     String error = randomNumberProvider.getLastError();
-                    SwingUtilities.invokeLater(() -> {
-                        statusLabel.setText("Error: " + (error != null ? error : "Timeout"));
-                    });
+                    SwingUtilities.invokeLater(() -> statusLabel.setText("Error: " + (error != null ? error : "Timeout")));
                 }
             }).start();
 

@@ -23,10 +23,8 @@ import java.util.stream.Collectors;
 
 /**
  * Класс для загрузки случайных чисел из ANU Quantum Numbers API.
- *
  * Новый API: https://api.quantumnumbers.anu.edu.au
  * Документация: https://quantumnumbers.anu.edu.au/documentation
- *
  * Требует API ключ в заголовке x-api-key.
  */
 public class RNProvider {
@@ -85,14 +83,6 @@ public class RNProvider {
 
     public String getLastError() {
         return lastError;
-    }
-
-    public boolean hasAvailableNumbers() {
-        return !randomNumbersQueue.isEmpty();
-    }
-
-    public List<Integer> getTrueRandomNumbersFromHex(String hexData) {
-        return numberProcessor.processHexToNumbers(hexData);
     }
 
     public void addDataLoadListener(RNLoadListener listener) {
@@ -307,4 +297,5 @@ public class RNProvider {
     private void notifyRawDataReceived(String rawData) {
         listeners.forEach(listener -> listener.onRawDataReceived(rawData));
     }
+
 }

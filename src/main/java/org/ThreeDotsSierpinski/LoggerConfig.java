@@ -145,4 +145,5 @@ public class LoggerConfig {
     public static boolean isFileLoggingEnabled() {
         return isInitialized && initializationAttempted;
     }
+
 }

@@ -24,7 +24,4 @@ public interface RNLoadListener {
 
     // Новый метод для получения «сырой» строки, полученной от API
     void onRawDataReceived(String rawData);
-
-
-
 }

@@ -253,4 +253,5 @@ public class DotController extends JPanel {
         stop();
         scheduler.shutdown();
     }
+
 }
