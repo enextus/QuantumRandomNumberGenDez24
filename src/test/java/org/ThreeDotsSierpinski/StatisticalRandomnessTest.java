@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 
-import java.security.SecureRandom;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -15,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Набор статистических тестов для проверки качества случайных чисел.
  *
  * Эти тесты проверяют статистические свойства генератора случайных чисел
- * с использованием SecureRandom как эталона (без реального API).
+ * с использованием Random с фиксированным seed для воспроизводимости.
  *
  * Для тестирования с реальным API используйте интеграционные тесты.
  */
@@ -29,13 +28,16 @@ class StatisticalRandomnessTest {
     private static final int MIN_VALUE = 0;
     private static final int MAX_VALUE = 65535;
 
+    // Фиксированный seed для воспроизводимости тестов
+    private static final long FIXED_SEED = 42L;
+
     // Сгенерированная выборка
     private static List<Integer> randomSample;
 
     @BeforeAll
     static void generateSample() {
-        // Используем SecureRandom для генерации тестовых данных
-        SecureRandom random = new SecureRandom();
+        // Используем Random с фиксированным seed для детерминированных тестов
+        Random random = new Random(FIXED_SEED);
         randomSample = new ArrayList<>(SAMPLE_SIZE);
 
         for (int i = 0; i < SAMPLE_SIZE; i++) {
