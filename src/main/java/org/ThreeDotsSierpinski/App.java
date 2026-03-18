@@ -101,7 +101,7 @@ public class App {
                 LOGGER.info(LOG_WAITING_FOR_DATA);
                 SwingUtilities.invokeLater(() -> statusLabel.setText("Connecting to API..."));
 
-                // Ждём до 15 секунд
+                // Ожидание
                 boolean dataReady = randomNumberProvider.waitForInitialData(15000);
 
                 if (dataReady) {
