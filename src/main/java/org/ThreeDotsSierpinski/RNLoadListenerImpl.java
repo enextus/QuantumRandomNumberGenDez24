@@ -29,8 +29,9 @@ class RNLoadListenerImpl implements RNLoadListener {
         int mainHeight = mainFrame.getHeight();
 
         int rawDataHeight = 150;
+        int windowShadowOffset = 7; // Компенсация тени оконной рамки Windows
         rawDataFrame.setSize(mainWidth, rawDataHeight);
-        rawDataFrame.setLocation(mainX, mainY + mainHeight);
+        rawDataFrame.setLocation(mainX, mainY + mainHeight - windowShadowOffset);
 
         rawDataFrame.setVisible(true);
     }
