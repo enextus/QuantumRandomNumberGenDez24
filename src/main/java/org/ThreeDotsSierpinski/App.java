@@ -2,6 +2,7 @@ package org.ThreeDotsSierpinski;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.List;
 import java.util.logging.Logger;
 
 /**
@@ -87,16 +88,28 @@ public class App {
                 }
             });
 
-            // Обработчик кнопки теста
+            // Обработчик кнопки «Проверить качество» — запускает все тесты
             testButton.addActionListener(_ -> {
-                RandomnessTest test = new KolmogorovSmirnovTest();
-                java.util.List<Long> numbers = dotController.getUsedRandomNumbers();
-                try {
-                    boolean result = test.test(numbers, 0.05);
-                    statusLabel.setText("K-S тест: " + (result ? "✓ Пройден" : "✗ Не пройден"));
-                } catch (IllegalArgumentException ex) {
-                    statusLabel.setText("Ошибка: " + ex.getMessage());
+                List<Long> numbers = dotController.getUsedRandomNumbers();
+
+                if (numbers.size() < 10) {
+                    statusLabel.setText("Нужно минимум 10 точек для тестов");
+                    return;
                 }
+
+                RandomnessTestSuite suite = new RandomnessTestSuite();
+                List<TestResult> results = suite.runAll(numbers, 0.05);
+                String report = RandomnessTestSuite.formatResults(results);
+
+                long passed = results.stream().filter(TestResult::passed).count();
+                statusLabel.setText("Тесты: " + passed + "/" + results.size() + " пройдено (" + numbers.size() + " точек)");
+
+                JOptionPane.showMessageDialog(
+                        frame,
+                        report,
+                        "Результаты тестов случайности (" + numbers.size() + " чисел)",
+                        passed == results.size() ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.WARNING_MESSAGE
+                );
             });
 
             // Ожидаем загрузки данных в отдельном потоке
