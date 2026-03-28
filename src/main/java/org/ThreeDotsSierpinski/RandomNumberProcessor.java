@@ -59,8 +59,9 @@ public class RandomNumberProcessor {
     /**
      * Генерирует число в заданном диапазоне с явным указанием максимального значения.
      *
-     * Использует Math.round() для равномерного распределения по всему диапазону [min, max],
-     * включая граничные значения.
+     * Использует floor-маппинг для равномерного распределения по всему диапазону [min, max],
+     * включая граничные значения. Каждое выходное значение получает одинаковое количество
+     * входных значений (в пределах ±1).
      *
      * @param number Случайное число от API.
      * @param min Минимальное значение диапазона.
@@ -69,9 +70,10 @@ public class RandomNumberProcessor {
      * @return Число в диапазоне [min, max].
      */
     public long generateNumberInRange(int number, long min, long max, int sourceMax) {
-        double normalized = (double) number / sourceMax; // [0.0, 1.0]
-        long range = max - min;
-        return min + Math.round(normalized * range);
+        double normalized = (double) number / (sourceMax + 1.0); // [0.0, 1.0)
+        long outputRange = max - min + 1;
+        long result = min + (long) (normalized * outputRange);
+        return Math.min(result, max); // Защита от выхода за границу из-за погрешности double
     }
 
     /**
