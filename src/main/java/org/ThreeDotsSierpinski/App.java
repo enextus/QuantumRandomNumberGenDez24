@@ -21,7 +21,7 @@ public class App {
 
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
-    static void main(String[] args) {
+    static void main() {
         LoggerConfig.initializeLogger();
         LOGGER.info(LOG_APP_STARTED);
 
@@ -77,7 +77,7 @@ public class App {
             randomNumberProvider.addDataLoadListener(new RNLoadListenerImpl(dotController, frame));
 
             // Обработчик кнопки Play/Stop
-            playStopButton.addActionListener(e -> {
+            playStopButton.addActionListener(_ -> {
                 boolean running = dotController.toggle();
                 playStopButton.setText(running ? BUTTON_STOP : BUTTON_PLAY);
                 if (running) {
@@ -88,7 +88,7 @@ public class App {
             });
 
             // Обработчик кнопки теста
-            testButton.addActionListener(e -> {
+            testButton.addActionListener(_ -> {
                 RandomnessTest test = new KolmogorovSmirnovTest();
                 java.util.List<Long> numbers = dotController.getUsedRandomNumbers();
                 try {
