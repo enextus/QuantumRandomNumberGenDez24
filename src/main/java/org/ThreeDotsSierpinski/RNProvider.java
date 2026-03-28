@@ -135,43 +135,45 @@ public class RNProvider {
     private void loadWithRetry() {
         int retryCount = 0;
 
-        while (retryCount <= MAX_RETRIES) {
-            try {
-                loadInitialData();
-
-                // Успешная загрузка — сбрасываем счётчик ошибок
-                consecutiveFailures = 0;
-                return;
-
-            } catch (Exception e) {
-                retryCount++;
-                consecutiveFailures++;
-
-                if (retryCount > MAX_RETRIES) {
-                    LOGGER.severe("All " + MAX_RETRIES + " retry attempts failed. Last error: " + e.getMessage());
-                    lastError = "API unavailable after " + MAX_RETRIES + " retries: " + e.getMessage();
-                    notifyError(lastError);
-                    synchronized (this) {
-                        isLoading = false;
-                    }
-                    return;
-                }
-
-                long backoffMs = calculateBackoff(retryCount);
-                LOGGER.warning(String.format("API request failed (attempt %d/%d). Retrying in %d ms. Error: %s",
-                        retryCount, MAX_RETRIES, backoffMs, e.getMessage()));
-                notifyError("Retry " + retryCount + "/" + MAX_RETRIES + ": " + e.getMessage());
-
+        try {
+            while (retryCount <= MAX_RETRIES) {
                 try {
-                    Thread.sleep(backoffMs);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    LOGGER.info("Retry interrupted.");
-                    synchronized (this) {
-                        isLoading = false;
-                    }
+                    loadInitialData();
+
+                    // Успешная загрузка — сбрасываем счётчик ошибок
+                    consecutiveFailures = 0;
+                    checkAndLoadMore();
                     return;
+
+                } catch (Exception e) {
+                    retryCount++;
+                    consecutiveFailures++;
+
+                    if (retryCount > MAX_RETRIES) {
+                        LOGGER.severe("All " + MAX_RETRIES + " retry attempts failed. Last error: " + e.getMessage());
+                        lastError = "API unavailable after " + MAX_RETRIES + " retries: " + e.getMessage();
+                        notifyError(lastError);
+                        return;
+                    }
+
+                    long backoffMs = calculateBackoff(retryCount);
+                    LOGGER.warning(String.format("API request failed (attempt %d/%d). Retrying in %d ms. Error: %s",
+                            retryCount, MAX_RETRIES, backoffMs, e.getMessage()));
+                    notifyError("Retry " + retryCount + "/" + MAX_RETRIES + ": " + e.getMessage());
+
+                    try {
+                        Thread.sleep(backoffMs);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        LOGGER.info("Retry interrupted.");
+                        return;
+                    }
                 }
+            }
+        } finally {
+            // Гарантированно сбрасываем флаг — один раз, при любом исходе
+            synchronized (this) {
+                isLoading = false;
             }
         }
     }
@@ -278,10 +280,8 @@ public class RNProvider {
             if (conn != null) {
                 conn.disconnect();
             }
-            synchronized (this) {
-                isLoading = false;
-            }
-            checkAndLoadMore();
+            // НЕ сбрасываем isLoading здесь — это делает loadWithRetry
+            // НЕ вызываем checkAndLoadMore — это делает loadWithRetry после успеха
         }
     }
 
