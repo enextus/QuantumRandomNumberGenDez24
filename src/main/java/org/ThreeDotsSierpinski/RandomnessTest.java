@@ -1,6 +1,8 @@
 package org.ThreeDotsSierpinski;
 
-import java.util.List; /**
+import java.util.List;
+
+/**
  * Интерфейс для тестов случайности числовых выборок.
  */
 public interface RandomnessTest {
