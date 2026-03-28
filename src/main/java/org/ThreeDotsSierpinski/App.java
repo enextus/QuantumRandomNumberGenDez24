@@ -73,6 +73,9 @@ public class App {
             frame.setVisible(true);
             LOGGER.info(LOG_GUI_STARTED);
 
+            // Регистрируем listener с окном "Raw Data" под главным окном
+            randomNumberProvider.addDataLoadListener(new RNLoadListenerImpl(dotController, frame));
+
             // Обработчик кнопки Play/Stop
             playStopButton.addActionListener(e -> {
                 boolean running = dotController.toggle();

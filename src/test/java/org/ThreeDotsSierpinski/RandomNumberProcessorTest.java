@@ -112,8 +112,8 @@ class RandomNumberProcessorTest {
         void testMiddleInputGivesMiddleOutput() {
             // 32768/65535 ≈ 0.5, 0 + 0.5 * 100 = 50
             long result = processor.generateNumberInRange(32768, 0, 100);
-            assertTrue(result >= 49 && result <= 51, 
-                "Среднее значение должно быть около середины диапазона");
+            assertTrue(result >= 49 && result <= 51,
+                    "Среднее значение должно быть около середины диапазона");
         }
 
         @ParameterizedTest
@@ -122,7 +122,7 @@ class RandomNumberProcessorTest {
         void testAllValuesInRange(int input) {
             long result = processor.generateNumberInRange(input, -1000, 1000);
             assertTrue(result >= -1000 && result <= 1000,
-                "Результат " + result + " должен быть в диапазоне [-1000, 1000]");
+                    "Результат " + result + " должен быть в диапазоне [-1000, 1000]");
         }
 
         @Test
@@ -135,10 +135,10 @@ class RandomNumberProcessorTest {
         @ParameterizedTest
         @DisplayName("Работает с различными диапазонами")
         @CsvSource({
-            "0, 0, 10, 0",
-            "65535, 0, 10, 10",
-            "0, -50, 50, -50",
-            "65535, -50, 50, 50"
+                "0, 0, 10, 0",
+                "65535, 0, 10, 10",
+                "0, -50, 50, -50",
+                "65535, -50, 50, 50"
         })
         void testVariousRanges(int input, long min, long max, long expected) {
             long result = processor.generateNumberInRange(input, min, max);
@@ -156,7 +156,7 @@ class RandomNumberProcessorTest {
             // 255/255 = 1.0, диапазон 100
             long result = processor.generateNumberInRange(255, 0, 100, 255);
             assertEquals(100, result);
-            
+
             // 128/255 ≈ 0.5
             result = processor.generateNumberInRange(128, 0, 100, 255);
             assertTrue(result >= 49 && result <= 51);
@@ -186,20 +186,58 @@ class RandomNumberProcessorTest {
         @DisplayName("Равномерное распределение для последовательных входных значений")
         void testUniformDistribution() {
             int[] buckets = new int[10];
-            int bucketSize = 6554; // 65535 / 10 примерно
-            
-            // Генерируем числа от 0 до 65535 с шагом 100
-            for (int i = 0; i < 65536; i += 100) {
+
+            // Проходим ВСЕ входные значения от 0 до 65535
+            for (int i = 0; i <= 65535; i++) {
                 long result = processor.generateNumberInRange(i, 0, 9);
                 buckets[(int) result]++;
             }
-            
-            // Каждый bucket должен иметь примерно одинаковое количество
-            int expected = 656 / 10; // примерно 65-66
+
+            // Каждый bucket должен получить ~6554 значений (65536 / 10)
+            int expected = 65536 / 10;
             for (int i = 0; i < 10; i++) {
-                assertTrue(buckets[i] > expected / 2 && buckets[i] < expected * 2,
-                    "Bucket " + i + " имеет " + buckets[i] + " элементов");
+                assertTrue(buckets[i] >= expected - 1 && buckets[i] <= expected + 1,
+                        "Bucket " + i + " имеет " + buckets[i] + " элементов (ожидается ~" + expected + ")");
+            }
+        }
+
+        @Test
+        @DisplayName("Граничные значения получают равную вероятность (без bias)")
+        void testBoundaryUniformity() {
+            int[] buckets = new int[3];
+
+            // Маппим все 65536 входных значений на 3 выходных [0, 1, 2]
+            for (int i = 0; i <= 65535; i++) {
+                long result = processor.generateNumberInRange(i, 0, 2);
+                buckets[(int) result]++;
+            }
+
+            // С Math.round() было бы: [16384, 32768, 16384] — bias x2 на середине
+            // С Math.floor() должно быть: ~[21845, 21845, 21846] — равномерно
+            int expected = 65536 / 3; // 21845
+            for (int i = 0; i < 3; i++) {
+                assertTrue(buckets[i] >= expected && buckets[i] <= expected + 1,
+                        "Значение " + i + " получило " + buckets[i] +
+                                " входных (ожидается ~" + expected + "). Bias на границах!");
+            }
+        }
+
+        @Test
+        @DisplayName("Маппинг на uint8 sourceMax — равномерность границ")
+        void testBoundaryUniformityUint8() {
+            int[] buckets = new int[3];
+
+            for (int i = 0; i <= 255; i++) {
+                long result = processor.generateNumberInRange(i, 0, 2, 255);
+                buckets[(int) result]++;
+            }
+
+            // 256 / 3 ≈ 85, каждый bucket: 85 или 86
+            for (int i = 0; i < 3; i++) {
+                assertTrue(buckets[i] >= 85 && buckets[i] <= 86,
+                        "Значение " + i + " получило " + buckets[i] + " входных (ожидается 85-86)");
             }
         }
     }
+
 }

@@ -16,16 +16,22 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
  * Класс для загрузки случайных чисел из ANU Quantum Numbers API.
- * Новый API: https://api.quantumnumbers.anu.edu.au
+ *
+ * API: https://api.quantumnumbers.anu.edu.au
  * Документация: https://quantumnumbers.anu.edu.au/documentation
  * Требует API ключ в заголовке x-api-key.
+ *
+ * Особенности:
+ * - Неблокирующий getNextRandomNumber() — безопасен для вызова из EDT (Swing)
+ * - Exponential backoff при ошибках API (1s → 2s → 4s → 8s → max 30s)
+ * - Автоматическое восстановление после временных сбоев API
+ * - Фоновая предзагрузка при снижении буфера ниже порога
  */
 public class RNProvider {
     private static final Logger LOGGER = LoggerConfig.getLogger();
@@ -41,6 +47,11 @@ public class RNProvider {
     private static final int READ_TIMEOUT = Config.getInt("api.read.timeout");
     private static final int QUEUE_MIN_SIZE = Config.getInt("random.queue.min.size");
 
+    // Retry configuration
+    private static final int MAX_RETRIES = 5;
+    private static final long INITIAL_BACKOFF_MS = 1000;
+    private static final long MAX_BACKOFF_MS = 30000;
+
     private final BlockingQueue<Integer> randomNumbersQueue;
     private final ObjectMapper objectMapper;
     private final RandomNumberProcessor numberProcessor;
@@ -49,6 +60,7 @@ public class RNProvider {
     private volatile boolean isLoading = false;
     private volatile boolean initialLoadComplete = false;
     private volatile String lastError = null;
+    private volatile int consecutiveFailures = 0;
 
     public RNProvider() {
         randomNumbersQueue = new LinkedBlockingQueue<>();
@@ -56,9 +68,10 @@ public class RNProvider {
         numberProcessor = new RandomNumberProcessor();
 
         // Проверка наличия API ключа
-        if (API_KEY == null || API_KEY.isEmpty()) {
-            LOGGER.severe("API key is not configured! Please set api.key in config.properties");
-            lastError = "API key is not configured";
+        if (API_KEY == null || API_KEY.isEmpty() || API_KEY.startsWith("YOUR_")) {
+            LOGGER.severe("API key is not configured! Set environment variable QRNG_API_KEY, "
+                    + "create .env file (see .env.example), or update config.properties");
+            lastError = "API key is not configured. See .env.example for setup instructions";
         } else {
             loadInitialDataAsync();
         }
@@ -66,6 +79,7 @@ public class RNProvider {
 
     /**
      * Ожидает загрузки начальных данных.
+     * Вызывается из фонового потока в App.java, НЕ из EDT.
      */
     public boolean waitForInitialData(long timeoutMs) {
         long start = System.currentTimeMillis();
@@ -100,7 +114,7 @@ public class RNProvider {
             isLoading = true;
         }
 
-        CompletableFuture.runAsync(this::loadInitialData)
+        CompletableFuture.runAsync(this::loadWithRetry)
                 .exceptionally(ex -> {
                     LOGGER.log(Level.SEVERE, "Exception during data loading", ex);
                     lastError = "Exception during data loading: " + ex.getMessage();
@@ -110,6 +124,69 @@ public class RNProvider {
                     }
                     return null;
                 });
+    }
+
+    /**
+     * Загрузка данных с exponential backoff при ошибках.
+     *
+     * При сбое API ждёт 1s → 2s → 4s → 8s → 16s (максимум MAX_RETRIES попыток).
+     * При успехе сбрасывает счётчик ошибок и lastError.
+     */
+    private void loadWithRetry() {
+        int retryCount = 0;
+
+        try {
+            while (retryCount <= MAX_RETRIES) {
+                try {
+                    loadInitialData();
+
+                    // Успешная загрузка — сбрасываем счётчик ошибок
+                    consecutiveFailures = 0;
+                    checkAndLoadMore();
+                    return;
+
+                } catch (Exception e) {
+                    retryCount++;
+                    consecutiveFailures++;
+
+                    if (retryCount > MAX_RETRIES) {
+                        LOGGER.severe("All " + MAX_RETRIES + " retry attempts failed. Last error: " + e.getMessage());
+                        lastError = "API unavailable after " + MAX_RETRIES + " retries: " + e.getMessage();
+                        notifyError(lastError);
+                        return;
+                    }
+
+                    long backoffMs = calculateBackoff(retryCount);
+                    LOGGER.warning(String.format("API request failed (attempt %d/%d). Retrying in %d ms. Error: %s",
+                            retryCount, MAX_RETRIES, backoffMs, e.getMessage()));
+                    notifyError("Retry " + retryCount + "/" + MAX_RETRIES + ": " + e.getMessage());
+
+                    try {
+                        Thread.sleep(backoffMs);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        LOGGER.info("Retry interrupted.");
+                        return;
+                    }
+                }
+            }
+        } finally {
+            // Гарантированно сбрасываем флаг — один раз, при любом исходе
+            synchronized (this) {
+                isLoading = false;
+            }
+        }
+    }
+
+    /**
+     * Вычисляет задержку перед следующей попыткой (exponential backoff).
+     *
+     * @param retryAttempt номер попытки (1, 2, 3, ...)
+     * @return задержка в миллисекундах
+     */
+    long calculateBackoff(int retryAttempt) {
+        long backoff = INITIAL_BACKOFF_MS * (1L << (retryAttempt - 1));
+        return Math.min(backoff, MAX_BACKOFF_MS);
     }
 
     /**
@@ -128,7 +205,11 @@ public class RNProvider {
         return url.toString();
     }
 
-    private void loadInitialData() {
+    /**
+     * Выполняет один запрос к API.
+     * При ошибке выбрасывает исключение (для обработки в loadWithRetry).
+     */
+    private void loadInitialData() throws Exception {
         notifyLoadingStarted();
         HttpURLConnection conn = null;
 
@@ -181,38 +262,26 @@ public class RNProvider {
                     synchronized (this) {
                         apiRequestCount++;
                         initialLoadComplete = true;
+                        lastError = null; // Сбрасываем ошибку при успешной загрузке
                     }
                     notifyRawDataReceived(responseBody);
                     notifyLoadingCompleted();
                 } else {
-                    lastError = "Invalid response format: 'data' is not an array.";
-                    LOGGER.warning(lastError);
-                    notifyError(lastError);
+                    throw new IOException("Invalid response format: 'data' is not an array.");
                 }
             } else if (rootNode.has("message")) {
-                // Новый API может возвращать ошибки в поле "message"
                 String errorMsg = rootNode.get("message").asText();
-                lastError = "API Error: " + errorMsg;
-                LOGGER.severe(lastError);
-                notifyError(lastError);
+                throw new IOException("API Error: " + errorMsg);
             } else {
-                lastError = "Unexpected response from server.";
-                LOGGER.warning("Unexpected response: " + responseBody);
-                notifyError(lastError);
+                throw new IOException("Unexpected response from server.");
             }
 
-        } catch (Exception e) {
-            lastError = "Failed to fetch data from QRNG API: " + e.getMessage();
-            LOGGER.log(Level.SEVERE, "Failed to fetch data from QRNG API.", e);
-            notifyError(lastError);
         } finally {
             if (conn != null) {
                 conn.disconnect();
             }
-            synchronized (this) {
-                isLoading = false;
-            }
-            checkAndLoadMore();
+            // НЕ сбрасываем isLoading здесь — это делает loadWithRetry
+            // НЕ вызываем checkAndLoadMore — это делает loadWithRetry после успеха
         }
     }
 
@@ -241,30 +310,37 @@ public class RNProvider {
         return "";
     }
 
+    /**
+     * Возвращает следующее случайное число из буфера.
+     *
+     * НЕБЛОКИРУЮЩИЙ — безопасен для вызова из EDT (Swing Timer).
+     * Если буфер пуст — выбрасывает NoSuchElementException вместо ожидания.
+     * DotController перехватит исключение и пропустит тик анимации.
+     *
+     * @return случайное число из буфера
+     * @throws NoSuchElementException если буфер пуст или достигнут лимит запросов
+     */
     public int getNextRandomNumber() {
-        try {
-            Integer nextNumber = randomNumbersQueue.poll(1, TimeUnit.SECONDS);
-            if (nextNumber == null) {
-                synchronized (this) {
-                    if (apiRequestCount >= MAX_API_REQUESTS) {
-                        throw new NoSuchElementException("Reached maximum number of API requests.");
-                    }
-                }
-                loadInitialDataAsync();
-                nextNumber = randomNumbersQueue.poll(5, TimeUnit.SECONDS);
-                if (nextNumber == null) {
-                    throw new NoSuchElementException("No available random numbers. " +
-                            (lastError != null ? lastError : "Check API connection."));
+        Integer nextNumber = randomNumbersQueue.poll(); // Неблокирующий!
+
+        if (nextNumber == null) {
+            // Буфер пуст — запускаем фоновую подгрузку
+            synchronized (this) {
+                if (apiRequestCount >= MAX_API_REQUESTS) {
+                    throw new NoSuchElementException("Reached maximum number of API requests.");
                 }
             }
-            if (randomNumbersQueue.size() < QUEUE_MIN_SIZE && apiRequestCount < MAX_API_REQUESTS && !isLoading) {
-                loadInitialDataAsync();
-            }
-            return nextNumber;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new NoSuchElementException("Interrupted while waiting for random number.");
+            loadInitialDataAsync();
+            throw new NoSuchElementException("Buffer empty, background loading started. " +
+                    (lastError != null ? lastError : "Waiting for API response."));
         }
+
+        // Превентивная подгрузка при снижении буфера
+        if (randomNumbersQueue.size() < QUEUE_MIN_SIZE && apiRequestCount < MAX_API_REQUESTS && !isLoading) {
+            loadInitialDataAsync();
+        }
+
+        return nextNumber;
     }
 
     public long getNextRandomNumberInRange(long min, long max) {

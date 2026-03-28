@@ -39,6 +39,7 @@ public class DotController extends JPanel {
     private final List<Dot> dots;
     private final List<Long> usedRandomNumbers;
     private final RNProvider randomNumberProvider;
+    private final SierpinskiAlgorithm algorithm;
     private volatile String errorMessage;
     private Point currentPoint;
     private final BufferedImage offscreenImage;
@@ -54,6 +55,7 @@ public class DotController extends JPanel {
 
     public DotController(RNProvider randomNumberProvider, JLabel statusLabel) {
         this.statusLabel = statusLabel;
+        this.algorithm = new SierpinskiAlgorithm();
         currentPoint = new Point(SIZE_WIDTH / 2, SIZE_HEIGHT / 2);
         setPreferredSize(new Dimension(SIZE_WIDTH + 300, SIZE_HEIGHT));
         setBackground(Color.WHITE);
@@ -63,7 +65,6 @@ public class DotController extends JPanel {
         errorMessage = null;
         offscreenImage = new BufferedImage(SIZE_WIDTH, SIZE_HEIGHT, BufferedImage.TYPE_INT_ARGB);
         scheduler = Executors.newScheduledThreadPool(1);
-        this.randomNumberProvider.addDataLoadListener(new RNLoadListenerImpl(this));
 
         // Инициализация таймера (но не запуск)
         initAnimationTimer();
@@ -84,16 +85,22 @@ public class DotController extends JPanel {
 
                         currentRandomValue = randomValue;
                         usedRandomNumbers.add(currentRandomValue);
-                        currentPoint = calculateNewDotPosition(currentPoint, randomValue);
+                        currentPoint = algorithm.calculateNewDotPosition(currentPoint, randomValue);
                         Dot newDot = new Dot(new Point(currentPoint));
                         newDots.add(newDot);
                     } catch (NoSuchElementException ex) {
-                        if (errorMessage == null) {
-                            errorMessage = ex.getMessage();
-                            LOGGER.log(Level.WARNING, ERROR_NO_RANDOM_NUMBERS + ex.getMessage());
-                            updateStatusLabel("Error: " + ex.getMessage());
+                        String msg = ex.getMessage();
+                        if (msg != null && msg.startsWith("Reached maximum")) {
+                            // Фатальная ошибка — лимит запросов исчерпан
+                            errorMessage = msg;
+                            LOGGER.log(Level.WARNING, ERROR_NO_RANDOM_NUMBERS + msg);
+                            updateStatusLabel("Error: " + msg);
+                            stop();
+                        } else {
+                            // Буфер временно пуст — пропускаем тик, подгрузка идёт в фоне
+                            LOGGER.fine("Buffer empty, skipping tick. " + msg);
+                            updateStatusLabel("Loading data...");
                         }
-                        stop();
                         break;
                     }
                 }
@@ -177,26 +184,6 @@ public class DotController extends JPanel {
             g.drawString(errorMessage, 10, 60);
         }
         drawRandomNumbersStack(g);
-    }
-
-    private Point calculateNewDotPosition(Point currentPoint, long randomValue) {
-        Point A = new Point(SIZE_WIDTH / 2, 0);
-        Point B = new Point(0, SIZE_HEIGHT);
-        Point C = new Point(SIZE_WIDTH, SIZE_HEIGHT);
-        long rangePart = (MAX_RANDOM_VALUE - MIN_RANDOM_VALUE) / 3;
-        int x = currentPoint.x;
-        int y = currentPoint.y;
-        if (randomValue <= MIN_RANDOM_VALUE + rangePart) {
-            x = (x + A.x) / 2;
-            y = (y + A.y) / 2;
-        } else if (randomValue <= MIN_RANDOM_VALUE + 2 * rangePart) {
-            x = (x + B.x) / 2;
-            y = (y + B.y) / 2;
-        } else {
-            x = (x + C.x) / 2;
-            y = (y + C.y) / 2;
-        }
-        return new Point(x, y);
     }
 
     private void drawDots(List<Dot> newDots, Color color) {
