@@ -16,9 +16,6 @@ public class RandomNumberProcessor {
     // Максимальное значение для uint16 (используется по умолчанию)
     private static final int MAX_UINT16 = 65535;
 
-    // Максимальное значение для uint8
-    private static final int MAX_UINT8 = 255;
-
     /**
      * Преобразует HEX-строку в список чисел в диапазоне [0, 65535].
      * Используется для обратной совместимости с hex16 форматом.
