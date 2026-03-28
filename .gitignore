@@ -19,8 +19,9 @@ target/
 *.log.*
 dots.txt
 
+### Application Config & Secrets ###
+.env
 src/main/resources/config.properties
-### Application Config ###
 config.properties
 
 ### Eclipse ###

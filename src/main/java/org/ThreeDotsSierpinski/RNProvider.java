@@ -56,9 +56,10 @@ public class RNProvider {
         numberProcessor = new RandomNumberProcessor();
 
         // Проверка наличия API ключа
-        if (API_KEY == null || API_KEY.isEmpty()) {
-            LOGGER.severe("API key is not configured! Please set api.key in config.properties");
-            lastError = "API key is not configured";
+        if (API_KEY == null || API_KEY.isEmpty() || API_KEY.startsWith("YOUR_")) {
+            LOGGER.severe("API key is not configured! Set environment variable QRNG_API_KEY, "
+                    + "create .env file (see .env.example), or update config.properties");
+            lastError = "API key is not configured. See .env.example for setup instructions";
         } else {
             loadInitialDataAsync();
         }
