@@ -89,12 +89,18 @@ public class DotController extends JPanel {
                         Dot newDot = new Dot(new Point(currentPoint));
                         newDots.add(newDot);
                     } catch (NoSuchElementException ex) {
-                        if (errorMessage == null) {
-                            errorMessage = ex.getMessage();
-                            LOGGER.log(Level.WARNING, ERROR_NO_RANDOM_NUMBERS + ex.getMessage());
-                            updateStatusLabel("Error: " + ex.getMessage());
+                        String msg = ex.getMessage();
+                        if (msg != null && msg.startsWith("Reached maximum")) {
+                            // Фатальная ошибка — лимит запросов исчерпан
+                            errorMessage = msg;
+                            LOGGER.log(Level.WARNING, ERROR_NO_RANDOM_NUMBERS + msg);
+                            updateStatusLabel("Error: " + msg);
+                            stop();
+                        } else {
+                            // Буфер временно пуст — пропускаем тик, подгрузка идёт в фоне
+                            LOGGER.fine("Buffer empty, skipping tick. " + msg);
+                            updateStatusLabel("Loading data...");
                         }
-                        stop();
                         break;
                     }
                 }
