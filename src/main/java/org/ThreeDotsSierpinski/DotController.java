@@ -63,7 +63,6 @@ public class DotController extends JPanel {
         errorMessage = null;
         offscreenImage = new BufferedImage(SIZE_WIDTH, SIZE_HEIGHT, BufferedImage.TYPE_INT_ARGB);
         scheduler = Executors.newScheduledThreadPool(1);
-        this.randomNumberProvider.addDataLoadListener(new RNLoadListenerImpl(this));
 
         // Инициализация таймера (но не запуск)
         initAnimationTimer();

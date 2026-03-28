@@ -1,22 +1,38 @@
 package org.ThreeDotsSierpinski;
 
 import javax.swing.*;
+import java.awt.*;
 
 class RNLoadListenerImpl implements RNLoadListener {
     private final DotController controller;
-    private final JTextArea rawDataTextArea; // поле для вывода
+    private final JTextArea rawDataTextArea;
 
-    public RNLoadListenerImpl(DotController controller) {
+    /**
+     * Создаёт listener с окном "Raw Data", расположенным под главным окном.
+     *
+     * @param controller  контроллер для обновления статуса
+     * @param mainFrame   главное окно приложения (для позиционирования)
+     */
+    public RNLoadListenerImpl(DotController controller, JFrame mainFrame) {
         this.controller = controller;
         this.rawDataTextArea = new JTextArea();
+        this.rawDataTextArea.setEditable(false);
 
-        // Создаём окно и добавляем в него rawDataTextArea как локальную переменную
-        JFrame frame = new JFrame("Raw Data");
-        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        frame.setSize(400, 300);
-        frame.setLocationRelativeTo(null);
-        frame.add(new JScrollPane(rawDataTextArea));
-        frame.setVisible(true);
+        JFrame rawDataFrame = new JFrame("Raw Data");
+        rawDataFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        rawDataFrame.add(new JScrollPane(rawDataTextArea));
+
+        // Позиционируем под главным окном: та же ширина, та же X-координата
+        int mainX = mainFrame.getX();
+        int mainY = mainFrame.getY();
+        int mainWidth = mainFrame.getWidth();
+        int mainHeight = mainFrame.getHeight();
+
+        int rawDataHeight = 150;
+        rawDataFrame.setSize(mainWidth, rawDataHeight);
+        rawDataFrame.setLocation(mainX, mainY + mainHeight);
+
+        rawDataFrame.setVisible(true);
     }
 
     @Override
