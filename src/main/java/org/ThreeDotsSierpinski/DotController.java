@@ -207,44 +207,55 @@ public class DotController extends JPanel {
         Color numberColor = new Color(50, 50, 50);
 
         int headerHeight = 20;
-        int startX = SIZE_WIDTH + 14;
-        int startY = headerHeight + 4;
-        int maxRows = (SIZE_HEIGHT - startY) / ROW_HEIGHT;
+        int maxRows = (SIZE_HEIGHT - headerHeight - 4) / ROW_HEIGHT;
+        int rightMargin = 40;
 
         // Собираем данные по колонкам (по количеству цифр)
         List<List<Long>> digitBuckets = new ArrayList<>();
         String[] headers = new String[MAX_COLUMNS];
         for (int i = 0; i < MAX_COLUMNS; i++) {
             digitBuckets.add(new ArrayList<>());
-            headers[i] = (i + 3) + "-digit";
+            headers[i] = (i + 1) + "-digit";
         }
         for (Long randomValue : usedRandomNumbers) {
             int numDigits = String.valueOf(Math.abs(randomValue)).length();
-            if (numDigits >= 3 && numDigits <= 8) {
-                digitBuckets.get(numDigits - 3).add(randomValue);
+            if (numDigits >= 1 && numDigits <= 5) {
+                digitBuckets.get(numDigits - 1).add(randomValue);
             }
         }
 
-        // Рисуем колонки
-        for (int column = 0; column < MAX_COLUMNS; column++) {
-            List<Long> columnNumbers = digitBuckets.get(column);
-            if (columnNumbers.isEmpty()) continue;
+        // Определяем непустые колонки
+        List<Integer> visibleColumns = new ArrayList<>();
+        for (int i = 0; i < MAX_COLUMNS; i++) {
+            if (!digitBuckets.get(i).isEmpty()) {
+                visibleColumns.add(i);
+            }
+        }
+        if (visibleColumns.isEmpty()) return;
 
-            int colX = startX + column * (COLUMN_WIDTH + COLUMN_SPACING);
+        // Rechtsbündig: блок колонок прижат к правому краю панели
+        int totalWidth = visibleColumns.size() * (COLUMN_WIDTH + COLUMN_SPACING) - COLUMN_SPACING;
+        int startX = getWidth() - totalWidth - rightMargin;
+
+        // Рисуем только непустые колонки
+        for (int visIdx = 0; visIdx < visibleColumns.size(); visIdx++) {
+            int bucketIdx = visibleColumns.get(visIdx);
+            List<Long> columnNumbers = digitBuckets.get(bucketIdx);
+            int colX = startX + visIdx * (COLUMN_WIDTH + COLUMN_SPACING);
 
             // Заголовок колонки
             g2d.setFont(headerFont);
             g2d.setColor(headerColor);
             FontMetrics hfm = g2d.getFontMetrics();
-            int headerTextWidth = hfm.stringWidth(headers[column]);
-            g2d.drawString(headers[column], colX + (COLUMN_WIDTH - headerTextWidth) / 2, headerHeight - 4);
+            int headerTextWidth = hfm.stringWidth(headers[bucketIdx]);
+            g2d.drawString(headers[bucketIdx], colX + (COLUMN_WIDTH - headerTextWidth) / 2, headerHeight - 4);
 
             // Разделительная линия под заголовком
             g2d.setColor(separatorColor);
             g2d.drawLine(colX, headerHeight, colX + COLUMN_WIDTH, headerHeight);
 
-            // Вертикальный разделитель слева (кроме первой колонки)
-            if (column > 0 && !digitBuckets.get(column - 1).isEmpty()) {
+            // Вертикальный разделитель слева (кроме первой видимой колонки)
+            if (visIdx > 0) {
                 int sepX = colX - COLUMN_SPACING / 2;
                 g2d.setColor(separatorColor);
                 g2d.drawLine(sepX, 0, sepX, SIZE_HEIGHT);
