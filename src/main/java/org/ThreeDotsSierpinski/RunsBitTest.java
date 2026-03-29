@@ -5,19 +5,16 @@ import java.util.List;
 /**
  * NIST Runs Test.
  *
- * Проверяет, что количество «серий» (переходов 0→1 и 1→0) в битовой
- * последовательности соответствует ожидаемому для случайных данных.
- * Слишком мало серий — данные «слипаются», слишком много — чередуются.
+ * Проверяет количество серий (переходов 0→1, 1→0) в битовой последовательности.
  */
 public class RunsBitTest implements RandomnessTest {
 
     @Override
-    public boolean test(List<Long> numbers, double alpha) {
+    public TestResult testWithDetails(List<Long> numbers, double alpha) {
         if (numbers == null || numbers.size() < 10) {
             throw new IllegalArgumentException("Требуется минимум 10 чисел");
         }
 
-        // Преобразуем числа в битовый массив
         int totalBits = numbers.size() * 16;
         int[] bits = new int[totalBits];
         int idx = 0;
@@ -29,19 +26,16 @@ public class RunsBitTest implements RandomnessTest {
 
         int n = bits.length;
 
-        // Доля единиц
         double pi = 0;
         for (int b : bits) {
             pi += b;
         }
         pi /= n;
 
-        // Предварительная проверка: если pi слишком далеко от 0.5, тест не применим
         if (Math.abs(pi - 0.5) > 2.0 / Math.sqrt(n)) {
-            return false;
+            return new TestResult(getTestName(), false, "pi=" + String.format("%.4f", pi) + " (pre-test fail)");
         }
 
-        // Подсчёт серий (переходов)
         int runs = 1;
         for (int i = 1; i < n; i++) {
             if (bits[i] != bits[i - 1]) {
@@ -53,12 +47,14 @@ public class RunsBitTest implements RandomnessTest {
         double denominator = 2.0 * Math.sqrt(2.0 * n) * pi * (1 - pi);
 
         if (denominator == 0) {
-            return false;
+            return new TestResult(getTestName(), false, "div/0");
         }
 
         double pValue = erfc(numerator / denominator);
+        boolean passed = pValue >= alpha;
 
-        return pValue >= alpha;
+        String stat = String.format("p=%.4f", pValue);
+        return new TestResult(getTestName(), passed, stat);
     }
 
     @Override
@@ -66,9 +62,7 @@ public class RunsBitTest implements RandomnessTest {
         return "Серии (Runs)";
     }
 
-    private double erfc(double x) {
-        return 1.0 - erf(x);
-    }
+    private double erfc(double x) { return 1.0 - erf(x); }
 
     private double erf(double x) {
         double t = 1.0 / (1.0 + 0.5 * Math.abs(x));
@@ -84,4 +78,5 @@ public class RunsBitTest implements RandomnessTest {
                 + 0.17087277 * t * t * t * t * t * t * t * t * t);
         return x >= 0 ? 1 - tau : tau - 1;
     }
+
 }

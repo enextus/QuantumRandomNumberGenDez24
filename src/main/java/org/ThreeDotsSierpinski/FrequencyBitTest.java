@@ -5,13 +5,12 @@ import java.util.List;
 /**
  * NIST Frequency (Monobit) Test.
  *
- * Преобразует числа uint16 в биты и проверяет, что количество нулей и единиц
- * примерно одинаково. Отклонение от 50/50 указывает на bias генератора.
+ * Проверяет баланс нулей и единиц в битовом представлении чисел.
  */
 public class FrequencyBitTest implements RandomnessTest {
 
     @Override
-    public boolean test(List<Long> numbers, double alpha) {
+    public TestResult testWithDetails(List<Long> numbers, double alpha) {
         if (numbers == null || numbers.size() < 10) {
             throw new IllegalArgumentException("Требуется минимум 10 чисел");
         }
@@ -28,8 +27,10 @@ public class FrequencyBitTest implements RandomnessTest {
 
         double sObs = Math.abs(sum) / Math.sqrt(totalBits);
         double pValue = erfc(sObs / Math.sqrt(2));
+        boolean passed = pValue >= alpha;
 
-        return pValue >= alpha;
+        String stat = String.format("p=%.4f", pValue);
+        return new TestResult(getTestName(), passed, stat);
     }
 
     @Override
@@ -37,9 +38,7 @@ public class FrequencyBitTest implements RandomnessTest {
         return "Частотный (Frequency)";
     }
 
-    private double erfc(double x) {
-        return 1.0 - erf(x);
-    }
+    private double erfc(double x) { return 1.0 - erf(x); }
 
     private double erf(double x) {
         double t = 1.0 / (1.0 + 0.5 * Math.abs(x));
@@ -55,4 +54,5 @@ public class FrequencyBitTest implements RandomnessTest {
                 + 0.17087277 * t * t * t * t * t * t * t * t * t);
         return x >= 0 ? 1 - tau : tau - 1;
     }
+
 }

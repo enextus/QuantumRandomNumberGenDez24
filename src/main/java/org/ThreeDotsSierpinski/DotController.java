@@ -196,31 +196,90 @@ public class DotController extends JPanel {
     }
 
     private void drawRandomNumbersStack(Graphics g) {
-        g.setColor(Color.BLACK);
-        int maxRowsPerColumn = SIZE_HEIGHT / ROW_HEIGHT;
-        int startX = SIZE_WIDTH + 20;
-        int startY = SIZE_HEIGHT - ROW_HEIGHT;
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+        Font monoFont = new Font("Monospaced", Font.PLAIN, 12);
+        Font headerFont = new Font("SansSerif", Font.PLAIN, 11);
+        Color zebraColor = new Color(245, 245, 242);
+        Color headerColor = new Color(140, 140, 140);
+        Color separatorColor = new Color(225, 225, 220);
+        Color numberColor = new Color(50, 50, 50);
+
+        int headerHeight = 20;
+        int maxRows = (SIZE_HEIGHT - headerHeight - 4) / ROW_HEIGHT;
+        int rightMargin = 40;
+
+        // Собираем данные по колонкам (по количеству цифр)
         List<List<Long>> digitBuckets = new ArrayList<>();
+        String[] headers = new String[MAX_COLUMNS];
         for (int i = 0; i < MAX_COLUMNS; i++) {
             digitBuckets.add(new ArrayList<>());
+            headers[i] = (i + 1) + "-digit";
         }
         for (Long randomValue : usedRandomNumbers) {
             int numDigits = String.valueOf(Math.abs(randomValue)).length();
-            if (numDigits >= 3 && numDigits <= 8) {
-                digitBuckets.get(numDigits - 3).add(randomValue);
+            if (numDigits >= 1 && numDigits <= 5) {
+                digitBuckets.get(numDigits - 1).add(randomValue);
             }
         }
-        for (int column = 0; column < MAX_COLUMNS; column++) {
-            List<Long> columnNumbers = digitBuckets.get(column);
-            int row = maxRowsPerColumn - 1;
-            for (int i = columnNumbers.size() - 1; i >= 0; i--) {
-                if (row < 0) {
-                    break;
+
+        // Определяем непустые колонки
+        List<Integer> visibleColumns = new ArrayList<>();
+        for (int i = 0; i < MAX_COLUMNS; i++) {
+            if (!digitBuckets.get(i).isEmpty()) {
+                visibleColumns.add(i);
+            }
+        }
+        if (visibleColumns.isEmpty()) return;
+
+        // Rechtsbündig: блок колонок прижат к правому краю панели
+        int totalWidth = visibleColumns.size() * (COLUMN_WIDTH + COLUMN_SPACING) - COLUMN_SPACING;
+        int startX = getWidth() - totalWidth - rightMargin;
+
+        // Рисуем только непустые колонки
+        for (int visIdx = 0; visIdx < visibleColumns.size(); visIdx++) {
+            int bucketIdx = visibleColumns.get(visIdx);
+            List<Long> columnNumbers = digitBuckets.get(bucketIdx);
+            int colX = startX + visIdx * (COLUMN_WIDTH + COLUMN_SPACING);
+
+            // Заголовок колонки
+            g2d.setFont(headerFont);
+            g2d.setColor(headerColor);
+            FontMetrics hfm = g2d.getFontMetrics();
+            int headerTextWidth = hfm.stringWidth(headers[bucketIdx]);
+            g2d.drawString(headers[bucketIdx], colX + (COLUMN_WIDTH - headerTextWidth) / 2, headerHeight - 4);
+
+            // Разделительная линия под заголовком
+            g2d.setColor(separatorColor);
+            g2d.drawLine(colX, headerHeight, colX + COLUMN_WIDTH, headerHeight);
+
+            // Вертикальный разделитель слева (кроме первой видимой колонки)
+            if (visIdx > 0) {
+                int sepX = colX - COLUMN_SPACING / 2;
+                g2d.setColor(separatorColor);
+                g2d.drawLine(sepX, 0, sepX, SIZE_HEIGHT);
+            }
+
+            // Числа с zebra-фоном (снизу вверх, последние добавленные — внизу)
+            g2d.setFont(monoFont);
+            FontMetrics fm = g2d.getFontMetrics();
+            int row = 0;
+
+            for (int i = columnNumbers.size() - 1; i >= 0 && row < maxRows; i--, row++) {
+                int y = SIZE_HEIGHT - (row * ROW_HEIGHT) - 4;
+
+                // Zebra-фон для чётных строк
+                if (row % 2 == 0) {
+                    g2d.setColor(zebraColor);
+                    g2d.fillRect(colX, y - ROW_HEIGHT + 4, COLUMN_WIDTH, ROW_HEIGHT);
                 }
-                int x = startX + column * (COLUMN_WIDTH + COLUMN_SPACING);
-                int y = startY - row * ROW_HEIGHT;
-                g.drawString(columnNumbers.get(i).toString(), x, y);
-                row--;
+
+                // Число (выравнивание вправо)
+                String text = columnNumbers.get(i).toString();
+                int textWidth = fm.stringWidth(text);
+                g2d.setColor(numberColor);
+                g2d.drawString(text, colX + COLUMN_WIDTH - textWidth - 2, y);
             }
         }
     }
