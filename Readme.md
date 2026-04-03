@@ -1,136 +1,374 @@
-# Quantum Sierpinski Triangle
+# rep-qrng-chaos-game
 
-## Проект: Визуализация фрактала Серпинского на квантовых случайных числах
+Java Swing-приложение для визуализации **треугольника Серпинского** методом **Chaos Game** с использованием **квантовых случайных чисел** из **ANU Quantum Random Numbers API**.
 
-### Обзор
+Проект сочетает три задачи:
 
-Java Swing-приложение, которое строит фрактал Серпинского методом Chaos Game,
-используя квантовые случайные числа от ANU QRNG API (Australian National University).
-Квантовый генератор основан на вакуумных флуктуациях — это настоящий физический шум,
-а не псевдослучайный алгоритм.
+1. визуализацию фрактала в реальном времени;
+2. буферизованную загрузку истинно случайных чисел по сети;
+3. базовую статистическую проверку уже использованной выборки.
 
-Если фрактал строится корректно — это визуальное подтверждение качества квантового
-генератора. Для формальной проверки встроен тест Колмогорова-Смирнова.
-
-### Быстрый старт
-
-```bash
-# 1. Клонировать репозиторий
-git clone <url>
-cd QuantumRandomNumberGenDez25
-
-# 2. Настроить API-ключ (получить на https://quantumnumbers.anu.edu.au)
-cp .env.example .env
-# Вписать ключ в .env: QRNG_API_KEY=ваш_ключ
-
-# 3. Собрать и запустить
-mvn clean package
-java -jar target/QuantumRandomNumberGeneratorSerpinski-1.0-SNAPSHOT-jar-with-dependencies.jar
-```
-
-### Требования
-
-- Java 25+ (LTS)
-- Maven 3.8+
-- API-ключ ANU QRNG (бесплатный, Trial: 100 запросов/месяц)
-
-### Настройка API-ключа
-
-Ключ загружается по цепочке приоритетов (от высшего к низшему):
-
-1. Переменная окружения `QRNG_API_KEY`
-2. Файл `.env` в корне проекта
-3. `config.properties` (содержит только placeholder)
-
-Файл `.env` добавлен в `.gitignore` и не попадает в git.
+Важно: приложение **не доказывает** «истинную случайность» генератора. Оно даёт **наглядную визуализацию** и **прикладные статистические sanity checks** по тем числам, которые реально были использованы при построении фрактала.
 
 ---
 
-## Архитектура
+## Что умеет приложение
 
-### GUI (Swing)
-
-- **App.java** — точка входа. Создаёт главное окно, панель статуса, кнопки Play/Stop и «Проверить качество». Связывает компоненты и запускает фоновую загрузку данных.
-- **DotController.java** — панель рисования (JPanel). Управляет таймером анимации, рендерингом точек на offscreen-буфере и отображением стека случайных чисел. Делегирует вычисление позиций в `SierpinskiAlgorithm`.
-- **Dot.java** — immutable record, представляющий точку на плоскости с защитным копированием.
-
-### Алгоритм
-
-- **SierpinskiAlgorithm.java** — чистая математика Chaos Game без зависимостей от Swing. Принимает размеры области и диапазон случайных чисел, вычисляет новую позицию точки (середина отрезка к случайной вершине треугольника).
-
-### Данные (API + обработка)
-
-- **RNProvider.java** — загрузка квантовых случайных чисел из ANU API. Неблокирующий `getNextRandomNumber()` (безопасен для EDT), exponential backoff при ошибках (1с → 2с → 4с → 8с → 16с), фоновая предзагрузка при снижении буфера.
-- **RandomNumberProcessor.java** — маппинг чисел из диапазона API (uint8/uint16/hex16) в произвольный целевой диапазон с равномерным floor-распределением.
-- **Config.java** — загрузка конфигурации с приоритетами: переменная окружения → `.env` файл → `config.properties`. Преобразует ключи из `dot.notation` в `QRNG_UPPER_SNAKE_CASE`.
-
-### Observer
-
-- **RNLoadListener.java** — интерфейс для уведомлений о состоянии загрузки данных.
-- **RNLoadListenerImpl.java** — реализация: обновляет статус-бар и отображает сырые данные API в отдельном окне под главным.
-
-### Тестирование качества
-
-- **RandomnessTest.java** — интерфейс для тестов случайности.
-- **KolmogorovSmirnovTest.java** — тест Колмогорова-Смирнова для проверки равномерности распределения квантовых чисел.
-
-### Инфраструктура
-
-- **LoggerConfig.java** — настройка `java.util.logging` с файловым и консольным выводом, автосоздание директории `logs/`, graceful fallback при ошибках.
-
-### Тесты (9 файлов)
-
-- `ConfigTest` — приоритеты загрузки, `toEnvVarName()`, обработка отсутствующих ключей
-- `DotTest` — иммутабельность record, защитное копирование
-- `SierpinskiAlgorithmTest` — Chaos Game: вершины, границы, сходимость, пустой центр, детерминизм
-- `RandomNumberProcessorTest` — hex-парсинг, floor-маппинг, равномерность на границах
-- `KolmogorovSmirnovTestUnitTest` — конструкторы, валидация, статистические свойства
-- `NISTRandomnessTest`, `NISTRandomnessTestUnitTest` — NIST-тесты частот и серий
-- `StatisticalRandomnessTest` — хи-квадрат, автокорреляция, монотонность, покрытие
-- `LoggerConfigTest` — инициализация логгера, fallback
+- рисует фрактал Серпинского в окне Swing;
+- получает числа из ANU QRNG API по HTTP с заголовком `x-api-key`;
+- поддерживает локальный буфер случайных чисел и фоновую дозагрузку;
+- не блокирует EDT при получении новых чисел;
+- показывает статус загрузки и отдельное окно **Raw Data** с сырыми ответами API;
+- поддерживает **Play / Stop** для паузы и продолжения анимации;
+- отображает уже использованные числа в правой части окна;
+- запускает набор встроенных статистических тестов по использованной выборке;
+- пишет логи в файл `logs/app.log` и в консоль.
 
 ---
 
-## Project: Sierpinski fractal visualization using quantum random numbers
+## Технологический стек
 
-### Overview
+- **Java 25**
+- **Swing / AWT**
+- **Maven**
+- **Jackson Databind** для разбора JSON
+- **JUnit 5** для тестов
+- **ANU Quantum Random Numbers API** как внешний источник данных
 
-A Java Swing application that builds a Sierpinski fractal using the Chaos Game method,
-powered by quantum random numbers from the ANU QRNG API (Australian National University).
-The quantum generator is based on vacuum fluctuations — true physical noise,
-not a pseudorandom algorithm.
+---
 
-A correctly formed fractal serves as visual confirmation of the quantum generator's quality.
-A built-in Kolmogorov-Smirnov test provides formal statistical verification.
+## Как это работает
 
-### Quick start
+### 1. Источник случайных чисел
 
-```bash
-# 1. Clone the repository
-git clone <url>
-cd QuantumRandomNumberGenDez25
+`RNProvider` загружает числа из ANU API. По умолчанию проект запрашивает:
 
-# 2. Configure API key (get one at https://quantumnumbers.anu.edu.au)
-cp .env.example .env
-# Edit .env: QRNG_API_KEY=your_key
+- тип данных: `uint16`
+- длину массива: `1024`
+- минимальный локальный буфер: `100`
+- максимум запросов за сессию: `100`
 
-# 3. Build and run
-mvn clean package
-java -jar target/QuantumRandomNumberGeneratorSerpinski-1.0-SNAPSHOT-jar-with-dependencies.jar
+При временных ошибках используется **exponential backoff**:
+
+- 1 секунда
+- 2 секунды
+- 4 секунды
+- 8 секунд
+- 16 секунд
+- верхняя граница задержки: 30 секунд
+
+### 2. Нормализация диапазона
+
+`RandomNumberProcessor` преобразует числа из ответа API в нужный диапазон. Для текущей конфигурации основной рабочий диапазон — `0..65535`.
+
+### 3. Построение фрактала
+
+`SierpinskiAlgorithm` получает текущее положение точки и очередное случайное число, после чего:
+
+- делит диапазон случайных чисел на 3 части;
+- выбирает одну из трёх вершин треугольника;
+- переносит точку на середину отрезка к выбранной вершине.
+
+### 4. Отрисовка
+
+`DotController` работает как Swing-панель, которая:
+
+- хранит уже нарисованные точки;
+- обновляет изображение таймером;
+- кратко подсвечивает новые точки красным, затем переводит их в чёрный цвет;
+- показывает индекс текущего числа, текущее число и стек использованных значений.
+
+### 5. Проверка выборки
+
+После накопления хотя бы 10 чисел можно запустить статистические проверки через кнопку **«Проверить качество»**.
+
+---
+
+## Архитектура проекта
+
+### Основные классы
+
+- **`App`** — точка входа и сборка GUI: окно приложения, статусная строка, кнопки управления, запуск фоновой загрузки.
+- **`DotController`** — центральная панель визуализации; управляет таймером, offscreen-буфером, анимацией и отображением использованных чисел.
+- **`Dot`** — immutable `record`, безопасно копирующий `Point`.
+- **`SierpinskiAlgorithm`** — чистая математическая логика Chaos Game без зависимости от Swing.
+- **`RNProvider`** — сетевой клиент и буфер случайных чисел из ANU API.
+- **`RandomNumberProcessor`** — преобразование входных чисел/HEX в целевой диапазон.
+- **`Config`** — загрузка конфигурации из environment, `.env` и `config.properties`.
+- **`LoggerConfig`** — настройка файлового и консольного логирования.
+- **`RNLoadListener`** / **`RNLoadListenerImpl`** — уведомления о начале загрузки, успешном завершении, ошибках и сырых данных API.
+
+### Встроенные runtime-тесты случайности
+
+`RandomnessTestSuite` запускает 4 теста:
+
+- **`KolmogorovSmirnovTest`** — проверка отклонения эмпирического распределения от равномерного;
+- **`FrequencyBitTest`** — битовый частотный тест (баланс 0/1);
+- **`ChiSquareUniformityTest`** — хи-квадрат по корзинам;
+- **`RunsBitTest`** — тест серий по битовой последовательности.
+
+Результат каждого теста возвращается как `TestResult`.
+
+---
+
+## Структура проекта
+
+```text
+rep-qrng-chaos-game/
+├── .env.example
+├── .gitignore
+├── pom.xml
+├── README.md
+├── logs/
+│   └── app.log
+├── src/
+│   ├── main/
+│   │   ├── java/org/ThreeDotsSierpinski/
+│   │   │   ├── App.java
+│   │   │   ├── ChiSquareUniformityTest.java
+│   │   │   ├── Config.java
+│   │   │   ├── Dot.java
+│   │   │   ├── DotController.java
+│   │   │   ├── FrequencyBitTest.java
+│   │   │   ├── KolmogorovSmirnovTest.java
+│   │   │   ├── LoggerConfig.java
+│   │   │   ├── RNLoadListener.java
+│   │   │   ├── RNLoadListenerImpl.java
+│   │   │   ├── RNProvider.java
+│   │   │   ├── RandomNumberProcessor.java
+│   │   │   ├── RandomnessTest.java
+│   │   │   ├── RandomnessTestSuite.java
+│   │   │   ├── RunsBitTest.java
+│   │   │   ├── SierpinskiAlgorithm.java
+│   │   │   └── TestResult.java
+│   │   └── resources/
+│   │       └── config.properties
+│   └── test/
+│       └── java/org/ThreeDotsSierpinski/
+│           ├── ConfigTest.java
+│           ├── DotTest.java
+│           ├── KolmogorovSmirnovTestUnitTest.java
+│           ├── LoggerConfigTest.java
+│           ├── NISTRandomnessTest.java
+│           ├── NISTRandomnessTestUnitTest.java
+│           ├── RandomNumberProcessorTest.java
+│           ├── SierpinskiAlgorithmTest.java
+│           └── StatisticalRandomnessTest.java
+└── target/
 ```
 
-### Requirements
+---
 
-- Java 25+ (LTS)
-- Maven 3.8+
-- ANU QRNG API key (free, Trial: 100 requests/month)
+## Требования
 
-### API key configuration
+- **JDK 25**
+- **Maven 3.8+**
+- действующий API key для **ANU Quantum Random Numbers API**
+- доступ в интернет
 
-The key is loaded using a priority chain (highest to lowest):
+> В `pom.xml` явно указаны `maven.compiler.source=25` и `maven.compiler.target=25`.
 
-1. Environment variable `QRNG_API_KEY`
-2. `.env` file in the project root
-3. `config.properties` (contains a placeholder only)
+---
 
-The `.env` file is listed in `.gitignore` and is never committed.
+## Настройка API-ключа
+
+Проект ищет настройки в таком порядке:
+
+1. **переменные окружения**;
+2. файл **`.env`** в корне проекта;
+3. **`src/main/resources/config.properties`**.
+
+Правило преобразования имён:
+
+- ключ `api.key` превращается в `QRNG_API_KEY`
+- ключ `api.url` превращается в `QRNG_API_URL`
+- ключ `panel.size.width` превращается в `QRNG_PANEL_SIZE_WIDTH`
+
+### Быстрый способ
+
+Скопируйте шаблон:
+
+```bash
+cp .env.example .env
+```
+
+И заполните:
+
+```env
+QRNG_API_KEY=your_real_anu_api_key
+```
+
+### Пример запуска через переменную окружения
+
+Linux/macOS:
+
+```bash
+export QRNG_API_KEY=your_real_anu_api_key
+mvn clean package
+```
+
+Windows PowerShell:
+
+```powershell
+$env:QRNG_API_KEY="your_real_anu_api_key"
+mvn clean package
+```
+
+---
+
+## Сборка и запуск
+
+### Сборка
+
+```bash
+mvn clean package
+```
+
+После сборки Maven Assembly Plugin должен создать fat JAR вида:
+
+```text
+target/rep-qrng-chaos-game-1.0-SNAPSHOT-jar-with-dependencies.jar
+```
+
+### Запуск собранного JAR
+
+```bash
+java -jar target/rep-qrng-chaos-game-1.0-SNAPSHOT-jar-with-dependencies.jar
+```
+
+### Запуск из IDE
+
+Main class:
+
+```text
+org.ThreeDotsSierpinski.App
+```
+
+---
+
+## Конфигурация по умолчанию
+
+Основные значения из `config.properties`:
+
+| Параметр | Значение по умолчанию | Назначение |
+|---|---:|---|
+| `api.url` | `https://api.quantumnumbers.anu.edu.au` | Базовый URL API |
+| `api.data.type` | `uint16` | Тип случайных данных |
+| `api.array.length` | `1024` | Число элементов в одном запросе |
+| `api.block.size` | `2` | Размер логического блока |
+| `api.max.requests` | `100` | Максимум API-запросов за сессию |
+| `api.connect.timeout` | `10000` | Таймаут соединения, мс |
+| `api.read.timeout` | `15000` | Таймаут чтения, мс |
+| `random.queue.min.size` | `100` | Порог дозагрузки буфера |
+| `random.min.value` | `0` | Нижняя граница диапазона |
+| `random.max.value` | `65535` | Верхняя граница диапазона |
+| `panel.size.width` | `600` | Ширина области рисования |
+| `panel.size.height` | `600` | Высота области рисования |
+| `dot.size` | `2` | Размер точки |
+| `timer.delay` | `150` | Интервал таймера, мс |
+| `dots.per.update` | `5` | Число новых точек за тик |
+| `window.scale.width` | `1.5` | Масштаб окна по ширине |
+| `window.scale.height` | `1.1` | Масштаб окна по высоте |
+| `column.width` | `52` | Ширина колонки в числовом стеке |
+| `row.height` | `14` | Высота строки |
+| `column.spacing` | `8` | Отступ между колонками |
+| `max.columns` | `5` | Максимум колонок со значениями |
+| `log.file.name` | `logs/app.log` | Путь к лог-файлу |
+| `log.level` | `INFO` | Уровень логирования |
+
+---
+
+## GUI-поведение
+
+После запуска приложение:
+
+1. создаёт главное окно;
+2. начинает фоновую загрузку случайных чисел;
+3. открывает дополнительное окно **Raw Data** под главным окном;
+4. после появления первых данных запускает отрисовку;
+5. позволяет поставить анимацию на паузу и продолжить её;
+6. даёт запустить статистические тесты по уже использованным числам.
+
+Если буфер временно пуст, анимация не блокируется: контроллер пропускает тик и ждёт дозагрузки данных в фоне.
+
+---
+
+## Логирование
+
+Логгер:
+
+- создаёт директорию `logs/`, если её ещё нет;
+- пишет в файл `logs/app.log`;
+- дублирует важные сообщения в консоль;
+- старается корректно деградировать до console-only режима, если файловый лог недоступен.
+
+---
+
+## Тесты
+
+В проекте есть **JUnit 5** тесты для основных компонентов.
+
+### Что покрыто
+
+- `ConfigTest` — загрузка конфигурации и преобразование ключей;
+- `DotTest` — корректность immutable `Dot` record;
+- `RandomNumberProcessorTest` — диапазоны, HEX, равномерный mapping;
+- `KolmogorovSmirnovTestUnitTest` — корректность K-S теста;
+- `LoggerConfigTest` — инициализация логгера;
+- `SierpinskiAlgorithmTest` — математика Chaos Game;
+- `StatisticalRandomnessTest` — статистические свойства тестовых выборок;
+- `NISTRandomnessTest` и `NISTRandomnessTestUnitTest` — дополнительные проверки/утилиты для randomness testing.
+
+### Запуск тестов
+
+```bash
+mvn test
+```
+
+Локально можно запустить конкретный набор:
+
+```bash
+mvn -Dtest=ConfigTest test
+mvn -Dtest=SierpinskiAlgorithmTest test
+mvn -Dtest=StatisticalRandomnessTest test
+```
+
+---
+
+## Ограничения и важные замечания
+
+- приложению нужен реальный **ANU API key**;
+- работа зависит от сети и доступности внешнего API;
+- лимиты ANU по запросам и битам влияют на длительность непрерывной сессии;
+- статистические тесты встроены для **практической оценки конкретной выборки**, а не как строгая криптографическая сертификация;
+- GUI-компоненты и live API взаимодействие покрываются тестами не полностью;
+- в репозитории присутствует каталог `target/`, но его обычно не стоит хранить в git для обычной разработки.
+
+---
+
+## Типовой сценарий использования
+
+1. получить API key от ANU;
+2. положить его в `.env` или в переменную окружения `QRNG_API_KEY`;
+3. собрать проект;
+4. запустить приложение;
+5. дождаться первой загрузки данных;
+6. наблюдать, как по квантовым числам строится треугольник Серпинского;
+7. при необходимости нажать **«Проверить качество»** и посмотреть результаты тестов.
+
+---
+
+## Идеи для дальнейшего развития
+
+- добавить интеграционные тесты для `RNProvider` с моками HTTP;
+- отделить GUI-состояние от логики рендеринга ещё сильнее;
+- добавить экспорт использованной выборки в файл;
+- поддержать несколько источников случайных чисел;
+- визуализировать результаты статистических тестов графически;
+- убрать `target/` и IDE-артефакты из версии репозитория.
+
+---
+
+## Краткое резюме
+
+`rep-qrng-chaos-game` — это учебно-практический Java-проект, в котором **истинно случайные числа из внешнего QRNG API** используются не просто как абстрактные данные, а как движок для **живой визуализации фрактала** и для **прикладной статистической проверки потреблённой выборки**.
