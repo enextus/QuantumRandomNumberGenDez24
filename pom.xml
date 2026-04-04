@@ -14,6 +14,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <junit-jupiter.version>5.13.4</junit-jupiter.version>
+        <mockito.version>5.23.0</mockito.version>
         <jackson.version>2.17.0</jackson.version>
         <jetbrains.version>25.0.0</jetbrains.version>
     </properties>
@@ -50,6 +51,20 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Mocking framework (used by RNProvider integration tests) -->
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>${mockito.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -90,6 +105,28 @@
                             <mainClass>org.ThreeDotsSierpinski.App</mainClass>
                         </manifest>
                     </archive>
+                </configuration>
+            </plugin>
+
+            <!-- Test runner: parallel execution, JUnit 5 tags support -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.5</version>
+                <configuration>
+                    <!-- Mockito ByteBuddy agent на Java 21+ -->
+                    <argLine>-XX:+EnableDynamicAgentLoading</argLine>
+                    <parallel>classes</parallel>
+                    <threadCount>4</threadCount>
+                    <includes>
+                        <include>**/*Test.java</include>
+                    </includes>
+                    <!-- Использование:
+                         mvn test                            — все тесты
+                         mvn test -Dgroups=fast              — только @Tag("fast")
+                         mvn test -Dgroups=integration       — только @Tag("integration")
+                         mvn test -DexcludedGroups=slow      — всё кроме @Tag("slow")
+                    -->
                 </configuration>
             </plugin>
         </plugins>
