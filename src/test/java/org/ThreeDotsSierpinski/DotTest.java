@@ -2,6 +2,7 @@ package org.ThreeDotsSierpinski;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 
 import java.awt.*;
 
@@ -11,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Unit тесты для record Dot.
  */
 @DisplayName("Dot - точка на панели")
+@Tag("fast")
 class DotTest {
 
     @Test

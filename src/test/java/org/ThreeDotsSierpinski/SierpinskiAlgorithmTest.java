@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Tag;
 
 import java.awt.*;
 import java.security.SecureRandom;
@@ -19,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Тестирует реальный класс — никакого дублирования логики.
  */
 @DisplayName("SierpinskiAlgorithm — алгоритм Серпинского (Chaos Game)")
+@Tag("slow")
 class SierpinskiAlgorithmTest {
 
     private static final int SIZE_WIDTH = 600;
