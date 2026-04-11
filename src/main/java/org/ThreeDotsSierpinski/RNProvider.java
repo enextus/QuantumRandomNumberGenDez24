@@ -36,21 +36,27 @@ import java.util.stream.Collectors;
 public class RNProvider {
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
-    // API Configuration
-    private static final String API_URL = Config.getString("api.url");
-    private static final String API_KEY = Config.getString("api.key");
-    private static final String DATA_TYPE = Config.getString("api.data.type");
-    private static final int ARRAY_LENGTH = Config.getInt("api.array.length");
-    private static final int BLOCK_SIZE = Config.getInt("api.block.size");
-    private static final int MAX_API_REQUESTS = Config.getInt("api.max.requests");
-    private static final int CONNECT_TIMEOUT = Config.getInt("api.connect.timeout");
-    private static final int READ_TIMEOUT = Config.getInt("api.read.timeout");
-    private static final int QUEUE_MIN_SIZE = Config.getInt("random.queue.min.size");
+    // ========================================================================
+    // Настройки экземпляра (вместо static final — для тестируемости)
+    // ========================================================================
 
-    // Retry configuration
-    private static final int MAX_RETRIES = 5;
-    private static final long INITIAL_BACKOFF_MS = 1000;
-    private static final long MAX_BACKOFF_MS = 30000;
+    private final String apiUrl;
+    private final String apiKey;
+    private final String dataType;
+    private final int arrayLength;
+    private final int blockSize;
+    private final int maxApiRequests;
+    private final int connectTimeout;
+    private final int readTimeout;
+    private final int queueMinSize;
+    private final int maxRetries;
+    private final long initialBackoffMs;
+    private final long maxBackoffMs;
+    private final Sleeper sleeper;
+
+    // ========================================================================
+    // Состояние экземпляра
+    // ========================================================================
 
     private final BlockingQueue<Integer> randomNumbersQueue;
     private final ObjectMapper objectMapper;
@@ -62,24 +68,118 @@ public class RNProvider {
     private volatile String lastError = null;
     private volatile int consecutiveFailures = 0;
 
+    // ========================================================================
+    // Функциональный интерфейс для инъекции паузы (backoff)
+    // ========================================================================
+
+    /**
+     * Абстракция над Thread.sleep() для тестируемости retry-логики.
+     * В продакшене: Thread::sleep. В тестах: no-op или мгновенный sleep.
+     */
+    @FunctionalInterface
+    interface Sleeper {
+        void sleep(long ms) throws InterruptedException;
+    }
+
+    // ========================================================================
+    // Настройки провайдера (record для группировки параметров)
+    // ========================================================================
+
+    /**
+     * Все параметры конфигурации провайдера в одном месте.
+     * Package-private — используется для тестирования.
+     */
+    record ProviderSettings(
+            String apiUrl,
+            String apiKey,
+            String dataType,
+            int arrayLength,
+            int blockSize,
+            int maxApiRequests,
+            int connectTimeout,
+            int readTimeout,
+            int queueMinSize,
+            int maxRetries,
+            long initialBackoffMs,
+            long maxBackoffMs
+    ) {
+        /**
+         * Создаёт настройки из Config (продакшен-значения).
+         */
+        static ProviderSettings fromConfig() {
+            return new ProviderSettings(
+                    Config.getString("api.url"),
+                    Config.getString("api.key"),
+                    Config.getString("api.data.type"),
+                    Config.getInt("api.array.length"),
+                    Config.getInt("api.block.size"),
+                    Config.getInt("api.max.requests"),
+                    Config.getInt("api.connect.timeout"),
+                    Config.getInt("api.read.timeout"),
+                    Config.getInt("random.queue.min.size"),
+                    5,      // MAX_RETRIES
+                    1000L,  // INITIAL_BACKOFF_MS
+                    30000L  // MAX_BACKOFF_MS
+            );
+        }
+    }
+
+    // ========================================================================
+    // Конструкторы
+    // ========================================================================
+
+    /**
+     * Продакшен-конструктор. Читает настройки из Config и автоматически
+     * запускает загрузку данных (если API ключ сконфигурирован).
+     */
     public RNProvider() {
+        this(ProviderSettings.fromConfig(), true, Thread::sleep);
+    }
+
+    /**
+     * Тестовый конструктор с полным контролем над параметрами.
+     * Package-private — доступен из тестов в том же пакете.
+     *
+     * @param settings        все параметры конфигурации
+     * @param autoLoadOnStart true = сразу начать загрузку; false = ждать ручного вызова
+     * @param sleeper         реализация паузы для backoff (Thread::sleep в продакшене)
+     */
+    RNProvider(ProviderSettings settings, boolean autoLoadOnStart, Sleeper sleeper) {
+        this.apiUrl = settings.apiUrl();
+        this.apiKey = settings.apiKey();
+        this.dataType = settings.dataType();
+        this.arrayLength = settings.arrayLength();
+        this.blockSize = settings.blockSize();
+        this.maxApiRequests = settings.maxApiRequests();
+        this.connectTimeout = settings.connectTimeout();
+        this.readTimeout = settings.readTimeout();
+        this.queueMinSize = settings.queueMinSize();
+        this.maxRetries = settings.maxRetries();
+        this.initialBackoffMs = settings.initialBackoffMs();
+        this.maxBackoffMs = settings.maxBackoffMs();
+        this.sleeper = sleeper;
+
         randomNumbersQueue = new LinkedBlockingQueue<>();
         objectMapper = new ObjectMapper();
         numberProcessor = new RandomNumberProcessor();
 
-        // Проверка наличия API ключа
-        if (API_KEY == null || API_KEY.isEmpty() || API_KEY.startsWith("YOUR_")) {
+        if (apiKey == null || apiKey.isEmpty() || apiKey.startsWith("YOUR_")) {
             LOGGER.severe("API key is not configured! Set environment variable QRNG_API_KEY, "
                     + "create .env file (see .env.example), or update config.properties");
             lastError = "API key is not configured. See .env.example for setup instructions";
-        } else {
+        } else if (autoLoadOnStart) {
             loadInitialDataAsync();
         }
     }
 
+    // ========================================================================
+    // Публичный API
+    // ========================================================================
+
     /**
-     * Ожидает загрузки начальных данных.
-     * Вызывается из фонового потока в App.java, НЕ из EDT.
+     * Ожидает завершения начальной загрузки.
+     * Возвращает true, если начальная загрузка завершилась успешно,
+     * даже если сервер вернул пустой массив data.
      */
     public boolean waitForInitialData(long timeoutMs) {
         long start = System.currentTimeMillis();
@@ -92,22 +192,88 @@ public class RNProvider {
                 return false;
             }
         }
-        return !randomNumbersQueue.isEmpty();
+        return initialLoadComplete && lastError == null;
     }
 
     public String getLastError() {
         return lastError;
     }
 
+    public int getQueueSize() {
+        return randomNumbersQueue.size();
+    }
+
     public void addDataLoadListener(RNLoadListener listener) {
         listeners.add(listener);
     }
 
+    /**
+     * Возвращает следующее случайное число из буфера.
+     * НЕБЛОКИРУЮЩИЙ — безопасен для вызова из EDT (Swing Timer).
+     * Если буфер пуст — выбрасывает NoSuchElementException вместо ожидания.
+     *
+     * @return случайное число из буфера
+     * @throws NoSuchElementException если буфер пуст или достигнут лимит запросов
+     */
+    public int getNextRandomNumber() {
+        Integer nextNumber = randomNumbersQueue.poll();
+
+        if (nextNumber == null) {
+            synchronized (this) {
+                if (apiRequestCount >= maxApiRequests) {
+                    throw new NoSuchElementException("Reached maximum number of API requests.");
+                }
+            }
+            loadInitialDataAsync();
+            throw new NoSuchElementException("Buffer empty, background loading started. " +
+                    (lastError != null ? lastError : "Waiting for API response."));
+        }
+
+        if (randomNumbersQueue.size() < queueMinSize && apiRequestCount < maxApiRequests && !isLoading) {
+            loadInitialDataAsync();
+        }
+
+        return nextNumber;
+    }
+
+    public long getNextRandomNumberInRange(long min, long max) {
+        int randomNum = getNextRandomNumber();
+        return numberProcessor.generateNumberInRange(randomNum, min, max);
+    }
+
+    public void shutdown() {
+        LOGGER.info("RNProvider is shutting down. Total API requests: " + apiRequestCount);
+    }
+
+    // ========================================================================
+    // Package-private accessors (для тестов и диагностики)
+    // ========================================================================
+
+    int getApiRequestCount() {
+        return apiRequestCount;
+    }
+
+    boolean isInitialLoadComplete() {
+        return initialLoadComplete;
+    }
+
+    /**
+     * Запускает асинхронную загрузку данных вручную.
+     * Package-private — для тестов, когда autoLoadOnStart=false.
+     */
+    void triggerLoad() {
+        loadInitialDataAsync();
+    }
+
+    // ========================================================================
+    // Внутренняя логика загрузки
+    // ========================================================================
+
     private void loadInitialDataAsync() {
         synchronized (this) {
-            if (isLoading || apiRequestCount >= MAX_API_REQUESTS) {
-                if (apiRequestCount >= MAX_API_REQUESTS) {
-                    LOGGER.warning("Maximum number of API requests reached: " + MAX_API_REQUESTS);
+            if (isLoading || apiRequestCount >= maxApiRequests) {
+                if (apiRequestCount >= maxApiRequests) {
+                    LOGGER.warning("Maximum number of API requests reached: " + maxApiRequests);
                 }
                 return;
             }
@@ -128,19 +294,17 @@ public class RNProvider {
 
     /**
      * Загрузка данных с exponential backoff при ошибках.
-     *
-     * При сбое API ждёт 1s → 2s → 4s → 8s → 16s (максимум MAX_RETRIES попыток).
+     * При сбое API ждёт 1s → 2s → 4s → 8s → 16s (максимум maxRetries попыток).
      * При успехе сбрасывает счётчик ошибок и lastError.
      */
     private void loadWithRetry() {
         int retryCount = 0;
 
         try {
-            while (retryCount <= MAX_RETRIES) {
+            while (retryCount <= maxRetries) {
                 try {
                     loadInitialData();
 
-                    // Успешная загрузка — сбрасываем счётчик ошибок
                     consecutiveFailures = 0;
                     checkAndLoadMore();
                     return;
@@ -149,20 +313,20 @@ public class RNProvider {
                     retryCount++;
                     consecutiveFailures++;
 
-                    if (retryCount > MAX_RETRIES) {
-                        LOGGER.severe("All " + MAX_RETRIES + " retry attempts failed. Last error: " + e.getMessage());
-                        lastError = "API unavailable after " + MAX_RETRIES + " retries: " + e.getMessage();
+                    if (retryCount > maxRetries) {
+                        LOGGER.severe("All " + maxRetries + " retry attempts failed. Last error: " + e.getMessage());
+                        lastError = "API unavailable after " + maxRetries + " retries: " + e.getMessage();
                         notifyError(lastError);
                         return;
                     }
 
                     long backoffMs = calculateBackoff(retryCount);
                     LOGGER.warning(String.format("API request failed (attempt %d/%d). Retrying in %d ms. Error: %s",
-                            retryCount, MAX_RETRIES, backoffMs, e.getMessage()));
-                    notifyError("Retry " + retryCount + "/" + MAX_RETRIES + ": " + e.getMessage());
+                            retryCount, maxRetries, backoffMs, e.getMessage()));
+                    notifyError("Retry " + retryCount + "/" + maxRetries + ": " + e.getMessage());
 
                     try {
-                        Thread.sleep(backoffMs);
+                        sleeper.sleep(backoffMs);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                         LOGGER.info("Retry interrupted.");
@@ -171,7 +335,6 @@ public class RNProvider {
                 }
             }
         } finally {
-            // Гарантированно сбрасываем флаг — один раз, при любом исходе
             synchronized (this) {
                 isLoading = false;
             }
@@ -185,8 +348,8 @@ public class RNProvider {
      * @return задержка в миллисекундах
      */
     long calculateBackoff(int retryAttempt) {
-        long backoff = INITIAL_BACKOFF_MS * (1L << (retryAttempt - 1));
-        return Math.min(backoff, MAX_BACKOFF_MS);
+        long backoff = initialBackoffMs * (1L << (retryAttempt - 1));
+        return Math.min(backoff, maxBackoffMs);
     }
 
     /**
@@ -194,12 +357,12 @@ public class RNProvider {
      * Формат: https://api.quantumnumbers.anu.edu.au?length=[length]&type=[type]&size=[size]
      */
     private String buildRequestUrl() {
-        StringBuilder url = new StringBuilder(API_URL);
-        url.append("?length=").append(Math.min(ARRAY_LENGTH, 1024));
-        url.append("&type=").append(DATA_TYPE);
+        StringBuilder url = new StringBuilder(apiUrl);
+        url.append("?length=").append(Math.min(arrayLength, 1024));
+        url.append("&type=").append(dataType);
 
-        if ("hex16".equals(DATA_TYPE)) {
-            url.append("&size=").append(Math.min(BLOCK_SIZE, 1024));
+        if ("hex16".equals(dataType)) {
+            url.append("&size=").append(Math.min(blockSize, 1024));
         }
 
         return url.toString();
@@ -207,7 +370,7 @@ public class RNProvider {
 
     /**
      * Выполняет один запрос к API.
-     * При ошибке выбрасывает исключение (для обработки в loadWithRetry).
+     * При ошибке выбрасывает исключение для обработки в loadWithRetry().
      */
     private void loadInitialData() throws Exception {
         notifyLoadingStarted();
@@ -221,11 +384,9 @@ public class RNProvider {
             URL url = uri.toURL();
             conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
-            conn.setConnectTimeout(CONNECT_TIMEOUT);
-            conn.setReadTimeout(READ_TIMEOUT);
-
-            // ВАЖНО: Добавляем API ключ в заголовок
-            conn.setRequestProperty("x-api-key", API_KEY);
+            conn.setConnectTimeout(connectTimeout);
+            conn.setReadTimeout(readTimeout);
+            conn.setRequestProperty("x-api-key", apiKey);
 
             int responseCode = conn.getResponseCode();
 
@@ -236,39 +397,41 @@ public class RNProvider {
             }
 
             String responseBody = getResponseBody(conn);
-            LOGGER.info("Received response: " + responseBody.substring(0, Math.min(200, responseBody.length())) + "...");
+            LOGGER.info("Received response: " +
+                    responseBody.substring(0, Math.min(200, responseBody.length())) + "...");
 
             JsonNode rootNode = objectMapper.readTree(responseBody);
 
-            // API возвращает данные в поле "data"
             if (rootNode.has("data")) {
                 JsonNode dataNode = rootNode.get("data");
 
-                if (dataNode.isArray()) {
-                    int loadedCount = 0;
-
-                    for (JsonNode element : dataNode) {
-                        if ("hex16".equals(DATA_TYPE)) {
-                            String hexValue = element.asText();
-                            int intValue = Integer.parseInt(hexValue, 16);
-                            randomNumbersQueue.add(intValue);
-                        } else {
-                            randomNumbersQueue.add(element.asInt());
-                        }
-                        loadedCount++;
-                    }
-
-                    LOGGER.info("Loaded " + loadedCount + " random numbers. Queue size: " + randomNumbersQueue.size());
-                    synchronized (this) {
-                        apiRequestCount++;
-                        initialLoadComplete = true;
-                        lastError = null; // Сбрасываем ошибку при успешной загрузке
-                    }
-                    notifyRawDataReceived(responseBody);
-                    notifyLoadingCompleted();
-                } else {
+                if (!dataNode.isArray()) {
                     throw new IOException("Invalid response format: 'data' is not an array.");
                 }
+
+                int loadedCount = 0;
+                for (JsonNode element : dataNode) {
+                    if ("hex16".equals(dataType)) {
+                        String hexValue = element.asText();
+                        int intValue = Integer.parseInt(hexValue, 16);
+                        randomNumbersQueue.add(intValue);
+                    } else {
+                        randomNumbersQueue.add(element.asInt());
+                    }
+                    loadedCount++;
+                }
+
+                LOGGER.info("Loaded " + loadedCount + " random numbers. Queue size: " + randomNumbersQueue.size());
+
+                synchronized (this) {
+                    apiRequestCount++;
+                    initialLoadComplete = true;
+                    lastError = null;
+                }
+
+                notifyRawDataReceived(responseBody);
+                notifyLoadingCompleted();
+
             } else if (rootNode.has("message")) {
                 String errorMsg = rootNode.get("message").asText();
                 throw new IOException("API Error: " + errorMsg);
@@ -280,8 +443,6 @@ public class RNProvider {
             if (conn != null) {
                 conn.disconnect();
             }
-            // НЕ сбрасываем isLoading здесь — это делает loadWithRetry
-            // НЕ вызываем checkAndLoadMore — это делает loadWithRetry после успеха
         }
     }
 
@@ -310,50 +471,8 @@ public class RNProvider {
         return "";
     }
 
-    /**
-     * Возвращает следующее случайное число из буфера.
-     *
-     * НЕБЛОКИРУЮЩИЙ — безопасен для вызова из EDT (Swing Timer).
-     * Если буфер пуст — выбрасывает NoSuchElementException вместо ожидания.
-     * DotController перехватит исключение и пропустит тик анимации.
-     *
-     * @return случайное число из буфера
-     * @throws NoSuchElementException если буфер пуст или достигнут лимит запросов
-     */
-    public int getNextRandomNumber() {
-        Integer nextNumber = randomNumbersQueue.poll(); // Неблокирующий!
-
-        if (nextNumber == null) {
-            // Буфер пуст — запускаем фоновую подгрузку
-            synchronized (this) {
-                if (apiRequestCount >= MAX_API_REQUESTS) {
-                    throw new NoSuchElementException("Reached maximum number of API requests.");
-                }
-            }
-            loadInitialDataAsync();
-            throw new NoSuchElementException("Buffer empty, background loading started. " +
-                    (lastError != null ? lastError : "Waiting for API response."));
-        }
-
-        // Превентивная подгрузка при снижении буфера
-        if (randomNumbersQueue.size() < QUEUE_MIN_SIZE && apiRequestCount < MAX_API_REQUESTS && !isLoading) {
-            loadInitialDataAsync();
-        }
-
-        return nextNumber;
-    }
-
-    public long getNextRandomNumberInRange(long min, long max) {
-        int randomNum = getNextRandomNumber();
-        return numberProcessor.generateNumberInRange(randomNum, min, max);
-    }
-
-    public void shutdown() {
-        LOGGER.info("RNProvider is shutting down. Total API requests: " + apiRequestCount);
-    }
-
     private void checkAndLoadMore() {
-        if (randomNumbersQueue.size() < QUEUE_MIN_SIZE && apiRequestCount < MAX_API_REQUESTS && !isLoading) {
+        if (randomNumbersQueue.size() < queueMinSize && apiRequestCount < maxApiRequests && !isLoading) {
             loadInitialDataAsync();
         }
     }
