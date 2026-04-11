@@ -20,11 +20,11 @@ import java.util.logging.Logger;
 
 /**
  * Класс для загрузки случайных чисел из ANU Quantum Numbers API.
- *
+ * <p>
  * API: https://api.quantumnumbers.anu.edu.au
  * Документация: https://quantumnumbers.anu.edu.au/documentation
  * Требует API ключ в заголовке x-api-key.
- *
+ * <p>
  * Особенности:
  * - Неблокирующий getNextRandomNumber() — безопасен для вызова из EDT (Swing)
  * - Exponential backoff при ошибках API (1s → 2s → 4s → 8s → max 30s)
@@ -285,7 +285,7 @@ public class RNProvider {
             isLoading = true;
         }
 
-        CompletableFuture.runAsync(this::loadWithRetry)
+        CompletableFuture.runAsync(this::loadWithRetry, Thread::startVirtualThread)
                 .exceptionally(ex -> {
                     LOGGER.log(Level.SEVERE, "Exception during data loading", ex);
                     lastError = "Exception during data loading: " + ex.getMessage();
