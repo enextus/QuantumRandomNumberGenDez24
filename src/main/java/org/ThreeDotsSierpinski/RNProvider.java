@@ -2,14 +2,13 @@ package org.ThreeDotsSierpinski;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.jetbrains.annotations.NotNull;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
@@ -18,7 +17,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 /**
  * Класс для загрузки случайных чисел из ANU Quantum Numbers API.
@@ -32,6 +30,7 @@ import java.util.stream.Collectors;
  * - Exponential backoff при ошибках API (1s → 2s → 4s → 8s → max 30s)
  * - Автоматическое восстановление после временных сбоев API
  * - Фоновая предзагрузка при снижении буфера ниже порога
+ * - Использует java.net.http.HttpClient (Java 11+) вместо HttpURLConnection
  */
 public class RNProvider {
     private static final Logger LOGGER = LoggerConfig.getLogger();
@@ -55,9 +54,10 @@ public class RNProvider {
     private final Sleeper sleeper;
 
     // ========================================================================
-    // Состояние экземпляра
+    // HTTP клиент и состояние экземпляра
     // ========================================================================
 
+    private final HttpClient httpClient;
     private final BlockingQueue<Integer> randomNumbersQueue;
     private final ObjectMapper objectMapper;
     private final RandomNumberProcessor numberProcessor;
@@ -159,10 +159,16 @@ public class RNProvider {
         this.maxBackoffMs = settings.maxBackoffMs();
         this.sleeper = sleeper;
 
+        // HttpClient — потокобезопасный, один на весь lifetime провайдера
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(connectTimeout))
+                .build();
+
         randomNumbersQueue = new LinkedBlockingQueue<>();
         objectMapper = new ObjectMapper();
         numberProcessor = new RandomNumberProcessor();
 
+        // Проверка наличия API ключа
         if (apiKey == null || apiKey.isEmpty() || apiKey.startsWith("YOUR_")) {
             LOGGER.severe("API key is not configured! Set environment variable QRNG_API_KEY, "
                     + "create .env file (see .env.example), or update config.properties");
@@ -178,8 +184,7 @@ public class RNProvider {
 
     /**
      * Ожидает завершения начальной загрузки.
-     * Возвращает true, если начальная загрузка завершилась успешно,
-     * даже если сервер вернул пустой массив data.
+     * Возвращает true, если начальная загрузка завершилась успешно.
      */
     public boolean waitForInitialData(long timeoutMs) {
         long start = System.currentTimeMillis();
@@ -357,7 +362,7 @@ public class RNProvider {
      * Формат: https://api.quantumnumbers.anu.edu.au?length=[length]&type=[type]&size=[size]
      */
     private String buildRequestUrl() {
-        StringBuilder url = new StringBuilder(apiUrl);
+        var url = new StringBuilder(apiUrl);
         url.append("?length=").append(Math.min(arrayLength, 1024));
         url.append("&type=").append(dataType);
 
@@ -369,106 +374,73 @@ public class RNProvider {
     }
 
     /**
-     * Выполняет один запрос к API.
+     * Выполняет один запрос к API с использованием java.net.http.HttpClient.
      * При ошибке выбрасывает исключение для обработки в loadWithRetry().
      */
     private void loadInitialData() throws Exception {
         notifyLoadingStarted();
-        HttpURLConnection conn = null;
 
-        try {
-            String requestUrl = buildRequestUrl();
-            LOGGER.info("Sending request: " + requestUrl);
+        var requestUrl = buildRequestUrl();
+        LOGGER.info("Sending request: " + requestUrl);
 
-            URI uri = new URI(requestUrl);
-            URL url = uri.toURL();
-            conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("GET");
-            conn.setConnectTimeout(connectTimeout);
-            conn.setReadTimeout(readTimeout);
-            conn.setRequestProperty("x-api-key", apiKey);
+        var request = HttpRequest.newBuilder()
+                .uri(URI.create(requestUrl))
+                .header("x-api-key", apiKey)
+                .timeout(Duration.ofMillis(readTimeout))
+                .GET()
+                .build();
 
-            int responseCode = conn.getResponseCode();
+        var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        int statusCode = response.statusCode();
 
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                String errorBody = getErrorBody(conn);
-                LOGGER.severe("HTTP error: " + responseCode + " - " + errorBody);
-                throw new IOException("HTTP error code: " + responseCode + " - " + errorBody);
-            }
-
-            String responseBody = getResponseBody(conn);
-            LOGGER.info("Received response: " +
-                    responseBody.substring(0, Math.min(200, responseBody.length())) + "...");
-
-            JsonNode rootNode = objectMapper.readTree(responseBody);
-
-            if (rootNode.has("data")) {
-                JsonNode dataNode = rootNode.get("data");
-
-                if (!dataNode.isArray()) {
-                    throw new IOException("Invalid response format: 'data' is not an array.");
-                }
-
-                int loadedCount = 0;
-                for (JsonNode element : dataNode) {
-                    if ("hex16".equals(dataType)) {
-                        String hexValue = element.asText();
-                        int intValue = Integer.parseInt(hexValue, 16);
-                        randomNumbersQueue.add(intValue);
-                    } else {
-                        randomNumbersQueue.add(element.asInt());
-                    }
-                    loadedCount++;
-                }
-
-                LOGGER.info("Loaded " + loadedCount + " random numbers. Queue size: " + randomNumbersQueue.size());
-
-                synchronized (this) {
-                    apiRequestCount++;
-                    initialLoadComplete = true;
-                    lastError = null;
-                }
-
-                notifyRawDataReceived(responseBody);
-                notifyLoadingCompleted();
-
-            } else if (rootNode.has("message")) {
-                String errorMsg = rootNode.get("message").asText();
-                throw new IOException("API Error: " + errorMsg);
-            } else {
-                throw new IOException("Unexpected response from server.");
-            }
-
-        } finally {
-            if (conn != null) {
-                conn.disconnect();
-            }
+        if (statusCode != 200) {
+            var errorBody = response.body();
+            LOGGER.severe("HTTP error: " + statusCode + " - " + errorBody);
+            throw new IOException("HTTP error code: " + statusCode + " - " + errorBody);
         }
-    }
 
-    /**
-     * Читает тело ответа с использованием try-with-resources.
-     */
-    private @NotNull String getResponseBody(HttpURLConnection conn) throws IOException {
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
-            return in.lines().collect(Collectors.joining());
-        }
-    }
+        var responseBody = response.body();
+        LOGGER.info("Received response: " +
+                responseBody.substring(0, Math.min(200, responseBody.length())) + "...");
 
-    /**
-     * Читает тело ошибки при неуспешном ответе.
-     */
-    private String getErrorBody(HttpURLConnection conn) {
-        try {
-            if (conn.getErrorStream() != null) {
-                try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getErrorStream()))) {
-                    return in.lines().collect(Collectors.joining());
-                }
+        var rootNode = objectMapper.readTree(responseBody);
+
+        if (rootNode.has("data")) {
+            var dataNode = rootNode.get("data");
+
+            if (!dataNode.isArray()) {
+                throw new IOException("Invalid response format: 'data' is not an array.");
             }
-        } catch (Exception e) {
-            LOGGER.fine("Could not read error body: " + e.getMessage());
+
+            int loadedCount = 0;
+            for (JsonNode element : dataNode) {
+                if ("hex16".equals(dataType)) {
+                    var hexValue = element.asText();
+                    int intValue = Integer.parseInt(hexValue, 16);
+                    randomNumbersQueue.add(intValue);
+                } else {
+                    randomNumbersQueue.add(element.asInt());
+                }
+                loadedCount++;
+            }
+
+            LOGGER.info("Loaded " + loadedCount + " random numbers. Queue size: " + randomNumbersQueue.size());
+
+            synchronized (this) {
+                apiRequestCount++;
+                initialLoadComplete = true;
+                lastError = null;
+            }
+
+            notifyRawDataReceived(responseBody);
+            notifyLoadingCompleted();
+
+        } else if (rootNode.has("message")) {
+            var errorMsg = rootNode.get("message").asText();
+            throw new IOException("API Error: " + errorMsg);
+        } else {
+            throw new IOException("Unexpected response from server.");
         }
-        return "";
     }
 
     private void checkAndLoadMore() {
