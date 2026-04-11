@@ -300,4 +300,47 @@ public class DotController extends JPanel {
         scheduler.shutdown();
     }
 
+    /**
+     * Сохраняет два PNG-файла фрактала:
+     * 1) с прозрачным фоном (оригинал)
+     * 2) с белым фоном
+     *
+     * @param directory папка для сохранения
+     * @param baseName  базовое имя без расширения (например "sierpinski_2026-04-11_19-30-00_5000pts")
+     * @return количество успешно сохранённых файлов (0, 1 или 2)
+     */
+    public int saveImages(java.io.File directory, String baseName) {
+        int saved = 0;
+
+        // 1. Прозрачный фон (оригинальный offscreenImage, TYPE_INT_ARGB)
+        var transparentFile = new java.io.File(directory, baseName + "_transparent.png");
+        try {
+            javax.imageio.ImageIO.write(offscreenImage, "PNG", transparentFile);
+            LOGGER.info("Saved (transparent): " + transparentFile.getAbsolutePath());
+            saved++;
+        } catch (java.io.IOException e) {
+            LOGGER.severe("Failed to save transparent image: " + e.getMessage());
+        }
+
+        // 2. Белый фон
+        var whiteFile = new java.io.File(directory, baseName + ".png");
+        try {
+            var whiteImage = new BufferedImage(
+                    offscreenImage.getWidth(), offscreenImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+            var g = whiteImage.createGraphics();
+            g.setColor(Color.WHITE);
+            g.fillRect(0, 0, whiteImage.getWidth(), whiteImage.getHeight());
+            g.drawImage(offscreenImage, 0, 0, null);
+            g.dispose();
+
+            javax.imageio.ImageIO.write(whiteImage, "PNG", whiteFile);
+            LOGGER.info("Saved (white bg): " + whiteFile.getAbsolutePath());
+            saved++;
+        } catch (java.io.IOException e) {
+            LOGGER.severe("Failed to save white-bg image: " + e.getMessage());
+        }
+
+        return saved;
+    }
+
 }

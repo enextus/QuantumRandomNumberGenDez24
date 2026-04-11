@@ -64,6 +64,11 @@ public class App {
             testButton.setPreferredSize(new Dimension(160, 28));
             statusPanel.add(testButton);
 
+            // Кнопка сохранения изображения
+            JButton saveButton = new JButton("Save PNG");
+            saveButton.setPreferredSize(new Dimension(100, 28));
+            statusPanel.add(saveButton);
+
             frame.add(statusPanel, BorderLayout.SOUTH);
 
             frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -112,7 +117,26 @@ public class App {
                 );
             });
 
-            // Ожидаем загрузки данных в отдельном потоке
+            // Обработчик кнопки «Save PNG» — сохраняет 2 файла (прозрачный + белый фон)
+            saveButton.addActionListener(_ -> {
+                int points = dotController.getUsedRandomNumbers().size();
+                var timestamp = java.time.LocalDateTime.now()
+                        .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+                var baseName = "sierpinski_" + timestamp + "_" + points + "pts";
+
+                var dirChooser = new JFileChooser();
+                dirChooser.setDialogTitle("Выберите папку для сохранения");
+                dirChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+                dirChooser.setAcceptAllFileFilterUsed(false);
+
+                if (dirChooser.showSaveDialog(frame) == JFileChooser.APPROVE_OPTION) {
+                    var directory = dirChooser.getSelectedFile();
+                    int saved = dotController.saveImages(directory, baseName);
+                    statusLabel.setText("Saved " + saved + "/2 files → " + directory.getName() + "/");
+                }
+            });
+
+            // Ожидаем загрузки данных в виртуальном потоке (Java 21+)
             Thread.startVirtualThread(() -> {
                 LOGGER.info(LOG_WAITING_FOR_DATA);
                 SwingUtilities.invokeLater(() -> statusLabel.setText("Connecting to API..."));
