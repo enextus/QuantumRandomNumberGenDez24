@@ -22,7 +22,7 @@ public class App {
 
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
-    static void main() {
+    public static void main(String[] args) {
         LoggerConfig.initializeLogger();
         LOGGER.info(LOG_APP_STARTED);
 
