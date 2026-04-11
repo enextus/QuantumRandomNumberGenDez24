@@ -3,6 +3,7 @@ package org.ThreeDotsSierpinski;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 
 import java.util.logging.Level;
 
@@ -19,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * - Логику приоритетов загрузки
  */
 @DisplayName("Config — тесты конфигурации")
+@Tag("fast")
 class ConfigTest {
 
     // ========================================================================
