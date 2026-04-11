@@ -113,7 +113,7 @@ public class App {
             });
 
             // Ожидаем загрузки данных в отдельном потоке
-            new Thread(() -> {
+            Thread.startVirtualThread(() -> {
                 LOGGER.info(LOG_WAITING_FOR_DATA);
                 SwingUtilities.invokeLater(() -> statusLabel.setText("Connecting to API..."));
 
@@ -132,7 +132,7 @@ public class App {
                     String error = randomNumberProvider.getLastError();
                     SwingUtilities.invokeLater(() -> statusLabel.setText("Error: " + (error != null ? error : "Timeout")));
                 }
-            }).start();
+            });
 
             // Window close handler
             frame.addWindowListener(new java.awt.event.WindowAdapter() {
