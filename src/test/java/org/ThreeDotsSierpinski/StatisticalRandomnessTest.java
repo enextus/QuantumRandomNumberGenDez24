@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.condition.EnabledIf;
 
 import java.util.*;
@@ -17,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Для тестирования с реальным API используйте интеграционные тесты.
  */
 @DisplayName("Статистические тесты случайности")
+@Tag("slow")
 class StatisticalRandomnessTest {
 
     // Размер выборки для тестов
