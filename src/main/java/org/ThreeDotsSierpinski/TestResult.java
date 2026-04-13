@@ -6,12 +6,36 @@ package org.ThreeDotsSierpinski;
  * @param testName  название теста
  * @param passed    true если тест пройден
  * @param statistic строковое представление ключевой метрики (например "p=0.847")
+ * @param quality   уровень качества: STRONG / MARGINAL / FAIL
  */
-public record TestResult(String testName, boolean passed, String statistic) {
+public record TestResult(String testName, boolean passed, String statistic, Quality quality) {
+
+    /**
+     * Уровень качества результата теста.
+     *
+     * STRONG   — уверенно пройден, большой запас до порога
+     * MARGINAL — пройден, но близко к порогу (требует внимания)
+     * FAIL     — не пройден
+     */
+    public enum Quality {
+        STRONG, MARGINAL, FAIL
+    }
+
+    /**
+     * Обратно-совместимый конструктор: quality вычисляется из passed.
+     * Используется в RandomnessTestSuite при перехвате exception.
+     */
+    public TestResult(String testName, boolean passed, String statistic) {
+        this(testName, passed, statistic, passed ? Quality.STRONG : Quality.FAIL);
+    }
 
     @Override
     public String toString() {
-        String mark = passed ? "\u2713" : "\u2717";
+        String mark = switch (quality) {
+            case STRONG -> "\u2713";   // ✓
+            case MARGINAL -> "\u25CB"; // ○
+            case FAIL -> "\u2717";     // ✗
+        };
         return mark + "  " + statistic + "    " + testName;
     }
 }

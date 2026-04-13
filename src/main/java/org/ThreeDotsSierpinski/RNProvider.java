@@ -17,26 +17,40 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.random.RandomGenerator;
 
 /**
  * Класс для загрузки случайных чисел из ANU Quantum Numbers API.
- * <p>
- * API: https://api.quantumnumbers.anu.edu.au
- * Документация: https://quantumnumbers.anu.edu.au/documentation
- * Требует API ключ в заголовке x-api-key.
- * <p>
+ *
+ * При недоступности API автоматически переключается на L128X256MixRandom
+ * (LXM family, Java 17+, период 2³⁸⁴, проходит TestU01 и PractRand).
+ * При восстановлении API переключается обратно на квантовые числа.
+ *
  * Особенности:
- * - Неблокирующий getNextRandomNumber() — безопасен для вызова из EDT (Swing)
- * - Exponential backoff при ошибках API (1s → 2s → 4s → 8s → max 30s)
- * - Автоматическое восстановление после временных сбоев API
+ * - Неблокирующий getNextRandomNumber() — безопасен для вызова из EDT
+ * - Exponential backoff при ошибках API
+ * - Graceful degradation: QUANTUM → PSEUDO → QUANTUM
  * - Фоновая предзагрузка при снижении буфера ниже порога
- * - Использует java.net.http.HttpClient (Java 11+) вместо HttpURLConnection
  */
 public class RNProvider {
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
     // ========================================================================
-    // Настройки экземпляра (вместо static final — для тестируемости)
+    // Режим работы
+    // ========================================================================
+
+    /**
+     * Источник случайных чисел.
+     */
+    public enum Mode {
+        /** Квантовые числа от ANU API */
+        QUANTUM,
+        /** Псевдослучайные числа от L128X256MixRandom (fallback) */
+        PSEUDO
+    }
+
+    // ========================================================================
+    // Настройки экземпляра
     // ========================================================================
 
     private final String apiUrl;
@@ -54,10 +68,11 @@ public class RNProvider {
     private final Sleeper sleeper;
 
     // ========================================================================
-    // HTTP клиент и состояние экземпляра
+    // HTTP клиент, fallback PRNG и состояние
     // ========================================================================
 
     private final HttpClient httpClient;
+    private final RandomGenerator fallbackRng;
     private final BlockingQueue<Integer> randomNumbersQueue;
     private final ObjectMapper objectMapper;
     private final RandomNumberProcessor numberProcessor;
@@ -67,45 +82,31 @@ public class RNProvider {
     private volatile boolean initialLoadComplete = false;
     private volatile String lastError = null;
     private volatile int consecutiveFailures = 0;
+    private volatile Mode currentMode = Mode.QUANTUM;
+    private volatile boolean apiKeyConfigured = true;
+
+    /** Сколько pseudo-чисел генерировать за одну «подгрузку» */
+    private static final int PSEUDO_BATCH_SIZE = 1024;
+
+    /** После скольких pseudo-batch-ей пытаться переподключиться к API */
+    private static final int RECONNECT_EVERY_N_BATCHES = 5;
+    private volatile int pseudoBatchCount = 0;
 
     // ========================================================================
-    // Функциональный интерфейс для инъекции паузы (backoff)
+    // Sleeper и ProviderSettings (без изменений)
     // ========================================================================
 
-    /**
-     * Абстракция над Thread.sleep() для тестируемости retry-логики.
-     * В продакшене: Thread::sleep. В тестах: no-op или мгновенный sleep.
-     */
     @FunctionalInterface
     interface Sleeper {
         void sleep(long ms) throws InterruptedException;
     }
 
-    // ========================================================================
-    // Настройки провайдера (record для группировки параметров)
-    // ========================================================================
-
-    /**
-     * Все параметры конфигурации провайдера в одном месте.
-     * Package-private — используется для тестирования.
-     */
     record ProviderSettings(
-            String apiUrl,
-            String apiKey,
-            String dataType,
-            int arrayLength,
-            int blockSize,
-            int maxApiRequests,
-            int connectTimeout,
-            int readTimeout,
-            int queueMinSize,
-            int maxRetries,
-            long initialBackoffMs,
-            long maxBackoffMs
+            String apiUrl, String apiKey, String dataType,
+            int arrayLength, int blockSize, int maxApiRequests,
+            int connectTimeout, int readTimeout, int queueMinSize,
+            int maxRetries, long initialBackoffMs, long maxBackoffMs
     ) {
-        /**
-         * Создаёт настройки из Config (продакшен-значения).
-         */
         static ProviderSettings fromConfig() {
             return new ProviderSettings(
                     Config.getString("api.url"),
@@ -117,9 +118,7 @@ public class RNProvider {
                     Config.getInt("api.connect.timeout"),
                     Config.getInt("api.read.timeout"),
                     Config.getInt("random.queue.min.size"),
-                    5,      // MAX_RETRIES
-                    1000L,  // INITIAL_BACKOFF_MS
-                    30000L  // MAX_BACKOFF_MS
+                    5, 1000L, 30000L
             );
         }
     }
@@ -128,22 +127,10 @@ public class RNProvider {
     // Конструкторы
     // ========================================================================
 
-    /**
-     * Продакшен-конструктор. Читает настройки из Config и автоматически
-     * запускает загрузку данных (если API ключ сконфигурирован).
-     */
     public RNProvider() {
         this(ProviderSettings.fromConfig(), true, Thread::sleep);
     }
 
-    /**
-     * Тестовый конструктор с полным контролем над параметрами.
-     * Package-private — доступен из тестов в том же пакете.
-     *
-     * @param settings        все параметры конфигурации
-     * @param autoLoadOnStart true = сразу начать загрузку; false = ждать ручного вызова
-     * @param sleeper         реализация паузы для backoff (Thread::sleep в продакшене)
-     */
     RNProvider(ProviderSettings settings, boolean autoLoadOnStart, Sleeper sleeper) {
         this.apiUrl = settings.apiUrl();
         this.apiKey = settings.apiKey();
@@ -159,10 +146,13 @@ public class RNProvider {
         this.maxBackoffMs = settings.maxBackoffMs();
         this.sleeper = sleeper;
 
-        // HttpClient — потокобезопасный, один на весь lifetime провайдера
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(connectTimeout))
                 .build();
+
+        // L128X256MixRandom: LXM family, период 2^384, 4-equidistributed
+        // Самый качественный PRNG в стандартной Java (JEP 356)
+        this.fallbackRng = RandomGenerator.of("L128X256MixRandom");
 
         randomNumbersQueue = new LinkedBlockingQueue<>();
         objectMapper = new ObjectMapper();
@@ -170,9 +160,9 @@ public class RNProvider {
 
         // Проверка наличия API ключа
         if (apiKey == null || apiKey.isEmpty() || apiKey.startsWith("YOUR_")) {
-            LOGGER.severe("API key is not configured! Set environment variable QRNG_API_KEY, "
-                    + "create .env file (see .env.example), or update config.properties");
-            lastError = "API key is not configured. See .env.example for setup instructions";
+            LOGGER.warning("API key is not configured. Falling back to pseudo-random mode (L128X256MixRandom).");
+            apiKeyConfigured = false;
+            activatePseudoMode("API key not configured");
         } else if (autoLoadOnStart) {
             loadInitialDataAsync();
         }
@@ -182,10 +172,6 @@ public class RNProvider {
     // Публичный API
     // ========================================================================
 
-    /**
-     * Ожидает завершения начальной загрузки.
-     * Возвращает true, если начальная загрузка завершилась успешно.
-     */
     public boolean waitForInitialData(long timeoutMs) {
         long start = System.currentTimeMillis();
         while (!initialLoadComplete && lastError == null &&
@@ -197,7 +183,7 @@ public class RNProvider {
                 return false;
             }
         }
-        return initialLoadComplete && lastError == null;
+        return initialLoadComplete;
     }
 
     public String getLastError() {
@@ -208,25 +194,39 @@ public class RNProvider {
         return randomNumbersQueue.size();
     }
 
+    /** Текущий режим работы: QUANTUM или PSEUDO */
+    public Mode getMode() {
+        return currentMode;
+    }
+
     public void addDataLoadListener(RNLoadListener listener) {
         listeners.add(listener);
     }
 
     /**
-     * Возвращает следующее случайное число из буфера.
-     * НЕБЛОКИРУЮЩИЙ — безопасен для вызова из EDT (Swing Timer).
-     * Если буфер пуст — выбрасывает NoSuchElementException вместо ожидания.
+     * Возвращает следующее случайное число.
+     * НЕБЛОКИРУЮЩИЙ — безопасен для вызова из EDT.
      *
-     * @return случайное число из буфера
-     * @throws NoSuchElementException если буфер пуст или достигнут лимит запросов
+     * В режиме QUANTUM: из буфера (или бросает exception если буфер пуст).
+     * В режиме PSEUDO: генерирует на лету, если буфер пуст.
+     *
+     * @return случайное число (0–65535 для uint16)
+     * @throws NoSuchElementException только если QUANTUM и буфер пуст, или лимит запросов
      */
     public int getNextRandomNumber() {
         Integer nextNumber = randomNumbersQueue.poll();
 
         if (nextNumber == null) {
+            if (currentMode == Mode.PSEUDO) {
+                // В pseudo-режиме — генерируем на лету
+                return fallbackRng.nextInt(65536);
+            }
+            // QUANTUM mode — буфер пуст
             synchronized (this) {
                 if (apiRequestCount >= maxApiRequests) {
-                    throw new NoSuchElementException("Reached maximum number of API requests.");
+                    // Лимит исчерпан → переключаемся на pseudo
+                    activatePseudoMode("API request limit reached (" + maxApiRequests + ")");
+                    return fallbackRng.nextInt(65536);
                 }
             }
             loadInitialDataAsync();
@@ -234,6 +234,7 @@ public class RNProvider {
                     (lastError != null ? lastError : "Waiting for API response."));
         }
 
+        // Превентивная подгрузка
         if (randomNumbersQueue.size() < queueMinSize && apiRequestCount < maxApiRequests && !isLoading) {
             loadInitialDataAsync();
         }
@@ -247,27 +248,63 @@ public class RNProvider {
     }
 
     public void shutdown() {
-        LOGGER.info("RNProvider is shutting down. Total API requests: " + apiRequestCount);
+        LOGGER.info("RNProvider shutting down. Mode: " + currentMode
+                + ", API requests: " + apiRequestCount
+                + ", pseudo batches: " + pseudoBatchCount);
     }
 
     // ========================================================================
-    // Package-private accessors (для тестов и диагностики)
+    // Package-private accessors
     // ========================================================================
 
-    int getApiRequestCount() {
-        return apiRequestCount;
-    }
+    int getApiRequestCount() { return apiRequestCount; }
+    boolean isInitialLoadComplete() { return initialLoadComplete; }
 
-    boolean isInitialLoadComplete() {
-        return initialLoadComplete;
+    void triggerLoad() { loadInitialDataAsync(); }
+
+    // ========================================================================
+    // Pseudo-random fallback
+    // ========================================================================
+
+    /**
+     * Активирует pseudo-random режим: заполняет буфер и уведомляет listeners.
+     */
+    private void activatePseudoMode(String reason) {
+        if (currentMode == Mode.PSEUDO) return; // Уже в pseudo
+
+        currentMode = Mode.PSEUDO;
+        lastError = null; // Сбрасываем ошибку — приложение работоспособно
+        LOGGER.info("Switched to PSEUDO mode (L128X256MixRandom). Reason: " + reason);
+
+        fillQueueWithPseudo();
+        initialLoadComplete = true;
+
+        notifyModeChanged(Mode.PSEUDO);
+        notifyLoadingCompleted();
     }
 
     /**
-     * Запускает асинхронную загрузку данных вручную.
-     * Package-private — для тестов, когда autoLoadOnStart=false.
+     * Заполняет буфер pseudo-random числами.
      */
-    void triggerLoad() {
-        loadInitialDataAsync();
+    private void fillQueueWithPseudo() {
+        for (int i = 0; i < PSEUDO_BATCH_SIZE; i++) {
+            randomNumbersQueue.add(fallbackRng.nextInt(65536));
+        }
+        pseudoBatchCount++;
+        LOGGER.fine("Filled queue with " + PSEUDO_BATCH_SIZE + " pseudo-random numbers. "
+                + "Queue size: " + randomNumbersQueue.size());
+    }
+
+    /**
+     * Возвращается в QUANTUM режим после успешного ответа API.
+     */
+    private void switchToQuantumMode() {
+        if (currentMode == Mode.QUANTUM) return;
+
+        currentMode = Mode.QUANTUM;
+        pseudoBatchCount = 0;
+        LOGGER.info("Switched back to QUANTUM mode (ANU API).");
+        notifyModeChanged(Mode.QUANTUM);
     }
 
     // ========================================================================
@@ -277,8 +314,8 @@ public class RNProvider {
     private void loadInitialDataAsync() {
         synchronized (this) {
             if (isLoading || apiRequestCount >= maxApiRequests) {
-                if (apiRequestCount >= maxApiRequests) {
-                    LOGGER.warning("Maximum number of API requests reached: " + maxApiRequests);
+                if (apiRequestCount >= maxApiRequests && currentMode == Mode.QUANTUM) {
+                    activatePseudoMode("API request limit reached");
                 }
                 return;
             }
@@ -288,8 +325,7 @@ public class RNProvider {
         CompletableFuture.runAsync(this::loadWithRetry, Thread::startVirtualThread)
                 .exceptionally(ex -> {
                     LOGGER.log(Level.SEVERE, "Exception during data loading", ex);
-                    lastError = "Exception during data loading: " + ex.getMessage();
-                    notifyError(lastError);
+                    handleLoadFailure("Exception: " + ex.getMessage());
                     synchronized (this) {
                         isLoading = false;
                     }
@@ -297,11 +333,6 @@ public class RNProvider {
                 });
     }
 
-    /**
-     * Загрузка данных с exponential backoff при ошибках.
-     * При сбое API ждёт 1s → 2s → 4s → 8s → 16s (максимум maxRetries попыток).
-     * При успехе сбрасывает счётчик ошибок и lastError.
-     */
     private void loadWithRetry() {
         int retryCount = 0;
 
@@ -310,7 +341,9 @@ public class RNProvider {
                 try {
                     loadInitialData();
 
+                    // Успех! Возвращаемся в QUANTUM если были в PSEUDO
                     consecutiveFailures = 0;
+                    switchToQuantumMode();
                     checkAndLoadMore();
                     return;
 
@@ -319,14 +352,13 @@ public class RNProvider {
                     consecutiveFailures++;
 
                     if (retryCount > maxRetries) {
-                        LOGGER.severe("All " + maxRetries + " retry attempts failed. Last error: " + e.getMessage());
-                        lastError = "API unavailable after " + maxRetries + " retries: " + e.getMessage();
-                        notifyError(lastError);
+                        LOGGER.severe("All " + maxRetries + " retries failed: " + e.getMessage());
+                        handleLoadFailure("API unavailable after " + maxRetries + " retries: " + e.getMessage());
                         return;
                     }
 
                     long backoffMs = calculateBackoff(retryCount);
-                    LOGGER.warning(String.format("API request failed (attempt %d/%d). Retrying in %d ms. Error: %s",
+                    LOGGER.warning(String.format("API failed (attempt %d/%d). Retry in %d ms. Error: %s",
                             retryCount, maxRetries, backoffMs, e.getMessage()));
                     notifyError("Retry " + retryCount + "/" + maxRetries + ": " + e.getMessage());
 
@@ -347,36 +379,34 @@ public class RNProvider {
     }
 
     /**
-     * Вычисляет задержку перед следующей попыткой (exponential backoff).
-     *
-     * @param retryAttempt номер попытки (1, 2, 3, ...)
-     * @return задержка в миллисекундах
+     * Обрабатывает неудачную загрузку: переключается в pseudo mode вместо остановки.
      */
+    private void handleLoadFailure(String reason) {
+        if (currentMode == Mode.QUANTUM) {
+            activatePseudoMode(reason);
+        } else {
+            // Уже в pseudo — просто дозаполняем буфер если мало
+            if (randomNumbersQueue.size() < queueMinSize) {
+                fillQueueWithPseudo();
+            }
+        }
+    }
+
     long calculateBackoff(int retryAttempt) {
         long backoff = initialBackoffMs * (1L << (retryAttempt - 1));
         return Math.min(backoff, maxBackoffMs);
     }
 
-    /**
-     * Строит URL запроса согласно API документации.
-     * Формат: https://api.quantumnumbers.anu.edu.au?length=[length]&type=[type]&size=[size]
-     */
     private String buildRequestUrl() {
         var url = new StringBuilder(apiUrl);
         url.append("?length=").append(Math.min(arrayLength, 1024));
         url.append("&type=").append(dataType);
-
         if ("hex16".equals(dataType)) {
             url.append("&size=").append(Math.min(blockSize, 1024));
         }
-
         return url.toString();
     }
 
-    /**
-     * Выполняет один запрос к API с использованием java.net.http.HttpClient.
-     * При ошибке выбрасывает исключение для обработки в loadWithRetry().
-     */
     private void loadInitialData() throws Exception {
         notifyLoadingStarted();
 
@@ -415,16 +445,14 @@ public class RNProvider {
             int loadedCount = 0;
             for (JsonNode element : dataNode) {
                 if ("hex16".equals(dataType)) {
-                    var hexValue = element.asText();
-                    int intValue = Integer.parseInt(hexValue, 16);
-                    randomNumbersQueue.add(intValue);
+                    randomNumbersQueue.add(Integer.parseInt(element.asText(), 16));
                 } else {
                     randomNumbersQueue.add(element.asInt());
                 }
                 loadedCount++;
             }
 
-            LOGGER.info("Loaded " + loadedCount + " random numbers. Queue size: " + randomNumbersQueue.size());
+            LOGGER.info("Loaded " + loadedCount + " quantum random numbers. Queue: " + randomNumbersQueue.size());
 
             synchronized (this) {
                 apiRequestCount++;
@@ -436,8 +464,7 @@ public class RNProvider {
             notifyLoadingCompleted();
 
         } else if (rootNode.has("message")) {
-            var errorMsg = rootNode.get("message").asText();
-            throw new IOException("API Error: " + errorMsg);
+            throw new IOException("API Error: " + rootNode.get("message").asText());
         } else {
             throw new IOException("Unexpected response from server.");
         }
@@ -446,8 +473,14 @@ public class RNProvider {
     private void checkAndLoadMore() {
         if (randomNumbersQueue.size() < queueMinSize && apiRequestCount < maxApiRequests && !isLoading) {
             loadInitialDataAsync();
+        } else if (randomNumbersQueue.size() < queueMinSize && currentMode == Mode.PSEUDO) {
+            fillQueueWithPseudo();
         }
     }
+
+    // ========================================================================
+    // Notifications
+    // ========================================================================
 
     private void notifyLoadingStarted() {
         listeners.forEach(RNLoadListener::onLoadingStarted);
@@ -463,6 +496,10 @@ public class RNProvider {
 
     private void notifyRawDataReceived(String rawData) {
         listeners.forEach(listener -> listener.onRawDataReceived(rawData));
+    }
+
+    private void notifyModeChanged(Mode mode) {
+        listeners.forEach(listener -> listener.onModeChanged(mode));
     }
 
 }

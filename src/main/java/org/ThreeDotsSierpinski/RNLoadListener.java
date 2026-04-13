@@ -4,24 +4,24 @@ package org.ThreeDotsSierpinski;
  * Interface for listening to data loading events from RNProvider.
  */
 public interface RNLoadListener {
-    /**
-     * Called when data loading starts.
-     */
+
+    /** Called when data loading starts. */
     void onLoadingStarted();
 
-    /**
-     * Called when data loading completes successfully.
-     */
+    /** Called when data loading completes successfully. */
     void onLoadingCompleted();
 
-    /**
-     * Called when an error occurs during data loading.
-     *
-     * @param errorMessage The error message.
-     */
+    /** Called when an error occurs during data loading. */
     void onError(String errorMessage);
 
-
-    // Новый метод для получения «сырой» строки, полученной от API
+    /** Called when raw data is received from API. */
     void onRawDataReceived(String rawData);
+
+    /**
+     * Called when the random number source mode changes.
+     * Default implementation does nothing (backward compatible).
+     *
+     * @param mode current mode (QUANTUM or PSEUDO)
+     */
+    default void onModeChanged(RNProvider.Mode mode) {}
 }

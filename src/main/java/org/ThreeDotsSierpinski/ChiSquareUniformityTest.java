@@ -39,10 +39,13 @@ public class ChiSquareUniformityTest implements RandomnessTest {
         }
 
         double critical = getCriticalValue(alpha);
-        boolean passed = chiSquare < critical;
+
+        var quality = chiSquare < critical * 0.6 ? TestResult.Quality.STRONG
+                    : chiSquare < critical        ? TestResult.Quality.MARGINAL
+                    :                               TestResult.Quality.FAIL;
 
         String stat = String.format("\u03c7\u00b2=%.2f (crit=%.2f)", chiSquare, critical);
-        return new TestResult(getTestName(), passed, stat);
+        return new TestResult(getTestName(), quality != TestResult.Quality.FAIL, stat, quality);
     }
 
     @Override

@@ -104,14 +104,66 @@ public class App {
 
                 RandomnessTestSuite suite = new RandomnessTestSuite();
                 List<TestResult> results = suite.runAll(numbers, 0.05);
-                String report = RandomnessTestSuite.formatResults(results);
 
                 long passed = results.stream().filter(TestResult::passed).count();
                 statusLabel.setText("Тесты: " + passed + "/" + results.size() + " пройдено (" + numbers.size() + " точек)");
 
+                // Цветной диалог с индикаторами качества
+                var panel = new JPanel();
+                panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+                panel.setBorder(BorderFactory.createEmptyBorder(8, 4, 8, 4));
+
+                for (TestResult result : results) {
+                    var row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+
+                    // Цветной индикатор (●)
+                    var indicator = new JLabel("\u25CF"); // ●
+                    indicator.setFont(new Font("SansSerif", Font.BOLD, 16));
+                    indicator.setForeground(switch (result.quality()) {
+                        case STRONG   -> new Color(34, 139, 34);   // зелёный
+                        case MARGINAL -> new Color(204, 153, 0);   // жёлтый/янтарный
+                        case FAIL     -> new Color(204, 0, 0);     // красный
+                    });
+                    row.add(indicator);
+
+                    // Статус (✓ / ○ / ✗)
+                    var mark = new JLabel(switch (result.quality()) {
+                        case STRONG   -> "\u2713";  // ✓
+                        case MARGINAL -> "\u25CB";  // ○
+                        case FAIL     -> "\u2717";  // ✗
+                    });
+                    mark.setFont(new Font("SansSerif", Font.BOLD, 14));
+                    mark.setForeground(indicator.getForeground());
+                    row.add(mark);
+
+                    // Статистика + имя теста
+                    var text = new JLabel(result.statistic() + "    " + result.testName());
+                    text.setFont(new Font("Monospaced", Font.PLAIN, 13));
+                    row.add(text);
+
+                    panel.add(row);
+                }
+
+                // Итого
+                panel.add(Box.createVerticalStrut(8));
+                var summary = new JLabel("Итого: " + passed + "/" + results.size() + " тестов пройдено");
+                summary.setFont(new Font("SansSerif", Font.BOLD, 13));
+                summary.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+                summary.setBorder(BorderFactory.createEmptyBorder(4, 8, 0, 0));
+                panel.add(summary);
+
+                // Легенда
+                var legend = new JLabel("<html><font color='#228B22'>\u25CF отлично</font>"
+                        + "   <font color='#CC9900'>\u25CF приемлемо</font>"
+                        + "   <font color='#CC0000'>\u25CF не пройден</font></html>");
+                legend.setFont(new Font("SansSerif", Font.PLAIN, 11));
+                legend.setBorder(BorderFactory.createEmptyBorder(6, 8, 0, 0));
+                legend.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+                panel.add(legend);
+
                 JOptionPane.showMessageDialog(
                         frame,
-                        report,
+                        panel,
                         "Результаты тестов случайности (" + numbers.size() + " чисел)",
                         passed == results.size() ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.WARNING_MESSAGE
                 );
@@ -146,8 +198,12 @@ public class App {
 
                 if (dataReady) {
                     LOGGER.info(LOG_DATA_READY);
+                    var mode = randomNumberProvider.getMode();
                     SwingUtilities.invokeLater(() -> {
-                        statusLabel.setText("Drawing...");
+                        String modeInfo = mode == RNProvider.Mode.QUANTUM
+                                ? "Drawing... (Quantum)"
+                                : "Drawing... (Pseudo-random fallback)";
+                        statusLabel.setText(modeInfo);
                         playStopButton.setEnabled(true);
                         dotController.startDotMovement();
                     });
