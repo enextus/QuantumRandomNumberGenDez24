@@ -19,8 +19,6 @@ import java.util.List;
 public class SierpinskiMode implements VisualizationMode {
 
     private static final int DOTS_PER_STEP = Config.getInt("dots.per.update");
-    private static final long MIN_VALUE = Config.getLong("random.min.value");
-    private static final long MAX_VALUE = Config.getLong("random.max.value");
 
     private SierpinskiAlgorithm algorithm;
     private Point currentPoint;
@@ -44,7 +42,8 @@ public class SierpinskiMode implements VisualizationMode {
 
     @Override
     public void initialize(BufferedImage canvas, int width, int height) {
-        algorithm = new SierpinskiAlgorithm(width, height, MIN_VALUE, MAX_VALUE);
+        if (canvas == null) throw new IllegalArgumentException("Canvas cannot be null");
+        algorithm = new SierpinskiAlgorithm(width, height);
         currentPoint = new Point(width / 2, height / 2);
         pointCount = 0;
         randomNumbersUsed = 0;
@@ -57,7 +56,7 @@ public class SierpinskiMode implements VisualizationMode {
         g2d.setColor(Color.RED);
 
         for (int i = 0; i < DOTS_PER_STEP; i++) {
-            long randomValue = provider.getNextRandomNumberInRange(MIN_VALUE, MAX_VALUE);
+            long randomValue = provider.getNextRandomNumber();
             randomNumbersUsed++;
 
             currentPoint = algorithm.calculateNewDotPosition(currentPoint, randomValue);

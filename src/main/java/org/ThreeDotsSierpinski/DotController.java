@@ -4,7 +4,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.logging.Level;
@@ -32,10 +31,11 @@ public class DotController extends JPanel {
     private static final int COLUMN_SPACING = Config.getInt("column.spacing");
     private static final int MAX_COLUMNS = Config.getInt("max.columns");
 
+
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
     private final VisualizationMode mode;
-    private final List<Long> usedRandomNumbers;
+    // private final List<Long> usedRandomNumbers;
     private final RNProvider randomNumberProvider;
     private volatile String errorMessage;
     private final BufferedImage offscreenImage;
@@ -51,7 +51,7 @@ public class DotController extends JPanel {
         this.randomNumberProvider = randomNumberProvider;
         setPreferredSize(new Dimension(SIZE_WIDTH + 300, SIZE_HEIGHT));
         setBackground(Color.WHITE);
-        usedRandomNumbers = Collections.synchronizedList(new ArrayList<>());
+        // usedRandomNumbers = Collections.synchronizedList(new ArrayList<>());
         errorMessage = null;
         offscreenImage = new BufferedImage(SIZE_WIDTH, SIZE_HEIGHT, BufferedImage.TYPE_INT_ARGB);
 
@@ -200,12 +200,10 @@ public class DotController extends JPanel {
             headers[i] = (i + 1) + "-digit";
         }
 
-        synchronized (usedRandomNumbers) {
-            for (Long randomValue : usedRandomNumbers) {
-                int numDigits = String.valueOf(Math.abs(randomValue)).length();
-                if (numDigits >= 1 && numDigits <= 5) {
-                    digitBuckets.get(numDigits - 1).add(randomValue);
-                }
+        for (Long randomValue : randomNumberProvider.getConsumedNumbers()) {
+            int numDigits = String.valueOf(Math.abs(randomValue)).length();
+            if (numDigits >= 1 && numDigits <= 5) {
+                digitBuckets.get(numDigits - 1).add(randomValue);
             }
         }
 
@@ -261,7 +259,7 @@ public class DotController extends JPanel {
     }
 
     public List<Long> getUsedRandomNumbers() {
-        return usedRandomNumbers;
+        return randomNumberProvider.getConsumedNumbers();
     }
 
     /** Имя текущего режима визуализации */

@@ -57,6 +57,7 @@ public class DLAMode implements VisualizationMode {
 
     @Override
     public void initialize(BufferedImage canvas, int width, int height) {
+        if (canvas == null) throw new IllegalArgumentException("Canvas cannot be null");
         this.width = width;
         this.height = height;
         this.grid = new boolean[width][height];
@@ -94,7 +95,6 @@ public class DLAMode implements VisualizationMode {
 
             // Один шаг блуждания
             int dirIndex = provider.getNextRandomNumber() % 4;
-            if (dirIndex < 0) dirIndex += 4;
             randomNumbersUsed++;
             stepsLeft--;
 

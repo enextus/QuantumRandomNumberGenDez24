@@ -79,6 +79,9 @@ public class RNProvider {
     private int apiRequestCount = 0;
     private final List<RNLoadListener> listeners = new CopyOnWriteArrayList<>();
     private volatile boolean isLoading = false;
+
+    private final List<Long> consumedNumbers = new CopyOnWriteArrayList<>();
+
     private volatile boolean initialLoadComplete = false;
     private volatile String lastError = null;
     private volatile int consecutiveFailures = 0;
@@ -199,6 +202,11 @@ public class RNProvider {
         return currentMode;
     }
 
+    /** Возвращает неизменяемую копию всех потребленных чисел с момента старта */
+    public List<Long> getConsumedNumbers() {
+        return List.copyOf(consumedNumbers);
+    }
+
     public void addDataLoadListener(RNLoadListener listener) {
         listeners.add(listener);
     }
@@ -219,20 +227,27 @@ public class RNProvider {
         if (nextNumber == null) {
             if (currentMode == Mode.PSEUDO) {
                 // В pseudo-режиме — генерируем на лету
-                return fallbackRng.nextInt(65536);
+                int pseudoNum = fallbackRng.nextInt(65536);
+                consumedNumbers.add((long) pseudoNum); // ИСПРАВЛЕНИЕ: сохраняем число
+                return pseudoNum;
             }
             // QUANTUM mode — буфер пуст
             synchronized (this) {
                 if (apiRequestCount >= maxApiRequests) {
                     // Лимит исчерпан → переключаемся на pseudo
                     activatePseudoMode("API request limit reached (" + maxApiRequests + ")");
-                    return fallbackRng.nextInt(65536);
+                    int pseudoNum = fallbackRng.nextInt(65536);
+                    consumedNumbers.add((long) pseudoNum); // ИСПРАВЛЕНИЕ: сохраняем число
+                    return pseudoNum;
                 }
             }
             loadInitialDataAsync();
             throw new NoSuchElementException("Buffer empty, background loading started. " +
                     (lastError != null ? lastError : "Waiting for API response."));
         }
+
+        // ИСПРАВЛЕНИЕ: сохраняем число из очереди
+        consumedNumbers.add((long) nextNumber);
 
         // Превентивная подгрузка
         if (randomNumbersQueue.size() < queueMinSize && apiRequestCount < maxApiRequests && !isLoading) {
