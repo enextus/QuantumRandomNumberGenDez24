@@ -194,9 +194,17 @@ public class DotController extends JPanel {
         g2d.setColor(Color.RED);
         g2d.drawString(String.valueOf(currentRandomValueIndex), 10, 100);
 
+        // Индикатор режима (QUANTUM = зелёный, PSEUDO = оранжевый)
+        var mode = randomNumberProvider.getMode();
+        boolean isQuantum = mode == RNProvider.Mode.QUANTUM;
+        g2d.setFont(new Font("SansSerif", Font.BOLD, 12));
+        g2d.setColor(isQuantum ? new Color(34, 139, 34) : new Color(204, 120, 0));
+        String modeLabel = isQuantum ? "\u25CF QUANTUM" : "\u25CF PSEUDO (L128X256MixRandom)";
+        g2d.drawString(modeLabel, 10, 120);
+
         if (errorMessage != null) {
             g.setColor(Color.RED);
-            g.drawString(errorMessage, 10, 130);
+            g.drawString(errorMessage, 10, 140);
         }
         drawRandomNumbersStack(g);
     }

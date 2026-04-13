@@ -198,8 +198,12 @@ public class App {
 
                 if (dataReady) {
                     LOGGER.info(LOG_DATA_READY);
+                    var mode = randomNumberProvider.getMode();
                     SwingUtilities.invokeLater(() -> {
-                        statusLabel.setText("Drawing...");
+                        String modeInfo = mode == RNProvider.Mode.QUANTUM
+                                ? "Drawing... (Quantum)"
+                                : "Drawing... (Pseudo-random fallback)";
+                        statusLabel.setText(modeInfo);
                         playStopButton.setEnabled(true);
                         dotController.startDotMovement();
                     });
