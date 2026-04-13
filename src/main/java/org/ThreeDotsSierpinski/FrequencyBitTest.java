@@ -27,10 +27,13 @@ public class FrequencyBitTest implements RandomnessTest {
 
         double sObs = Math.abs(sum) / Math.sqrt(totalBits);
         double pValue = MathUtils.erfc(sObs / Math.sqrt(2));
-        boolean passed = pValue >= alpha;
+
+        var quality = pValue >= 2 * alpha ? TestResult.Quality.STRONG
+                    : pValue >= alpha     ? TestResult.Quality.MARGINAL
+                    :                       TestResult.Quality.FAIL;
 
         String stat = String.format("p=%.4f", pValue);
-        return new TestResult(getTestName(), passed, stat);
+        return new TestResult(getTestName(), quality != TestResult.Quality.FAIL, stat, quality);
     }
 
     @Override

@@ -186,9 +186,17 @@ public class DotController extends JPanel {
             g.setColor(Color.BLACK);
             g.drawString("Current random number: " + currentRandomValue, 10, 40);
         }
+
+        // Крупный счётчик точек (красный, жирный)
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g2d.setFont(new Font("SansSerif", Font.BOLD, 48));
+        g2d.setColor(Color.RED);
+        g2d.drawString(String.valueOf(currentRandomValueIndex), 10, 100);
+
         if (errorMessage != null) {
             g.setColor(Color.RED);
-            g.drawString(errorMessage, 10, 60);
+            g.drawString(errorMessage, 10, 130);
         }
         drawRandomNumbersStack(g);
     }
