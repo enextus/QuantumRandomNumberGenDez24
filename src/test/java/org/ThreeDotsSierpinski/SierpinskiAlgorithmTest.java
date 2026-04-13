@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @Tag("slow")
 class SierpinskiAlgorithmTest {
 
-    private static final int SIZE_WIDTH = 600;
+    private static final int SIZE_WIDTH = 680;
     private static final int SIZE_HEIGHT = 600;
     private static final long MIN_VALUE = 0;
     private static final long MAX_VALUE = 65535;
