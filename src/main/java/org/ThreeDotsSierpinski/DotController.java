@@ -7,15 +7,17 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * The DotController class manages the drawing and updating of dots on the panel.
  * It also listens to data loading events to update the UI status.
+ *
+ * Thread safety:
+ * - All access to offscreenImage happens on EDT (Swing Timer + single-shot Timer for recolor)
+ * - usedRandomNumbers is a synchronizedList, iterated under synchronized block
+ * - No background threads touch mutable rendering state
  */
 public class DotController extends JPanel {
 
@@ -36,14 +38,13 @@ public class DotController extends JPanel {
     private static final int COLUMN_SPACING = Config.getInt("column.spacing");
     private static final int MAX_COLUMNS = Config.getInt("max.columns");
 
-    private final List<Dot> dots;
+    // FIX #2: removed `List<Dot> dots` — was accumulated but never read, unbounded memory leak
     private final List<Long> usedRandomNumbers;
     private final RNProvider randomNumberProvider;
     private final SierpinskiAlgorithm algorithm;
     private volatile String errorMessage;
     private Point currentPoint;
     private final BufferedImage offscreenImage;
-    private final ScheduledExecutorService scheduler;
     private int currentRandomValueIndex = 0;
     private Long currentRandomValue;
     private static final Logger LOGGER = LoggerConfig.getLogger();
@@ -59,59 +60,65 @@ public class DotController extends JPanel {
         currentPoint = new Point(SIZE_WIDTH / 2, SIZE_HEIGHT / 2);
         setPreferredSize(new Dimension(SIZE_WIDTH + 300, SIZE_HEIGHT));
         setBackground(Color.WHITE);
-        dots = Collections.synchronizedList(new ArrayList<>());
         usedRandomNumbers = Collections.synchronizedList(new ArrayList<>());
         this.randomNumberProvider = randomNumberProvider;
         errorMessage = null;
         offscreenImage = new BufferedImage(SIZE_WIDTH, SIZE_HEIGHT, BufferedImage.TYPE_INT_ARGB);
-        scheduler = Executors.newScheduledThreadPool(1);
 
-        // Инициализация таймера (но не запуск)
+        // FIX #1: removed ScheduledExecutorService — recolor now uses single-shot Swing Timer (EDT)
+
         initAnimationTimer();
     }
 
     /**
      * Инициализирует таймер анимации.
+     *
+     * FIX #1: Перекрашивание RED→BLACK теперь через одноразовый javax.swing.Timer
+     * вместо ScheduledExecutorService. Это гарантирует, что ВСЕ операции
+     * с offscreenImage происходят на EDT — никаких race conditions.
      */
     private void initAnimationTimer() {
         animationTimer = new Timer(TIMER_DELAY, e -> {
             if (errorMessage == null) {
-                ArrayList<Dot> newDots = new ArrayList<>();
+                var newDots = new ArrayList<Dot>();
                 for (int i = 0; i < DOTS_PER_UPDATE; i++) {
                     try {
                         currentRandomValueIndex++;
 
-                        long randomValue = randomNumberProvider.getNextRandomNumberInRange(MIN_RANDOM_VALUE, MAX_RANDOM_VALUE);
+                        long randomValue = randomNumberProvider.getNextRandomNumberInRange(
+                                MIN_RANDOM_VALUE, MAX_RANDOM_VALUE);
 
                         currentRandomValue = randomValue;
                         usedRandomNumbers.add(currentRandomValue);
                         currentPoint = algorithm.calculateNewDotPosition(currentPoint, randomValue);
-                        Dot newDot = new Dot(new Point(currentPoint));
-                        newDots.add(newDot);
+                        newDots.add(new Dot(new Point(currentPoint)));
                     } catch (NoSuchElementException ex) {
                         String msg = ex.getMessage();
                         if (msg != null && msg.startsWith("Reached maximum")) {
-                            // Фатальная ошибка — лимит запросов исчерпан
                             errorMessage = msg;
                             LOGGER.log(Level.WARNING, ERROR_NO_RANDOM_NUMBERS + msg);
                             updateStatusLabel("Error: " + msg);
                             stop();
                         } else {
-                            // Буфер временно пуст — пропускаем тик, подгрузка идёт в фоне
                             LOGGER.fine("Buffer empty, skipping tick. " + msg);
                             updateStatusLabel("Loading data...");
                         }
                         break;
                     }
                 }
-                dots.addAll(newDots);
+
                 drawDots(newDots, Color.RED);
                 repaint();
                 LOGGER.fine(String.format(LOG_DOTS_PROCESSED, newDots.size()));
-                scheduler.schedule(() -> {
+
+                // FIX #1: одноразовый Swing Timer — выполняется на EDT, не на фоновом потоке
+                var recolorTimer = new Timer(1000, _ -> {
                     drawDots(newDots, Color.BLACK);
                     repaint();
-                }, 1, TimeUnit.SECONDS);
+                });
+                recolorTimer.setRepeats(false);
+                recolorTimer.start();
+
             } else {
                 stop();
                 repaint();
@@ -179,13 +186,33 @@ public class DotController extends JPanel {
             g.setColor(Color.BLACK);
             g.drawString("Current random number: " + currentRandomValue, 10, 40);
         }
+
+        // Крупный счётчик точек (красный, жирный)
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g2d.setFont(new Font("SansSerif", Font.BOLD, 48));
+        g2d.setColor(Color.RED);
+        g2d.drawString(String.valueOf(currentRandomValueIndex), 10, 100);
+
+        // Индикатор режима (QUANTUM = зелёный, PSEUDO = оранжевый)
+        var mode = randomNumberProvider.getMode();
+        boolean isQuantum = mode == RNProvider.Mode.QUANTUM;
+        g2d.setFont(new Font("SansSerif", Font.BOLD, 12));
+        g2d.setColor(isQuantum ? new Color(34, 139, 34) : new Color(204, 120, 0));
+        String modeLabel = isQuantum ? "\u25CF QUANTUM" : "\u25CF PSEUDO (L128X256MixRandom)";
+        g2d.drawString(modeLabel, 10, 120);
+
         if (errorMessage != null) {
             g.setColor(Color.RED);
-            g.drawString(errorMessage, 10, 60);
+            g.drawString(errorMessage, 10, 140);
         }
         drawRandomNumbersStack(g);
     }
 
+    /**
+     * Рисует точки на offscreenImage.
+     * ВАЖНО: вызывается ТОЛЬКО из EDT (Swing Timer), что гарантирует потокобезопасность.
+     */
     private void drawDots(List<Dot> newDots, Color color) {
         Graphics2D g2d = offscreenImage.createGraphics();
         g2d.setColor(color);
@@ -210,21 +237,23 @@ public class DotController extends JPanel {
         int maxRows = (SIZE_HEIGHT - headerHeight - 4) / ROW_HEIGHT;
         int rightMargin = 40;
 
-        // Собираем данные по колонкам (по количеству цифр)
         List<List<Long>> digitBuckets = new ArrayList<>();
         String[] headers = new String[MAX_COLUMNS];
         for (int i = 0; i < MAX_COLUMNS; i++) {
             digitBuckets.add(new ArrayList<>());
             headers[i] = (i + 1) + "-digit";
         }
-        for (Long randomValue : usedRandomNumbers) {
-            int numDigits = String.valueOf(Math.abs(randomValue)).length();
-            if (numDigits >= 1 && numDigits <= 5) {
-                digitBuckets.get(numDigits - 1).add(randomValue);
+
+        // FIX #3: итерация synchronizedList под synchronized блоком
+        synchronized (usedRandomNumbers) {
+            for (Long randomValue : usedRandomNumbers) {
+                int numDigits = String.valueOf(Math.abs(randomValue)).length();
+                if (numDigits >= 1 && numDigits <= 5) {
+                    digitBuckets.get(numDigits - 1).add(randomValue);
+                }
             }
         }
 
-        // Определяем непустые колонки
         List<Integer> visibleColumns = new ArrayList<>();
         for (int i = 0; i < MAX_COLUMNS; i++) {
             if (!digitBuckets.get(i).isEmpty()) {
@@ -233,35 +262,29 @@ public class DotController extends JPanel {
         }
         if (visibleColumns.isEmpty()) return;
 
-        // Rechtsbündig: блок колонок прижат к правому краю панели
         int totalWidth = visibleColumns.size() * (COLUMN_WIDTH + COLUMN_SPACING) - COLUMN_SPACING;
         int startX = getWidth() - totalWidth - rightMargin;
 
-        // Рисуем только непустые колонки
         for (int visIdx = 0; visIdx < visibleColumns.size(); visIdx++) {
             int bucketIdx = visibleColumns.get(visIdx);
             List<Long> columnNumbers = digitBuckets.get(bucketIdx);
             int colX = startX + visIdx * (COLUMN_WIDTH + COLUMN_SPACING);
 
-            // Заголовок колонки
             g2d.setFont(headerFont);
             g2d.setColor(headerColor);
             FontMetrics hfm = g2d.getFontMetrics();
             int headerTextWidth = hfm.stringWidth(headers[bucketIdx]);
             g2d.drawString(headers[bucketIdx], colX + (COLUMN_WIDTH - headerTextWidth) / 2, headerHeight - 4);
 
-            // Разделительная линия под заголовком
             g2d.setColor(separatorColor);
             g2d.drawLine(colX, headerHeight, colX + COLUMN_WIDTH, headerHeight);
 
-            // Вертикальный разделитель слева (кроме первой видимой колонки)
             if (visIdx > 0) {
                 int sepX = colX - COLUMN_SPACING / 2;
                 g2d.setColor(separatorColor);
                 g2d.drawLine(sepX, 0, sepX, SIZE_HEIGHT);
             }
 
-            // Числа с zebra-фоном (снизу вверх, последние добавленные — внизу)
             g2d.setFont(monoFont);
             FontMetrics fm = g2d.getFontMetrics();
             int row = 0;
@@ -269,13 +292,11 @@ public class DotController extends JPanel {
             for (int i = columnNumbers.size() - 1; i >= 0 && row < maxRows; i--, row++) {
                 int y = SIZE_HEIGHT - (row * ROW_HEIGHT) - 4;
 
-                // Zebra-фон для чётных строк
                 if (row % 2 == 0) {
                     g2d.setColor(zebraColor);
                     g2d.fillRect(colX, y - ROW_HEIGHT + 4, COLUMN_WIDTH, ROW_HEIGHT);
                 }
 
-                // Число (выравнивание вправо)
                 String text = columnNumbers.get(i).toString();
                 int textWidth = fm.stringWidth(text);
                 g2d.setColor(numberColor);
@@ -288,7 +309,7 @@ public class DotController extends JPanel {
         SwingUtilities.invokeLater(() -> statusLabel.setText(message));
     }
 
-    public java.util.List<Long> getUsedRandomNumbers() {
+    public List<Long> getUsedRandomNumbers() {
         return usedRandomNumbers;
     }
 
@@ -297,7 +318,7 @@ public class DotController extends JPanel {
      */
     public void shutdown() {
         stop();
-        scheduler.shutdown();
+        // FIX #1: больше нет scheduler.shutdown() — всё на EDT через Swing Timer
     }
 
     /**
@@ -306,13 +327,12 @@ public class DotController extends JPanel {
      * 2) с белым фоном
      *
      * @param directory папка для сохранения
-     * @param baseName  базовое имя без расширения (например "sierpinski_2026-04-11_19-30-00_5000pts")
+     * @param baseName  базовое имя без расширения
      * @return количество успешно сохранённых файлов (0, 1 или 2)
      */
     public int saveImages(java.io.File directory, String baseName) {
         int saved = 0;
 
-        // 1. Прозрачный фон (оригинальный offscreenImage, TYPE_INT_ARGB)
         var transparentFile = new java.io.File(directory, baseName + "_transparent.png");
         try {
             javax.imageio.ImageIO.write(offscreenImage, "PNG", transparentFile);
@@ -322,7 +342,6 @@ public class DotController extends JPanel {
             LOGGER.severe("Failed to save transparent image: " + e.getMessage());
         }
 
-        // 2. Белый фон
         var whiteFile = new java.io.File(directory, baseName + ".png");
         try {
             var whiteImage = new BufferedImage(

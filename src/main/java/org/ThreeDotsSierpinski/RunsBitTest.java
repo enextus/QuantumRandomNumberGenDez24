@@ -33,7 +33,8 @@ public class RunsBitTest implements RandomnessTest {
         pi /= n;
 
         if (Math.abs(pi - 0.5) > 2.0 / Math.sqrt(n)) {
-            return new TestResult(getTestName(), false, "pi=" + String.format("%.4f", pi) + " (pre-test fail)");
+            return new TestResult(getTestName(), false,
+                    "pi=" + String.format("%.4f", pi) + " (pre-test fail)", TestResult.Quality.FAIL);
         }
 
         int runs = 1;
@@ -47,14 +48,17 @@ public class RunsBitTest implements RandomnessTest {
         double denominator = 2.0 * Math.sqrt(2.0 * n) * pi * (1 - pi);
 
         if (denominator == 0) {
-            return new TestResult(getTestName(), false, "div/0");
+            return new TestResult(getTestName(), false, "div/0", TestResult.Quality.FAIL);
         }
 
         double pValue = MathUtils.erfc(numerator / denominator);
-        boolean passed = pValue >= alpha;
+
+        var quality = pValue >= 2 * alpha ? TestResult.Quality.STRONG
+                    : pValue >= alpha     ? TestResult.Quality.MARGINAL
+                    :                       TestResult.Quality.FAIL;
 
         String stat = String.format("p=%.4f", pValue);
-        return new TestResult(getTestName(), passed, stat);
+        return new TestResult(getTestName(), quality != TestResult.Quality.FAIL, stat, quality);
     }
 
     @Override

@@ -48,10 +48,13 @@ public class KolmogorovSmirnovTest implements RandomnessTest {
         }
 
         double criticalValue = Math.sqrt(-0.5 * Math.log(alpha / 2)) / Math.sqrt(n);
-        boolean passed = maxDeviation <= criticalValue;
+
+        var quality = maxDeviation < criticalValue * 0.6 ? TestResult.Quality.STRONG
+                    : maxDeviation <= criticalValue       ? TestResult.Quality.MARGINAL
+                    :                                       TestResult.Quality.FAIL;
 
         String stat = String.format("D=%.4f (crit=%.4f)", maxDeviation, criticalValue);
-        return new TestResult(getTestName(), passed, stat);
+        return new TestResult(getTestName(), quality != TestResult.Quality.FAIL, stat, quality);
     }
 
     @Override
