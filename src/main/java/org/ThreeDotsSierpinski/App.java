@@ -195,6 +195,7 @@ public class App {
         });
 
         // Ожидание данных
+        // Ожидание данных
         Thread.startVirtualThread(() -> {
             LOGGER.info(LOG_WAITING_FOR_DATA);
             SwingUtilities.invokeLater(() -> statusLabel.setText("Connecting to API..."));
@@ -205,10 +206,13 @@ public class App {
                 LOGGER.info(LOG_DATA_READY);
                 var rngMode = randomNumberProvider.getMode();
                 SwingUtilities.invokeLater(() -> {
-                    String modeInfo = rngMode == RNProvider.Mode.QUANTUM
-                            ? "Drawing... (Quantum)"
-                            : "Drawing... (Pseudo-random fallback)";
-                    statusLabel.setText(modeInfo);
+                    // ИСПРАВЛЕНИЕ: Показываем конкретную причину, если произошел fallback
+                    if (rngMode == RNProvider.Mode.PSEUDO) {
+                        String reason = randomNumberProvider.getFallbackReason();
+                        statusLabel.setText(reason != null ? reason : "Drawing... (Pseudo-random fallback)");
+                    } else {
+                        statusLabel.setText("Drawing... (Quantum)");
+                    }
                     playStopButton.setEnabled(true);
                     dotController.startDotMovement();
                 });

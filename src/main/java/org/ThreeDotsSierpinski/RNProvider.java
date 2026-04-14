@@ -35,6 +35,13 @@ import java.util.random.RandomGenerator;
 public class RNProvider {
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
+    /**
+     * Исключение-маркер для мгновенного переключения в PSEUDO без ретраев.
+     */
+    private static class RateLimitException extends RuntimeException {
+        RateLimitException(String message) { super(message); }
+    }
+
     // ========================================================================
     // Режим работы
     // ========================================================================
@@ -84,6 +91,7 @@ public class RNProvider {
 
     private volatile boolean initialLoadComplete = false;
     private volatile String lastError = null;
+    private volatile String fallbackReason = null; // ИСПРАВЛЕНИЕ: Причина переключения в PSEUDO
     private volatile int consecutiveFailures = 0;
     private volatile Mode currentMode = Mode.QUANTUM;
     private volatile boolean apiKeyConfigured = true;
@@ -202,6 +210,11 @@ public class RNProvider {
         return currentMode;
     }
 
+    /** Возвращает причину последнего переключения в PSEUDO режим */
+    public String getFallbackReason() {
+        return fallbackReason;
+    }
+
     /** Возвращает неизменяемую копию всех потребленных чисел с момента старта */
     public List<Long> getConsumedNumbers() {
         return List.copyOf(consumedNumbers);
@@ -288,7 +301,8 @@ public class RNProvider {
         if (currentMode == Mode.PSEUDO) return; // Уже в pseudo
 
         currentMode = Mode.PSEUDO;
-        lastError = null; // Сбрасываем ошибку — приложение работоспособно
+        this.fallbackReason = reason; // ИСПРАВЛЕНИЕ: Запоминаем почему
+        lastError = null;
         LOGGER.info("Switched to PSEUDO mode (L128X256MixRandom). Reason: " + reason);
 
         fillQueueWithPseudo();
@@ -360,6 +374,12 @@ public class RNProvider {
                     consecutiveFailures = 0;
                     switchToQuantumMode();
                     checkAndLoadMore();
+                    return;
+
+                } catch (RateLimitException e) {
+                    // ИСПРАВЛЕНИЕ: Мгновенный fallback без ожидания
+                    LOGGER.info("Rate limit (429) detected. Bypassing retries, activating fallback.");
+                    handleLoadFailure("Суточный лимит исчерпан, переключаю на псевдослучайные числа.");
                     return;
 
                 } catch (Exception e) {
@@ -441,6 +461,11 @@ public class RNProvider {
         if (statusCode != 200) {
             var errorBody = response.body();
             LOGGER.severe("HTTP error: " + statusCode + " - " + errorBody);
+
+            // ИСПРАВЛЕНИЕ: 429 не нужно ретраить, сразу сбрасываем в PSEUDO
+            if (statusCode == 429) {
+                throw new RateLimitException(errorBody);
+            }
             throw new IOException("HTTP error code: " + statusCode + " - " + errorBody);
         }
 
