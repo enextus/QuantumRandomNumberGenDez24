@@ -108,8 +108,9 @@ public class DotController extends JPanel {
                         updateStatusLabel("Error: " + msg);
                         stop();
                     } else {
+                        // Буфер временно пуст (например, при переключении QUANTUM -> PSEUDO).
+                        // Просто пропускаем тик, не пугаем пользователя статусом.
                         LOGGER.fine("Buffer empty, skipping tick. " + msg);
-                        updateStatusLabel("Loading data...");
                     }
                 }
             } else {

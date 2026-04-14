@@ -348,10 +348,18 @@ public class RNProvider {
                 }
                 return;
             }
+
+            // ИСПРАВЛЕНИЕ: Если уже в PSEUDO режиме — не дергаем HTTP, просто генерируем локально
+            if (currentMode == Mode.PSEUDO) {
+                fillQueueWithPseudo();
+                return;
+            }
+
             isLoading = true;
         }
 
         CompletableFuture.runAsync(this::loadWithRetry, Thread::startVirtualThread)
+                // ... остальной код без изменений
                 .exceptionally(ex -> {
                     LOGGER.log(Level.SEVERE, "Exception during data loading", ex);
                     handleLoadFailure("Exception: " + ex.getMessage());

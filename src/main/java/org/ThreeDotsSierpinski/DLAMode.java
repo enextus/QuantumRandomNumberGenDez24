@@ -31,29 +31,41 @@ public class DLAMode implements VisualizationMode {
     private int walkerY;
     private boolean hasWalker = false;
 
-    /** Максимум шагов блуждания за один тик анимации */
+    /**
+     * Максимум шагов блуждания за один тик анимации
+     */
     private static final int MAX_WALK_STEPS_PER_TICK = 500;
 
-    /** Расстояние от кластера, с которого запускать частицу */
+    /**
+     * Расстояние от кластера, с которого запускать частицу
+     */
     private int spawnRadius;
 
-    /** 4 направления: dx, dy */
+    /**
+     * 4 направления: dx, dy
+     */
     private static final int[][] DIRS = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
 
     @Override
-    public String getId() { return "dla"; }
+    public String getId() {
+        return "dla";
+    }
 
     @Override
-    public String getName() { return "DLA / Brownian Tree"; }
+    public String getName() {
+        return "DLA / Brownian Tree";
+    }
 
     @Override
     public String getDescription() {
         return "Частицы блуждают случайно и прилипают к кластеру.\n"
-             + "Возникают структуры кораллов, молний и кристаллов.";
+                + "Возникают структуры кораллов, молний и кристаллов.";
     }
 
     @Override
-    public String getIcon() { return "⚡"; }
+    public String getIcon() {
+        return "⚡";
+    }
 
     @Override
     public void initialize(BufferedImage canvas, int width, int height) {
@@ -64,7 +76,7 @@ public class DLAMode implements VisualizationMode {
         this.pointCount = 0;
         this.randomNumbersUsed = 0;
         this.hasWalker = false;
-        this.spawnRadius = Math.min(width, height) / 4;
+        this.spawnRadius = 30; // Маленький стартовый радиус для мгновенного первого прилипания
 
         // Семя в центре
         int cx = width / 2;
@@ -148,7 +160,6 @@ public class DLAMode implements VisualizationMode {
      */
     private void spawnWalker(RNProvider provider) {
         int angle = provider.getNextRandomNumber() % 360;
-        if (angle < 0) angle += 360;
         randomNumbersUsed++;
 
         double rad = Math.toRadians(angle);
@@ -180,8 +191,12 @@ public class DLAMode implements VisualizationMode {
     }
 
     @Override
-    public int getPointCount() { return pointCount; }
+    public int getPointCount() {
+        return pointCount;
+    }
 
     @Override
-    public int getRandomNumbersUsed() { return randomNumbersUsed; }
+    public int getRandomNumbersUsed() {
+        return randomNumbersUsed;
+    }
 }
