@@ -11,10 +11,10 @@ import java.util.logging.Logger;
 
 /**
  * Универсальный контроллер визуализации случайных чисел.
- *
+ * <p>
  * Принимает любой {@link VisualizationMode} и управляет анимацией,
  * рендерингом, статусом и сохранением изображений.
- *
+ * <p>
  * Thread safety:
  * - Все операции с offscreenImage — только на EDT
  * - usedRandomNumbers итерируется под synchronized
@@ -45,6 +45,9 @@ public class DotController extends JPanel {
     private Timer animationTimer;
     private volatile boolean isRunning = false;
 
+    private final List<Point> pendingRecolorPoints = new ArrayList<>();
+    private Timer recolorTimer;
+
     public DotController(RNProvider randomNumberProvider, VisualizationMode mode, JLabel statusLabel) {
         this.statusLabel = statusLabel;
         this.mode = mode;
@@ -59,10 +62,28 @@ public class DotController extends JPanel {
         mode.initialize(offscreenImage, SIZE_WIDTH, SIZE_HEIGHT);
 
         initAnimationTimer();
-    }
 
-    private void initAnimationTimer() {
+        // ИСПРАВЛЕНИЕ 2.3: Единый таймер для перекраски вместо создания новых в каждом тике
+        recolorTimer = new Timer(1000, e -> {
+            synchronized (pendingRecolorPoints) {
+                if (!pendingRecolorPoints.isEmpty()) {
+                    var g2d = offscreenImage.createGraphics();
+                    g2d.setColor(Color.BLACK);
+                    for (var p : pendingRecolorPoints) {
+                        g2d.fillRect(p.x, p.y, DOT_SIZE, DOT_SIZE);
+                    }
+                    g2d.dispose();
+                    pendingRecolorPoints.clear();
+                    repaint();
+                }
+            }
+        });
+        recolorTimer.setRepeats(false);
+    } // <--- Здесь заканчивается конструктор DotController (скобка ОДНА)
+
+    private void initAnimationTimer() { // <--- Метод внутри класса
         animationTimer = new Timer(TIMER_DELAY, e -> {
+
             if (errorMessage == null) {
                 try {
                     // Делегируем шаг визуализации выбранному режиму
@@ -73,19 +94,14 @@ public class DotController extends JPanel {
                     // Используем pointCount как proxy
                     repaint();
 
-                    // Перекраска RED → BLACK через 1 сек на EDT
+                    // ИСПРАВЛЕНИЕ 2.3: Кладём точки в очередь и перезапускаем единый таймер
                     if (!newPoints.isEmpty()) {
-                        var recolorTimer = new Timer(1000, _ -> {
-                            var g2d = offscreenImage.createGraphics();
-                            g2d.setColor(Color.BLACK);
-                            for (var p : newPoints) {
-                                g2d.fillRect(p.x, p.y, DOT_SIZE, DOT_SIZE);
-                            }
-                            g2d.dispose();
-                            repaint();
-                        });
-                        recolorTimer.setRepeats(false);
-                        recolorTimer.start();
+                        synchronized (pendingRecolorPoints) {
+                            pendingRecolorPoints.addAll(newPoints);
+                        }
+                        if (!recolorTimer.isRunning()) {
+                            recolorTimer.restart();
+                        }
                     }
 
                 } catch (NoSuchElementException ex) {
@@ -108,7 +124,9 @@ public class DotController extends JPanel {
         });
     }
 
-    public void startDotMovement() { start(); }
+    public void startDotMovement() {
+        start();
+    }
 
     public void start() {
         if (!isRunning && errorMessage == null) {
@@ -127,11 +145,14 @@ public class DotController extends JPanel {
     }
 
     public boolean toggle() {
-        if (isRunning) stop(); else start();
+        if (isRunning) stop();
+        else start();
         return isRunning;
     }
 
-    public boolean isRunning() { return isRunning; }
+    public boolean isRunning() {
+        return isRunning;
+    }
 
     @Override
     protected void paintComponent(Graphics g) {
@@ -262,13 +283,18 @@ public class DotController extends JPanel {
         return randomNumberProvider.getConsumedNumbers();
     }
 
-    /** Имя текущего режима визуализации */
+    /**
+     * Имя текущего режима визуализации
+     */
     public String getModeName() {
         return mode.getName();
     }
 
     public void shutdown() {
         stop();
+        if (recolorTimer != null) {
+            recolorTimer.stop();
+        }
     }
 
     public int saveImages(java.io.File directory, String baseName) {
