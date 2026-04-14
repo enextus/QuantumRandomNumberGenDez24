@@ -188,24 +188,25 @@ class KolmogorovSmirnovTestUnitTest {
         }
 
         @Test
-        @DisplayName("Более строгий alpha отклоняет больше выборок")
-        void testStricterAlphaRejectsMore() {
+        @DisplayName("Меньший alpha → выше критерий → больше выборок pass")
+        void testStricterAlphaPassesMore() {
             Random random = new Random(123);
             int passedAt01 = 0;
             int passedAt05 = 0;
-            
+
             for (int trial = 0; trial < 20; trial++) {
                 List<Long> sample = random.ints(100, 0, 65536)
                         .mapToLong(i -> i)
                         .boxed()
                         .collect(Collectors.toList());
-                
+
                 if (ksTest.test(sample, 0.01)) passedAt01++;
                 if (ksTest.test(sample, 0.05)) passedAt05++;
             }
-            
-            assertTrue(passedAt01 <= passedAt05, 
-                "alpha=0.01 должен пропускать не больше выборок чем alpha=0.05");
+
+            assertTrue(passedAt01 >= passedAt05,
+                    "alpha=0.01 (критерий ~1.62) должен пропускать >= чем alpha=0.05 (критерий ~1.35). " +
+                            "Было: " + passedAt01 + " vs " + passedAt05);
         }
     }
 

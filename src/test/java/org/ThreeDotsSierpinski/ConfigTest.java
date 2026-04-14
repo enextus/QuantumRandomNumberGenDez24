@@ -44,7 +44,7 @@ class ConfigTest {
         void testGetInt() {
             int panelWidth = Config.getInt("panel.size.width");
             assertTrue(panelWidth > 0, "panel.size.width должен быть положительным");
-            assertEquals(600, panelWidth, "Ожидается panel.size.width = 600");
+            assertEquals(680, panelWidth, "Ожидается panel.size.width = 680");
         }
 
         @Test

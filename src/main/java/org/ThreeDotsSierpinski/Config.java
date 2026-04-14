@@ -31,8 +31,14 @@ public class Config {
     private static final Properties envFileProperties = new Properties();
 
     static {
-        loadConfigProperties();
-        loadEnvFile();
+        try {
+            loadConfigProperties();
+            loadEnvFile();
+        } catch (Exception ex) {
+            // ИСПРАВЛЕНИЕ 2.2: Предотвращаем ExceptionInInitializerError.
+            // Если конфиг не загрузился, класс не умирает, методы просто будут возвращать null.
+            System.err.println("FATAL: Failed to initialize Config. Error: " + ex.getMessage());
+        }
     }
 
     /**
