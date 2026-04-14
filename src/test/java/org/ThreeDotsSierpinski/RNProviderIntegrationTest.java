@@ -53,7 +53,8 @@ class RNProviderIntegrationTest {
     private String baseUrl;
 
     // No-op sleeper для мгновенных тестов (вместо реального Thread.sleep)
-    private static final RNProvider.Sleeper INSTANT_SLEEPER = ms -> {};
+    private static final RNProvider.Sleeper INSTANT_SLEEPER = ms -> {
+    };
 
     // ========================================================================
     // Lifecycle: поднимаем/останавливаем mock-сервер для каждого теста
@@ -326,23 +327,22 @@ class RNProviderIntegrationTest {
         }
 
         @Test
-        @DisplayName("Исчерпание retry → lastError содержит описание")
+        @DisplayName("Исчерпание retry → переключение в PSEUDO режим")
         void testAllRetriesExhausted() throws Exception {
             mockStatus(500, "Server Down");
 
-            // maxRetries=3, значит будет 1 + 3 = 4 попытки
             RNProvider provider = new RNProvider(testSettings(), true, INSTANT_SLEEPER);
 
-            // Ждём пока retry-цикл завершится
+            // Ждём пока retry-цикл завершится и сработает fallback
             long start = System.currentTimeMillis();
-            while (provider.getLastError() == null && System.currentTimeMillis() - start < 5000) {
+            while (provider.getMode() == RNProvider.Mode.QUANTUM && System.currentTimeMillis() - start < 5000) {
                 Thread.sleep(50);
             }
 
-            String lastError = provider.getLastError();
-            assertNotNull(lastError, "lastError должен быть установлен после исчерпания retry");
-            assertTrue(lastError.contains("3 retries") || lastError.contains("unavailable"),
-                    "lastError должен описывать исчерпание retry, получено: " + lastError);
+            assertEquals(RNProvider.Mode.PSEUDO, provider.getMode(),
+                    "Должен переключиться в PSEUDO после исчерпания retry");
+            assertNull(provider.getLastError(),
+                    "В PSEUDO режиме не должно быть ошибок, приложение продолжает работу");
         }
 
         @Test
@@ -375,36 +375,38 @@ class RNProviderIntegrationTest {
     class ErrorHandlingTests {
 
         @Test
-        @DisplayName("Malformed JSON → lastError после retry")
+        @DisplayName("Malformed JSON → fallback в PSEUDO")
         void testMalformedJson() throws Exception {
             mockSuccess("THIS IS NOT JSON {{{");
 
             RNProvider provider = new RNProvider(testSettings(), true, INSTANT_SLEEPER);
 
+            // Ждём пока ретраи исчерпаются и сработает fallback
             long start = System.currentTimeMillis();
-            while (provider.getLastError() == null && System.currentTimeMillis() - start < 5000) {
+            while (provider.getMode() == RNProvider.Mode.QUANTUM && System.currentTimeMillis() - start < 5000) {
                 Thread.sleep(50);
             }
 
-            assertNotNull(provider.getLastError(), "Malformed JSON должен привести к ошибке");
+            assertEquals(RNProvider.Mode.PSEUDO, provider.getMode(),
+                    "При Malformed JSON должен уйти в PSEUDO");
+            assertNull(provider.getLastError(), "В PSEUDO режиме ошибки сбрасываются");
         }
 
         @Test
-        @DisplayName("API message error ({\"message\": \"...\"}) → lastError после retry")
+        @DisplayName("API message error ({\"message\": \"...\"}) → fallback в PSEUDO")
         void testApiMessageError() throws Exception {
             mockSuccess("{\"message\":\"Rate limit exceeded\"}");
 
             RNProvider provider = new RNProvider(testSettings(), true, INSTANT_SLEEPER);
 
             long start = System.currentTimeMillis();
-            while (provider.getLastError() == null && System.currentTimeMillis() - start < 5000) {
+            while (provider.getMode() == RNProvider.Mode.QUANTUM && System.currentTimeMillis() - start < 5000) {
                 Thread.sleep(50);
             }
 
-            String lastError = provider.getLastError();
-            assertNotNull(lastError);
-            assertTrue(lastError.contains("Rate limit") || lastError.contains("API Error") || lastError.contains("retries"),
-                    "Должен содержать информацию об ошибке API, получено: " + lastError);
+            assertEquals(RNProvider.Mode.PSEUDO, provider.getMode(),
+                    "При API error должен уйти в PSEUDO");
+            assertNull(provider.getLastError());
         }
 
         @Test
@@ -419,376 +421,385 @@ class RNProviderIntegrationTest {
         }
 
         @Test
-        @DisplayName("Ответ без поля data и без message → ошибка")
+        @DisplayName("Ответ без поля data и без message → fallback в PSEUDO")
         void testUnexpectedResponseFormat() throws Exception {
             mockSuccess("{\"something\":\"else\"}");
 
             RNProvider provider = new RNProvider(testSettings(), true, INSTANT_SLEEPER);
 
             long start = System.currentTimeMillis();
-            while (provider.getLastError() == null && System.currentTimeMillis() - start < 5000) {
+            while (provider.getMode() == RNProvider.Mode.QUANTUM && System.currentTimeMillis() - start < 5000) {
                 Thread.sleep(50);
             }
 
-            assertNotNull(provider.getLastError(), "Неожиданный формат ответа должен привести к ошибке");
-        }
-    }
-
-    // ========================================================================
-    // Тесты: Буфер и getNextRandomNumber
-    // ========================================================================
-
-    @Nested
-    @DisplayName("Буфер и getNextRandomNumber()")
-    class BufferTests {
-
-        @Test
-        @DisplayName("Пустой буфер → NoSuchElementException")
-        void testEmptyBufferThrows() {
-            mockSuccess("{\"data\":[]}");
-            RNProvider provider = createProvider();
-            // Не загружаем данные → буфер пуст
-
-            NoSuchElementException ex = assertThrows(NoSuchElementException.class,
-                    provider::getNextRandomNumber);
-            assertTrue(ex.getMessage().contains("Buffer empty"),
-                    "Сообщение должно содержать 'Buffer empty', получено: " + ex.getMessage());
-        }
-
-        @Test
-        @DisplayName("maxApiRequests исчерпан → NoSuchElementException с 'maximum'")
-        void testMaxApiRequestsExhausted() throws Exception {
-            // maxApiRequests = 1
-            RNProvider.ProviderSettings settings = new RNProvider.ProviderSettings(
-                    baseUrl, "test-key", "uint16",
-                    2, 1, 1, // maxApiRequests = 1
-                    2000, 2000, 0,
-                    3, 1L, 10L
-            );
-
-            // Первый запрос — успех, загружает 2 числа
-            mockSuccess("{\"data\":[10,20]}");
-            RNProvider provider = new RNProvider(settings, true, INSTANT_SLEEPER);
-            assertTrue(provider.waitForInitialData(5000));
-
-            // Потребляем оба числа
-            provider.getNextRandomNumber();
-            provider.getNextRandomNumber();
-
-            // Теперь буфер пуст и maxApiRequests исчерпан
-            NoSuchElementException ex = assertThrows(NoSuchElementException.class,
-                    provider::getNextRandomNumber);
-            assertTrue(ex.getMessage().contains("maximum") || ex.getMessage().contains("Reached"),
-                    "Должен содержать 'maximum', получено: " + ex.getMessage());
-        }
-
-        @Test
-        @DisplayName("getNextRandomNumberInRange() делегирует в RandomNumberProcessor")
-        void testGetNextRandomNumberInRange() throws Exception {
-            mockSuccess("{\"data\":[0,32768,65535]}");
-            RNProvider provider = new RNProvider(testSettings(), true, INSTANT_SLEEPER);
-            assertTrue(provider.waitForInitialData(5000));
-
-            // 0 → min диапазона, 65535 → max диапазона
-            long result1 = provider.getNextRandomNumberInRange(0, 100);
-            assertEquals(0, result1, "0 должен маппиться в начало диапазона");
-
-            long result2 = provider.getNextRandomNumberInRange(0, 100);
-            assertTrue(result2 >= 49 && result2 <= 51,
-                    "32768 (~середина) должен маппиться в ~50, получено: " + result2);
-        }
-    }
-
-    // ========================================================================
-    // Тесты: Listener callbacks
-    // ========================================================================
-
-    @Nested
-    @DisplayName("Listener callbacks")
-    class ListenerTests {
-
-        @Test
-        @DisplayName("Успешная загрузка → started, rawData, completed")
-        void testSuccessCallbacks() throws Exception {
-            mockSuccess("{\"data\":[42]}");
-            RecordingListener listener = new RecordingListener();
-
-            RNProvider provider = createProvider();
-            provider.addDataLoadListener(listener);
-            provider.triggerLoad(); // Загрузка ПОСЛЕ регистрации listener
-
-            assertTrue(listener.completedLatch.await(5, TimeUnit.SECONDS),
-                    "onLoadingCompleted должен быть вызван");
-
-            assertTrue(listener.events.contains("started"), "Должен вызвать onLoadingStarted");
-            assertTrue(listener.events.contains("completed"), "Должен вызвать onLoadingCompleted");
-            assertTrue(listener.events.contains("rawData"), "Должен вызвать onRawDataReceived");
-            assertFalse(listener.rawDataList.isEmpty());
-            assertTrue(listener.rawDataList.getFirst().contains("42"),
-                    "rawData должен содержать ответ API");
-        }
-
-        @Test
-        @DisplayName("Ошибка → started, error (несколько раз при retry)")
-        void testErrorCallbacks() throws Exception {
-            mockStatus(500, "Server Error");
-            RecordingListener listener = new RecordingListener();
-
-            RNProvider provider = createProvider();
-            provider.addDataLoadListener(listener);
-            provider.triggerLoad(); // Загрузка ПОСЛЕ регистрации listener
-
-            // Ждём завершения retry-цикла
-            long start = System.currentTimeMillis();
-            while (provider.getLastError() == null && System.currentTimeMillis() - start < 5000) {
-                Thread.sleep(50);
-            }
-
-            assertTrue(listener.events.contains("started"), "Должен вызвать onLoadingStarted");
-            assertTrue(listener.events.contains("error"), "Должен вызвать onError");
-            assertTrue(listener.errors.size() >= 2,
-                    "Должно быть несколько ошибок (retry), получено: " + listener.errors.size());
-        }
-    }
-
-    // ========================================================================
-    // Тесты: calculateBackoff
-    // ========================================================================
-
-    @Nested
-    @DisplayName("calculateBackoff() — exponential backoff")
-    class BackoffTests {
-
-        @Test
-        @DisplayName("Экспоненциальный рост: 1, 2, 4, 8, 10 (cap)")
-        void testExponentialGrowthWithCap() {
-            // initialBackoffMs=1, maxBackoffMs=10 (из testSettings)
-            RNProvider provider = createProvider();
-
-            assertEquals(1, provider.calculateBackoff(1));   // 1 * 2^0 = 1
-            assertEquals(2, provider.calculateBackoff(2));   // 1 * 2^1 = 2
-            assertEquals(4, provider.calculateBackoff(3));   // 1 * 2^2 = 4
-            assertEquals(8, provider.calculateBackoff(4));   // 1 * 2^3 = 8
-            assertEquals(10, provider.calculateBackoff(5));  // 1 * 2^4 = 16 → cap 10
-            assertEquals(10, provider.calculateBackoff(10)); // Всегда cap
-        }
-
-        @Test
-        @DisplayName("С продакшен-значениями: 1s, 2s, 4s, 8s, 16s, cap 30s")
-        void testProductionBackoffValues() {
-            RNProvider.ProviderSettings prodSettings = new RNProvider.ProviderSettings(
-                    baseUrl, "key", "uint16", 5, 2, 100, 2000, 2000, 3,
-                    5,       // maxRetries
-                    1000L,   // initialBackoffMs
-                    30000L   // maxBackoffMs
-            );
-            RNProvider provider = createProvider(prodSettings);
-
-            assertEquals(1000, provider.calculateBackoff(1));
-            assertEquals(2000, provider.calculateBackoff(2));
-            assertEquals(4000, provider.calculateBackoff(3));
-            assertEquals(8000, provider.calculateBackoff(4));
-            assertEquals(16000, provider.calculateBackoff(5));
-            assertEquals(30000, provider.calculateBackoff(6)); // cap
-        }
-
-        @ParameterizedTest
-        @DisplayName("Backoff всегда положительный")
-        @ValueSource(ints = {1, 2, 3, 5, 10, 20, 50})
-        void testBackoffAlwaysPositive(int attempt) {
-            RNProvider provider = createProvider();
-            assertTrue(provider.calculateBackoff(attempt) > 0,
-                    "Backoff для попытки " + attempt + " должен быть положительным");
-        }
-    }
-
-    // ========================================================================
-    // Тесты: Конфигурация API ключа
-    // ========================================================================
-
-    @Nested
-    @DisplayName("Валидация API ключа")
-    class ApiKeyValidationTests {
-
-        @Test
-        @DisplayName("null API ключ → lastError сразу")
-        void testNullApiKey() {
-            RNProvider.ProviderSettings settings = new RNProvider.ProviderSettings(
-                    baseUrl, null, "uint16", 5, 2, 100, 2000, 2000, 3, 3, 1L, 10L
-            );
-            RNProvider provider = new RNProvider(settings, true, INSTANT_SLEEPER);
-
-            assertNotNull(provider.getLastError());
-            assertTrue(provider.getLastError().contains("not configured"));
-        }
-
-        @Test
-        @DisplayName("Пустой API ключ → lastError сразу")
-        void testEmptyApiKey() {
-            RNProvider.ProviderSettings settings = new RNProvider.ProviderSettings(
-                    baseUrl, "", "uint16", 5, 2, 100, 2000, 2000, 3, 3, 1L, 10L
-            );
-            RNProvider provider = new RNProvider(settings, true, INSTANT_SLEEPER);
-
-            assertNotNull(provider.getLastError());
-            assertTrue(provider.getLastError().contains("not configured"));
-        }
-
-        @Test
-        @DisplayName("Placeholder YOUR_... → lastError сразу")
-        void testPlaceholderApiKey() {
-            RNProvider.ProviderSettings settings = new RNProvider.ProviderSettings(
-                    baseUrl, "YOUR_API_KEY_HERE", "uint16", 5, 2, 100, 2000, 2000, 3, 3, 1L, 10L
-            );
-            RNProvider provider = new RNProvider(settings, true, INSTANT_SLEEPER);
-
-            assertNotNull(provider.getLastError());
-            assertTrue(provider.getLastError().contains("not configured"));
-        }
-
-        @Test
-        @DisplayName("Валидный ключ → lastError = null (до загрузки)")
-        void testValidApiKey() {
-            mockSuccess("{\"data\":[1]}");
-            RNProvider provider = createProvider();
-            // autoLoad=false, ключ валидный → ошибки нет
+            assertEquals(RNProvider.Mode.PSEUDO, provider.getMode(),
+                    "При неожиданном ответе должен уйти в PSEUDO");
             assertNull(provider.getLastError());
         }
-    }
 
-    // ========================================================================
-    // Тесты: waitForInitialData
-    // ========================================================================
+        // ========================================================================
+        // Тесты: Буфер и getNextRandomNumber
+        // ========================================================================
 
-    @Nested
-    @DisplayName("waitForInitialData()")
-    class WaitForDataTests {
+        @Nested
+        @DisplayName("Буфер и getNextRandomNumber()")
+        class BufferTests {
 
-        @Test
-        @DisplayName("Возвращает true при успешной загрузке")
-        void testWaitReturnsTrue() throws Exception {
-            mockSuccess("{\"data\":[1,2,3]}");
-            RNProvider provider = new RNProvider(testSettings(), true, INSTANT_SLEEPER);
+            @Test
+            @DisplayName("Пустой буфер → NoSuchElementException")
+            void testEmptyBufferThrows() {
+                mockSuccess("{\"data\":[]}");
+                RNProvider provider = createProvider();
+                // Не загружаем данные → буфер пуст
 
-            assertTrue(provider.waitForInitialData(5000));
-            assertTrue(provider.isInitialLoadComplete());
+                NoSuchElementException ex = assertThrows(NoSuchElementException.class,
+                        provider::getNextRandomNumber);
+                assertTrue(ex.getMessage().contains("Buffer empty"),
+                        "Сообщение должно содержать 'Buffer empty', получено: " + ex.getMessage());
+            }
+
+            @Test
+            @DisplayName("maxApiRequests исчерпан → автоматический PSEUDO fallback при следующем запросе")
+            void testMaxApiRequestsExhausted() throws Exception {
+                // maxApiRequests = 1
+                RNProvider.ProviderSettings settings = new RNProvider.ProviderSettings(
+                        baseUrl, "test-key", "uint16",
+                        2, 1, 1, // maxApiRequests = 1
+                        2000, 2000, 0,
+                        3, 1L, 10L
+                );
+
+                // Первый запрос — успех, загружает 2 числа
+                mockSuccess("{\"data\":[10,20]}");
+                RNProvider provider = new RNProvider(settings, true, INSTANT_SLEEPER);
+                assertTrue(provider.waitForInitialData(5000));
+
+                // Потребляем оба числа (буфер пуст)
+                provider.getNextRandomNumber();
+                provider.getNextRandomNumber();
+
+                // ИСПРАВЛЕНИЕ: Запрашиваем 3-е число. Именно в этот момент
+                // провайдер видит пустой буфер, проверяет лимит и включает PSEUDO
+                int pseudoNum = provider.getNextRandomNumber();
+
+                // Теперь проверяем режим и возвращенное число
+                assertEquals(RNProvider.Mode.PSEUDO, provider.getMode(),
+                        "Должен переключиться в PSEUDO при запросе числа после исчерпания лимита");
+                assertTrue(pseudoNum >= 0 && pseudoNum <= 65535,
+                        "Должно вернуться псевдослучайное число, а не исключение. Получено: " + pseudoNum);
+            }
+
+            @Test
+            @DisplayName("getNextRandomNumberInRange() делегирует в RandomNumberProcessor")
+            void testGetNextRandomNumberInRange() throws Exception {
+                mockSuccess("{\"data\":[0,32768,65535]}");
+                RNProvider provider = new RNProvider(testSettings(), true, INSTANT_SLEEPER);
+                assertTrue(provider.waitForInitialData(5000));
+
+                // 0 → min диапазона, 65535 → max диапазона
+                long result1 = provider.getNextRandomNumberInRange(0, 100);
+                assertEquals(0, result1, "0 должен маппиться в начало диапазона");
+
+                long result2 = provider.getNextRandomNumberInRange(0, 100);
+                assertTrue(result2 >= 49 && result2 <= 51,
+                        "32768 (~середина) должен маппиться в ~50, получено: " + result2);
+            }
         }
 
-        @Test
-        @DisplayName("Возвращает false при timeout")
-        void testWaitReturnsFalseOnTimeout() {
-            // Сервер отвечает с задержкой 10 секунд → timeout
-            mockServer.createContext("/", exchange -> {
-                try { Thread.sleep(10000); } catch (InterruptedException ignored) {}
-                sendResponse(exchange, 200, "{\"data\":[1]}");
-            });
+        // ========================================================================
+        // Тесты: Listener callbacks
+        // ========================================================================
 
-            RNProvider provider = new RNProvider(testSettings(), true, INSTANT_SLEEPER);
-            assertFalse(provider.waitForInitialData(500), "Должен вернуть false при timeout");
-        }
-    }
+        @Nested
+        @DisplayName("Listener callbacks")
+        class ListenerTests {
 
-    // ========================================================================
-    // Тесты: Sleeper вызывается при retry
-    // ========================================================================
+            @Test
+            @DisplayName("Успешная загрузка → started, rawData, completed")
+            void testSuccessCallbacks() throws Exception {
+                mockSuccess("{\"data\":[42]}");
+                RecordingListener listener = new RecordingListener();
 
-    @Nested
-    @DisplayName("Sleeper injection")
-    class SleeperTests {
+                RNProvider provider = createProvider();
+                provider.addDataLoadListener(listener);
+                provider.triggerLoad(); // Загрузка ПОСЛЕ регистрации listener
 
-        @Test
-        @DisplayName("Sleeper вызывается с правильными значениями backoff")
-        void testSleeperCalledWithBackoffValues() throws Exception {
-            AtomicInteger requestCount = new AtomicInteger(0);
-            List<Long> capturedSleeps = new CopyOnWriteArrayList<>();
+                assertTrue(listener.completedLatch.await(5, TimeUnit.SECONDS),
+                        "onLoadingCompleted должен быть вызван");
 
-            mockServer.createContext("/", exchange -> {
-                int count = requestCount.incrementAndGet();
-                if (count <= 2) {
-                    sendResponse(exchange, 500, "Error");
-                } else {
-                    sendResponse(exchange, 200, "{\"data\":[42]}");
+                assertTrue(listener.events.contains("started"), "Должен вызвать onLoadingStarted");
+                assertTrue(listener.events.contains("completed"), "Должен вызвать onLoadingCompleted");
+                assertTrue(listener.events.contains("rawData"), "Должен вызвать onRawDataReceived");
+                assertFalse(listener.rawDataList.isEmpty());
+                assertTrue(listener.rawDataList.getFirst().contains("42"),
+                        "rawData должен содержать ответ API");
+            }
+
+            @Test
+            @DisplayName("Ошибка → started, error (несколько раз при retry)")
+            void testErrorCallbacks() throws Exception {
+                mockStatus(500, "Server Error");
+                RecordingListener listener = new RecordingListener();
+
+                RNProvider provider = createProvider();
+                provider.addDataLoadListener(listener);
+                provider.triggerLoad(); // Загрузка ПОСЛЕ регистрации listener
+
+                // Ждём завершения retry-цикла
+                long start = System.currentTimeMillis();
+                while (provider.getLastError() == null && System.currentTimeMillis() - start < 5000) {
+                    Thread.sleep(50);
                 }
-            });
 
-            RNProvider.Sleeper recordingSleeper = ms -> capturedSleeps.add(ms);
-
-            RNProvider provider = new RNProvider(testSettings(), true, recordingSleeper);
-            assertTrue(provider.waitForInitialData(5000));
-
-            assertEquals(2, capturedSleeps.size(), "Должно быть 2 вызова sleep (2 retry)");
-            assertEquals(1L, capturedSleeps.get(0), "Первый backoff = initialBackoffMs = 1");
-            assertEquals(2L, capturedSleeps.get(1), "Второй backoff = 1 * 2^1 = 2");
-        }
-    }
-
-    // ========================================================================
-    // Тесты: shutdown
-    // ========================================================================
-
-    @Nested
-    @DisplayName("shutdown()")
-    class ShutdownTests {
-
-        @Test
-        @DisplayName("shutdown() не бросает исключений")
-        void testShutdownDoesNotThrow() {
-            RNProvider provider = createProvider();
-            assertDoesNotThrow(provider::shutdown);
-        }
-    }
-
-    // ========================================================================
-    // Тесты: Thread-safety (smoke)
-    // ========================================================================
-
-    @Nested
-    @DisplayName("Thread safety (smoke test)")
-    class ThreadSafetyTests {
-
-        @Test
-        @DisplayName("Параллельные getNextRandomNumber() не крашат провайдер")
-        void testConcurrentAccess() throws Exception {
-            // Загружаем 100 чисел
-            StringBuilder json = new StringBuilder("{\"data\":[");
-            for (int i = 0; i < 100; i++) {
-                if (i > 0) json.append(",");
-                json.append(i);
+                assertTrue(listener.events.contains("started"), "Должен вызвать onLoadingStarted");
+                assertTrue(listener.events.contains("error"), "Должен вызвать onError");
+                assertTrue(listener.errors.size() >= 2,
+                        "Должно быть несколько ошибок (retry), получено: " + listener.errors.size());
             }
-            json.append("]}");
-            mockSuccess(json.toString());
+        }
 
-            RNProvider provider = new RNProvider(testSettings(), true, INSTANT_SLEEPER);
-            assertTrue(provider.waitForInitialData(5000));
+        // ========================================================================
+        // Тесты: calculateBackoff
+        // ========================================================================
 
-            int threadCount = 10;
-            CountDownLatch startLatch = new CountDownLatch(1);
-            CountDownLatch doneLatch = new CountDownLatch(threadCount);
-            List<Throwable> errors = new CopyOnWriteArrayList<>();
+        @Nested
+        @DisplayName("calculateBackoff() — exponential backoff")
+        class BackoffTests {
 
-            for (int t = 0; t < threadCount; t++) {
-                new Thread(() -> {
+            @Test
+            @DisplayName("Экспоненциальный рост: 1, 2, 4, 8, 10 (cap)")
+            void testExponentialGrowthWithCap() {
+                // initialBackoffMs=1, maxBackoffMs=10 (из testSettings)
+                RNProvider provider = createProvider();
+
+                assertEquals(1, provider.calculateBackoff(1));   // 1 * 2^0 = 1
+                assertEquals(2, provider.calculateBackoff(2));   // 1 * 2^1 = 2
+                assertEquals(4, provider.calculateBackoff(3));   // 1 * 2^2 = 4
+                assertEquals(8, provider.calculateBackoff(4));   // 1 * 2^3 = 8
+                assertEquals(10, provider.calculateBackoff(5));  // 1 * 2^4 = 16 → cap 10
+                assertEquals(10, provider.calculateBackoff(10)); // Всегда cap
+            }
+
+            @Test
+            @DisplayName("С продакшен-значениями: 1s, 2s, 4s, 8s, 16s, cap 30s")
+            void testProductionBackoffValues() {
+                RNProvider.ProviderSettings prodSettings = new RNProvider.ProviderSettings(
+                        baseUrl, "key", "uint16", 5, 2, 100, 2000, 2000, 3,
+                        5,       // maxRetries
+                        1000L,   // initialBackoffMs
+                        30000L   // maxBackoffMs
+                );
+                RNProvider provider = createProvider(prodSettings);
+
+                assertEquals(1000, provider.calculateBackoff(1));
+                assertEquals(2000, provider.calculateBackoff(2));
+                assertEquals(4000, provider.calculateBackoff(3));
+                assertEquals(8000, provider.calculateBackoff(4));
+                assertEquals(16000, provider.calculateBackoff(5));
+                assertEquals(30000, provider.calculateBackoff(6)); // cap
+            }
+
+            @ParameterizedTest
+            @DisplayName("Backoff всегда положительный")
+            @ValueSource(ints = {1, 2, 3, 5, 10, 20, 50})
+            void testBackoffAlwaysPositive(int attempt) {
+                RNProvider provider = createProvider();
+                assertTrue(provider.calculateBackoff(attempt) > 0,
+                        "Backoff для попытки " + attempt + " должен быть положительным");
+            }
+        }
+
+        // ========================================================================
+        // Тесты: Конфигурация API ключа
+        // ========================================================================
+
+        @Nested
+        @DisplayName("Валидация API ключа")
+        class ApiKeyValidationTests {
+
+            @Test
+            @DisplayName("null API ключ → мгновенный PSEUDO режим")
+            void testNullApiKey() {
+                RNProvider.ProviderSettings settings = new RNProvider.ProviderSettings(
+                        baseUrl, null, "uint16", 5, 2, 100, 2000, 2000, 3, 3, 1L, 10L
+                );
+                RNProvider provider = new RNProvider(settings, true, INSTANT_SLEEPER);
+
+                assertEquals(RNProvider.Mode.PSEUDO, provider.getMode(), "Должен перейти в PSEUDO");
+                assertNull(provider.getLastError(), "Ошибка должна быть сброшена, приложение работает");
+            }
+
+            @Test
+            @DisplayName("Пустой API ключ → мгновенный PSEUDO режим")
+            void testEmptyApiKey() {
+                RNProvider.ProviderSettings settings = new RNProvider.ProviderSettings(
+                        baseUrl, "", "uint16", 5, 2, 100, 2000, 2000, 3, 3, 1L, 10L
+                );
+                RNProvider provider = new RNProvider(settings, true, INSTANT_SLEEPER);
+
+                assertEquals(RNProvider.Mode.PSEUDO, provider.getMode());
+                assertNull(provider.getLastError());
+            }
+
+            @Test
+            @DisplayName("Placeholder YOUR_... → мгновенный PSEUDO режим")
+            void testPlaceholderApiKey() {
+                RNProvider.ProviderSettings settings = new RNProvider.ProviderSettings(
+                        baseUrl, "YOUR_API_KEY_HERE", "uint16", 5, 2, 100, 2000, 2000, 3, 3, 1L, 10L
+                );
+                RNProvider provider = new RNProvider(settings, true, INSTANT_SLEEPER);
+
+                assertEquals(RNProvider.Mode.PSEUDO, provider.getMode());
+                assertNull(provider.getLastError());
+            }
+
+            @Test
+            @DisplayName("Валидный ключ → lastError = null (до загрузки)")
+            void testValidApiKey() {
+                mockSuccess("{\"data\":[1]}");
+                RNProvider provider = createProvider();
+                // autoLoad=false, ключ валидный → ошибки нет
+                assertNull(provider.getLastError());
+            }
+        }
+
+        // ========================================================================
+        // Тесты: waitForInitialData
+        // ========================================================================
+
+        @Nested
+        @DisplayName("waitForInitialData()")
+        class WaitForDataTests {
+
+            @Test
+            @DisplayName("Возвращает true при успешной загрузке")
+            void testWaitReturnsTrue() throws Exception {
+                mockSuccess("{\"data\":[1,2,3]}");
+                RNProvider provider = new RNProvider(testSettings(), true, INSTANT_SLEEPER);
+
+                assertTrue(provider.waitForInitialData(5000));
+                assertTrue(provider.isInitialLoadComplete());
+            }
+
+            @Test
+            @DisplayName("Возвращает false при timeout")
+            void testWaitReturnsFalseOnTimeout() {
+                // Сервер отвечает с задержкой 10 секунд → timeout
+                mockServer.createContext("/", exchange -> {
                     try {
-                        startLatch.await();
-                        for (int i = 0; i < 10; i++) {
-                            try {
-                                provider.getNextRandomNumber();
-                            } catch (NoSuchElementException ignored) {
-                                // Ожидаемо — буфер может опустеть
-                            }
-                        }
-                    } catch (Throwable e) {
-                        errors.add(e);
-                    } finally {
-                        doneLatch.countDown();
+                        Thread.sleep(10000);
+                    } catch (InterruptedException ignored) {
                     }
-                }).start();
-            }
+                    sendResponse(exchange, 200, "{\"data\":[1]}");
+                });
 
-            startLatch.countDown(); // Запускаем все потоки одновременно
-            assertTrue(doneLatch.await(10, TimeUnit.SECONDS));
-            assertTrue(errors.isEmpty(),
-                    "Не должно быть неожиданных ошибок: " + errors);
+                RNProvider provider = new RNProvider(testSettings(), true, INSTANT_SLEEPER);
+                assertFalse(provider.waitForInitialData(500), "Должен вернуть false при timeout");
+            }
+        }
+
+        // ========================================================================
+        // Тесты: Sleeper вызывается при retry
+        // ========================================================================
+
+        @Nested
+        @DisplayName("Sleeper injection")
+        class SleeperTests {
+
+            @Test
+            @DisplayName("Sleeper вызывается с правильными значениями backoff")
+            void testSleeperCalledWithBackoffValues() throws Exception {
+                AtomicInteger requestCount = new AtomicInteger(0);
+                List<Long> capturedSleeps = new CopyOnWriteArrayList<>();
+
+                mockServer.createContext("/", exchange -> {
+                    int count = requestCount.incrementAndGet();
+                    if (count <= 2) {
+                        sendResponse(exchange, 500, "Error");
+                    } else {
+                        sendResponse(exchange, 200, "{\"data\":[42]}");
+                    }
+                });
+
+                RNProvider.Sleeper recordingSleeper = ms -> capturedSleeps.add(ms);
+
+                RNProvider provider = new RNProvider(testSettings(), true, recordingSleeper);
+                assertTrue(provider.waitForInitialData(5000));
+
+                assertEquals(2, capturedSleeps.size(), "Должно быть 2 вызова sleep (2 retry)");
+                assertEquals(1L, capturedSleeps.get(0), "Первый backoff = initialBackoffMs = 1");
+                assertEquals(2L, capturedSleeps.get(1), "Второй backoff = 1 * 2^1 = 2");
+            }
+        }
+
+        // ========================================================================
+        // Тесты: shutdown
+        // ========================================================================
+
+        @Nested
+        @DisplayName("shutdown()")
+        class ShutdownTests {
+
+            @Test
+            @DisplayName("shutdown() не бросает исключений")
+            void testShutdownDoesNotThrow() {
+                RNProvider provider = createProvider();
+                assertDoesNotThrow(provider::shutdown);
+            }
+        }
+
+        // ========================================================================
+        // Тесты: Thread-safety (smoke)
+        // ========================================================================
+
+        @Nested
+        @DisplayName("Thread safety (smoke test)")
+        class ThreadSafetyTests {
+
+            @Test
+            @DisplayName("Параллельные getNextRandomNumber() не крашат провайдер")
+            void testConcurrentAccess() throws Exception {
+                // Загружаем 100 чисел
+                StringBuilder json = new StringBuilder("{\"data\":[");
+                for (int i = 0; i < 100; i++) {
+                    if (i > 0) json.append(",");
+                    json.append(i);
+                }
+                json.append("]}");
+                mockSuccess(json.toString());
+
+                RNProvider provider = new RNProvider(testSettings(), true, INSTANT_SLEEPER);
+                assertTrue(provider.waitForInitialData(5000));
+
+                int threadCount = 10;
+                CountDownLatch startLatch = new CountDownLatch(1);
+                CountDownLatch doneLatch = new CountDownLatch(threadCount);
+                List<Throwable> errors = new CopyOnWriteArrayList<>();
+
+                for (int t = 0; t < threadCount; t++) {
+                    new Thread(() -> {
+                        try {
+                            startLatch.await();
+                            for (int i = 0; i < 10; i++) {
+                                try {
+                                    provider.getNextRandomNumber();
+                                } catch (NoSuchElementException ignored) {
+                                    // Ожидаемо — буфер может опустеть
+                                }
+                            }
+                        } catch (Throwable e) {
+                            errors.add(e);
+                        } finally {
+                            doneLatch.countDown();
+                        }
+                    }).start();
+                }
+
+                startLatch.countDown(); // Запускаем все потоки одновременно
+                assertTrue(doneLatch.await(10, TimeUnit.SECONDS));
+                assertTrue(errors.isEmpty(),
+                        "Не должно быть неожиданных ошибок: " + errors);
+            }
         }
     }
 }
