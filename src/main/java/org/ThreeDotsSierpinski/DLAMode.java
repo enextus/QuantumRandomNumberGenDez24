@@ -34,10 +34,10 @@ public class DLAMode implements VisualizationMode {
     // ПАРАЛЛЕЛЬНЫЕ БЛУЖДАЮЩИЕ ЧАСТИЦЫ (Ускорение в 5 раз)
     // ========================================================================
 
-    private static final int PARALLEL_WALKERS = 5;
-    private static final int MAX_TOTAL_STEPS_PER_TICK = 1500; // Общий бюджет шагов на тик
-    private static final int KILL_RADIUS_STEPS = 2000;     // Если не прилипла за 2000 шагов — убить
-    private static final int MAX_STICKS_PER_TICK = 5;        // Макс прилипаний за тик
+    private static final int PARALLEL_WALKERS = 50;              // Было 5
+    private static final int MAX_TOTAL_STEPS_PER_TICK = 15000;  // Было 1500
+    private static final int KILL_RADIUS_STEPS = 1500;       // Было 2000 (помогает, т.к. кластер становится плотнее)
+    private static final int MAX_STICKS_PER_TICK = 20;         // Было 5 (чтобы не моргало красным)
 
     private int spawnRadius;
 

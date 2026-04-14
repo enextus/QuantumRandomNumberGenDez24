@@ -48,7 +48,7 @@ public class LoggerConfig {
                 // Определение пути к файлу лога
                 Path logFilePath = Paths.get(logFileName);
                 
-                // ИСПРАВЛЕНИЕ: Создание директории если не существует
+                // Создание директорию, если не существует
                 Path parentDir = logFilePath.getParent();
                 if (parentDir != null) {
                     try {
