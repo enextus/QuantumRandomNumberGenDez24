@@ -31,22 +31,19 @@ public class DotController extends JPanel {
     private static final int COLUMN_SPACING = Config.getInt("column.spacing");
     private static final int MAX_COLUMNS = Config.getInt("max.columns");
 
-
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
     private final VisualizationMode mode;
-    // private final List<Long> usedRandomNumbers;
     private final RNProvider randomNumberProvider;
     private volatile String errorMessage;
     private final BufferedImage offscreenImage;
-    private Long currentRandomValue;
     private final JLabel statusLabel;
 
     private Timer animationTimer;
     private volatile boolean isRunning = false;
 
     private final List<Point> pendingRecolorPoints = new ArrayList<>();
-    private Timer recolorTimer;
+    private final Timer recolorTimer;
 
     public DotController(RNProvider randomNumberProvider, VisualizationMode mode, JLabel statusLabel) {
         this.statusLabel = statusLabel;
@@ -54,7 +51,6 @@ public class DotController extends JPanel {
         this.randomNumberProvider = randomNumberProvider;
         setPreferredSize(new Dimension(SIZE_WIDTH + 300, SIZE_HEIGHT));
         setBackground(Color.WHITE);
-        // usedRandomNumbers = Collections.synchronizedList(new ArrayList<>());
         errorMessage = null;
         offscreenImage = new BufferedImage(SIZE_WIDTH, SIZE_HEIGHT, BufferedImage.TYPE_INT_ARGB);
 
@@ -190,15 +186,6 @@ public class DotController extends JPanel {
         drawRandomNumbersStack(g);
     }
 
-    private void drawDots(List<Point> points, Color color) {
-        var g2d = offscreenImage.createGraphics();
-        g2d.setColor(color);
-        for (var p : points) {
-            g2d.fillRect(p.x, p.y, DOT_SIZE, DOT_SIZE);
-        }
-        g2d.dispose();
-    }
-
     private void drawRandomNumbersStack(Graphics g) {
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -223,7 +210,7 @@ public class DotController extends JPanel {
 
         for (Long randomValue : randomNumberProvider.getConsumedNumbers()) {
             int numDigits = String.valueOf(Math.abs(randomValue)).length();
-            if (numDigits >= 1 && numDigits <= 5) {
+            if (numDigits <= 5) {
                 digitBuckets.get(numDigits - 1).add(randomValue);
             }
         }
@@ -281,13 +268,6 @@ public class DotController extends JPanel {
 
     public List<Long> getUsedRandomNumbers() {
         return randomNumberProvider.getConsumedNumbers();
-    }
-
-    /**
-     * Имя текущего режима визуализации
-     */
-    public String getModeName() {
-        return mode.getName();
     }
 
     public void shutdown() {

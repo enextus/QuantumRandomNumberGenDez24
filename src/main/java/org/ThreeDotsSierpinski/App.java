@@ -126,29 +126,7 @@ public class App {
             panel.setBorder(BorderFactory.createEmptyBorder(8, 4, 8, 4));
 
             for (TestResult result : results) {
-                var row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
-
-                var indicator = new JLabel("\u25CF");
-                indicator.setFont(new Font("SansSerif", Font.BOLD, 16));
-                indicator.setForeground(switch (result.quality()) {
-                    case STRONG   -> new Color(34, 139, 34);
-                    case MARGINAL -> new Color(204, 153, 0);
-                    case FAIL     -> new Color(204, 0, 0);
-                });
-                row.add(indicator);
-
-                var mark = new JLabel(switch (result.quality()) {
-                    case STRONG   -> "\u2713";
-                    case MARGINAL -> "\u25CB";
-                    case FAIL     -> "\u2717";
-                });
-                mark.setFont(new Font("SansSerif", Font.BOLD, 14));
-                mark.setForeground(indicator.getForeground());
-                row.add(mark);
-
-                var text = new JLabel(result.statistic() + "    " + result.testName());
-                text.setFont(new Font("Monospaced", Font.PLAIN, 13));
-                row.add(text);
+                var row = getJPanel(result);
 
                 panel.add(row);
             }
@@ -160,9 +138,9 @@ public class App {
             summary.setBorder(BorderFactory.createEmptyBorder(4, 8, 0, 0));
             panel.add(summary);
 
-            var legend = new JLabel("<html><font color='#228B22'>\u25CF отлично</font>"
-                    + "   <font color='#CC9900'>\u25CF приемлемо</font>"
-                    + "   <font color='#CC0000'>\u25CF не пройден</font></html>");
+            var legend = new JLabel("<html><font color='#228B22'>● отлично</font>"
+                    + "   <font color='#CC9900'>● приемлемо</font>"
+                    + "   <font color='#CC0000'>● не пройден</font></html>");
             legend.setFont(new Font("SansSerif", Font.PLAIN, 11));
             legend.setBorder(BorderFactory.createEmptyBorder(6, 8, 0, 0));
             legend.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -194,7 +172,6 @@ public class App {
             }
         });
 
-        // Ожидание данных
         // Ожидание данных
         Thread.startVirtualThread(() -> {
             LOGGER.info(LOG_WAITING_FOR_DATA);
@@ -234,5 +211,32 @@ public class App {
                 super.windowClosing(e);
             }
         });
+    }
+
+    private static JPanel getJPanel(TestResult result) {
+        var row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+
+        var indicator = new JLabel("●");
+        indicator.setFont(new Font("SansSerif", Font.BOLD, 16));
+        indicator.setForeground(switch (result.quality()) {
+            case STRONG   -> new Color(34, 139, 34);
+            case MARGINAL -> new Color(204, 153, 0);
+            case FAIL     -> new Color(204, 0, 0);
+        });
+        row.add(indicator);
+
+        var mark = new JLabel(switch (result.quality()) {
+            case STRONG   -> "✓";
+            case MARGINAL -> "○";
+            case FAIL     -> "✗";
+        });
+        mark.setFont(new Font("SansSerif", Font.BOLD, 14));
+        mark.setForeground(indicator.getForeground());
+        row.add(mark);
+
+        var text = new JLabel(result.statistic() + "    " + result.testName());
+        text.setFont(new Font("Monospaced", Font.PLAIN, 13));
+        row.add(text);
+        return row;
     }
 }

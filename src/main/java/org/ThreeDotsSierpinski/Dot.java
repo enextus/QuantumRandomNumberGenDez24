@@ -1,5 +1,7 @@
 package org.ThreeDotsSierpinski;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.awt.*;
 
 /**
@@ -35,7 +37,7 @@ public record Dot(Point point) {
      * @return A string in the format "x,y".
      */
     @Override
-    public String toString() {
+    public @NotNull String toString() {
         return point.x + "," + point.y; // Return a comma-separated string of the coordinates.
     }
 
