@@ -35,7 +35,7 @@ public class Config {
             loadConfigProperties();
             loadEnvFile();
         } catch (Exception ex) {
-            // ИСПРАВЛЕНИЕ 2.2: Предотвращаем ExceptionInInitializerError.
+            // Предотвращаем ExceptionInInitializerError.
             // Если конфиг не загрузился, класс не умирает, методы просто будут возвращать null.
             System.err.println("FATAL: Failed to initialize Config. Error: " + ex.getMessage());
         }

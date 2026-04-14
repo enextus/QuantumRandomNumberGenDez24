@@ -478,7 +478,7 @@ class RNProviderIntegrationTest {
                 provider.getNextRandomNumber();
                 provider.getNextRandomNumber();
 
-                // ИСПРАВЛЕНИЕ: Запрашиваем 3-е число. Именно в этот момент
+                // Запрашиваем 3-е число. Именно в этот момент
                 // провайдер видит пустой буфер, проверяет лимит и включает PSEUDO
                 int pseudoNum = provider.getNextRandomNumber();
 

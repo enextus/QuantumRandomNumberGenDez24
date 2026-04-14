@@ -59,7 +59,7 @@ public class DotController extends JPanel {
 
         initAnimationTimer();
 
-        // ИСПРАВЛЕНИЕ 2.3: Единый таймер для перекраски вместо создания новых в каждом тике
+        // Единый таймер для перекраски вместо создания новых в каждом тике
         recolorTimer = new Timer(1000, e -> {
             synchronized (pendingRecolorPoints) {
                 if (!pendingRecolorPoints.isEmpty()) {
@@ -75,9 +75,9 @@ public class DotController extends JPanel {
             }
         });
         recolorTimer.setRepeats(false);
-    } // <--- Здесь заканчивается конструктор DotController (скобка ОДНА)
+    }
 
-    private void initAnimationTimer() { // <--- Метод внутри класса
+    private void initAnimationTimer() {
         animationTimer = new Timer(TIMER_DELAY, e -> {
 
             if (errorMessage == null) {
@@ -90,7 +90,7 @@ public class DotController extends JPanel {
                     // Используем pointCount как proxy
                     repaint();
 
-                    // ИСПРАВЛЕНИЕ 2.3: Кладём точки в очередь и перезапускаем единый таймер
+                    // Кладём точки в очередь и перезапускаем единый таймер
                     if (!newPoints.isEmpty()) {
                         synchronized (pendingRecolorPoints) {
                             pendingRecolorPoints.addAll(newPoints);
@@ -108,8 +108,9 @@ public class DotController extends JPanel {
                         updateStatusLabel("Error: " + msg);
                         stop();
                     } else {
+                        // Буфер временно пуст (например, при переключении QUANTUM -> PSEUDO).
+                        // Просто пропускаем тик, не пугаем пользователя статусом.
                         LOGGER.fine("Buffer empty, skipping tick. " + msg);
-                        updateStatusLabel("Loading data...");
                     }
                 }
             } else {
@@ -208,7 +209,7 @@ public class DotController extends JPanel {
             headers[i] = (i + 1) + "-digit";
         }
 
-        for (Long randomValue : randomNumberProvider.getConsumedNumbers()) {
+        for (Long randomValue : randomNumberProvider.getLastConsumedNumbers(2000)) {
             int numDigits = String.valueOf(Math.abs(randomValue)).length();
             if (numDigits <= 5) {
                 digitBuckets.get(numDigits - 1).add(randomValue);
@@ -219,6 +220,7 @@ public class DotController extends JPanel {
         for (int i = 0; i < MAX_COLUMNS; i++) {
             if (!digitBuckets.get(i).isEmpty()) visibleColumns.add(i);
         }
+
         if (visibleColumns.isEmpty()) return;
 
         int totalWidth = visibleColumns.size() * (COLUMN_WIDTH + COLUMN_SPACING) - COLUMN_SPACING;

@@ -183,7 +183,7 @@ public class App {
                 LOGGER.info(LOG_DATA_READY);
                 var rngMode = randomNumberProvider.getMode();
                 SwingUtilities.invokeLater(() -> {
-                    // ИСПРАВЛЕНИЕ: Показываем конкретную причину, если произошел fallback
+                    // Показываем конкретную причину, если произошел fallback
                     if (rngMode == RNProvider.Mode.PSEUDO) {
                         String reason = randomNumberProvider.getFallbackReason();
                         statusLabel.setText(reason != null ? reason : "Drawing... (Pseudo-random fallback)");

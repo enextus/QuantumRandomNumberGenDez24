@@ -91,7 +91,7 @@ public class RNProvider {
 
     private volatile boolean initialLoadComplete = false;
     private volatile String lastError = null;
-    private volatile String fallbackReason = null; // ИСПРАВЛЕНИЕ: Причина переключения в PSEUDO
+    private volatile String fallbackReason = null;
     private volatile int consecutiveFailures = 0;
     private volatile Mode currentMode = Mode.QUANTUM;
     private volatile boolean apiKeyConfigured = true;
@@ -220,6 +220,13 @@ public class RNProvider {
         return List.copyOf(consumedNumbers);
     }
 
+    /** Возвращает последние N потребленных чисел (для UI без лагов). */
+    public List<Long> getLastConsumedNumbers(int limit) {
+        int size = consumedNumbers.size();
+        if (limit >= size) return List.copyOf(consumedNumbers);
+        return List.copyOf(consumedNumbers.subList(size - limit, size));
+    }
+
     public void addDataLoadListener(RNLoadListener listener) {
         listeners.add(listener);
     }
@@ -241,7 +248,7 @@ public class RNProvider {
             if (currentMode == Mode.PSEUDO) {
                 // В pseudo-режиме — генерируем на лету
                 int pseudoNum = fallbackRng.nextInt(65536);
-                consumedNumbers.add((long) pseudoNum); // ИСПРАВЛЕНИЕ: сохраняем число
+                consumedNumbers.add((long) pseudoNum);
                 return pseudoNum;
             }
             // QUANTUM mode — буфер пуст
@@ -250,7 +257,7 @@ public class RNProvider {
                     // Лимит исчерпан → переключаемся на pseudo
                     activatePseudoMode("API request limit reached (" + maxApiRequests + ")");
                     int pseudoNum = fallbackRng.nextInt(65536);
-                    consumedNumbers.add((long) pseudoNum); // ИСПРАВЛЕНИЕ: сохраняем число
+                    consumedNumbers.add((long) pseudoNum);
                     return pseudoNum;
                 }
             }
@@ -259,7 +266,7 @@ public class RNProvider {
                     (lastError != null ? lastError : "Waiting for API response."));
         }
 
-        // ИСПРАВЛЕНИЕ: сохраняем число из очереди
+        // сохраняем число из очереди
         consumedNumbers.add((long) nextNumber);
 
         // Превентивная подгрузка
@@ -301,7 +308,7 @@ public class RNProvider {
         if (currentMode == Mode.PSEUDO) return; // Уже в pseudo
 
         currentMode = Mode.PSEUDO;
-        this.fallbackReason = reason; // ИСПРАВЛЕНИЕ: Запоминаем почему
+        this.fallbackReason = reason;
         lastError = null;
         LOGGER.info("Switched to PSEUDO mode (L128X256MixRandom). Reason: " + reason);
 
@@ -348,10 +355,18 @@ public class RNProvider {
                 }
                 return;
             }
+
+            // Если уже в PSEUDO режиме — не дергаем HTTP, просто генерируем локально
+            if (currentMode == Mode.PSEUDO) {
+                fillQueueWithPseudo();
+                return;
+            }
+
             isLoading = true;
         }
 
         CompletableFuture.runAsync(this::loadWithRetry, Thread::startVirtualThread)
+                // ... остальной код без изменений
                 .exceptionally(ex -> {
                     LOGGER.log(Level.SEVERE, "Exception during data loading", ex);
                     handleLoadFailure("Exception: " + ex.getMessage());
@@ -377,7 +392,7 @@ public class RNProvider {
                     return;
 
                 } catch (RateLimitException e) {
-                    // ИСПРАВЛЕНИЕ: Мгновенный fallback без ожидания
+                    // Мгновенный fallback без ожидания
                     LOGGER.info("Rate limit (429) detected. Bypassing retries, activating fallback.");
                     handleLoadFailure("Суточный лимит исчерпан, переключаю на псевдослучайные числа.");
                     return;
@@ -462,7 +477,7 @@ public class RNProvider {
             var errorBody = response.body();
             LOGGER.severe("HTTP error: " + statusCode + " - " + errorBody);
 
-            // ИСПРАВЛЕНИЕ: 429 не нужно ретраить, сразу сбрасываем в PSEUDO
+            // statusCode 429 не нужно ретраить, сразу сбрасываем в PSEUDO
             if (statusCode == 429) {
                 throw new RateLimitException(errorBody);
             }
