@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.OptionalInt;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -24,10 +25,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Интеграционные тесты для RNProvider с локальным mock HTTP-сервером.
- *
  * Используют com.sun.net.httpserver.HttpServer — никаких внешних зависимостей.
  * Sleeper заменён на no-op для мгновенного прохождения retry-логики.
- *
  * Покрытие:
  * - Успешная загрузка uint16 / hex16
  * - Проверка HTTP-заголовка x-api-key
@@ -197,9 +196,9 @@ class RNProviderIntegrationTest {
             provider.triggerLoad();
             assertTrue(provider.waitForInitialData(5000), "Должен загрузить данные за 5 сек");
 
-            assertEquals(100, provider.getNextRandomNumber());
-            assertEquals(200, provider.getNextRandomNumber());
-            assertEquals(300, provider.getNextRandomNumber());
+            assertEquals(100, provider.getNextRandomNumber().getAsInt());
+            assertEquals(200, provider.getNextRandomNumber().getAsInt());
+            assertEquals(300, provider.getNextRandomNumber().getAsInt());
         }
 
         @Test
@@ -212,9 +211,9 @@ class RNProviderIntegrationTest {
             provider.triggerLoad();
             assertTrue(provider.waitForInitialData(5000));
 
-            assertEquals(255, provider.getNextRandomNumber());
-            assertEquals(6699, provider.getNextRandomNumber());
-            assertEquals(0, provider.getNextRandomNumber());
+            assertEquals(255, provider.getNextRandomNumber().getAsInt());
+            assertEquals(6699, provider.getNextRandomNumber().getAsInt());
+            assertEquals(0, provider.getNextRandomNumber().getAsInt());
         }
 
         @Test
@@ -323,7 +322,7 @@ class RNProviderIntegrationTest {
             RNProvider provider = new RNProvider(testSettings(), true, INSTANT_SLEEPER);
             assertTrue(provider.waitForInitialData(5000), "Должен загрузить после retry");
             assertEquals(2, requestCount.get(), "Должно быть 2 запроса (1 fail + 1 success)");
-            assertEquals(42, provider.getNextRandomNumber());
+            assertEquals(42, provider.getNextRandomNumber().getAsInt());
         }
 
         @Test
@@ -446,16 +445,18 @@ class RNProviderIntegrationTest {
         class BufferTests {
 
             @Test
-            @DisplayName("Пустой буфер → NoSuchElementException")
-            void testEmptyBufferThrows() {
+            @DisplayName("Пустой буфер → возвращает OptionalInt.empty() без исключений")
+            void testEmptyBufferReturnsEmpty() {
                 mockSuccess("{\"data\":[]}");
                 RNProvider provider = createProvider();
-                // Не загружаем данные → буфер пуст
+                // Не запускаем загрузку -> буфер пуст, режим QUANTUM
 
-                NoSuchElementException ex = assertThrows(NoSuchElementException.class,
-                        provider::getNextRandomNumber);
-                assertTrue(ex.getMessage().contains("Buffer empty"),
-                        "Сообщение должно содержать 'Buffer empty', получено: " + ex.getMessage());
+                // Теперь метод НЕ должен бросать исключение, он должен вернуть пустой Optional
+                OptionalInt result = provider.getNextRandomNumber();
+
+                assertTrue(result.isEmpty(), "Должен вернуть пустой OptionalInt, когда буфер пуст");
+                assertEquals(RNProvider.Mode.QUANTUM, provider.getMode(),
+                        "Не должен переключаться в PSEUDO, просто ждет подзагрузки");
             }
 
             @Test
@@ -480,7 +481,8 @@ class RNProviderIntegrationTest {
 
                 // Запрашиваем 3-е число. Именно в этот момент
                 // провайдер видит пустой буфер, проверяет лимит и включает PSEUDO
-                int pseudoNum = provider.getNextRandomNumber();
+                int pseudoNum = provider.getNextRandomNumber()
+                        .orElseThrow(() -> new AssertionError("Fallback должен вернуть число, а не пустой Optional"));
 
                 // Теперь проверяем режим и возвращенное число
                 assertEquals(RNProvider.Mode.PSEUDO, provider.getMode(),

@@ -5,19 +5,17 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.OptionalInt;
 
 /**
  * Режим визуализации: Diffusion-Limited Aggregation (DLA) / Brownian Tree.
- * <p>
- * Алгоритм:
- * 1. Семя (seed) в центре экрана
- * 2. 5 параллельных частиц запускаются со случайной позиции
- * 3. Случайное блуждание: каждый шаг — одно случайное число → направление
- * 4. Если частица касается кластера — прилипает
- * 5. Если уходит за границу или блуждает слишком долго — новая частица
- * <p>
- * Результат: структуры, похожие на кораллы, молнии, корни.
- * Фрактальная размерность ≈ 1.71.
+ * Частицы блуждают случайно и прилипают к растущему кластеру.
+ * Визуализация «Using spheres of decreasing radius» (Paul Bourke).
+ * Цвет: HSB-градиент от центра (красный/тёплый) к краям (голубой/холодный).
+ * Размер: убывает с расстоянием от центра.
+ * Фон: чёрный.
+ *
+ * @see <a href="https://paulbourke.net/fractals/dla/">Paul Bourke: DLA</a>
  */
 public class DLAMode implements VisualizationMode {
 
@@ -26,25 +24,29 @@ public class DLAMode implements VisualizationMode {
     private int height;
     private int pointCount = 0;
     private int randomNumbersUsed = 0;
+    private int baseDotSize = 5;
 
-    /** 4 направления: dx, dy */
-    private static final int[][] DIRS = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
+    // Центр и метрики кластера
+    private int centerX;
+    private int centerY;
+    private double maxDist = 1.0; // Максимальное расстояние от центра до края кластера
 
-    // ========================================================================
-    // ПАРАЛЛЕЛЬНЫЕ БЛУЖДАЮЩИЕ ЧАСТИЦЫ (Ускорение в 5 раз)
-    // ========================================================================
+    // Spawn/kill параметры
+    private int spawnRadius = 30;
 
-    private static final int PARALLEL_WALKERS = 50;              // Было 5
-    private static final int MAX_TOTAL_STEPS_PER_TICK = 15000;  // Было 1500
-    private static final int KILL_RADIUS_STEPS = 1500;       // Было 2000 (помогает, т.к. кластер становится плотнее)
-    private static final int MAX_STICKS_PER_TICK = 20;         // Было 5 (чтобы не моргало красным)
+    // Параллельные блуждающие частицы
+    private static final int PARALLEL_WALKERS = 50;
+    private static final int MAX_STEPS_PER_TICK = 15_000;   // Общий бюджет шагов за тик
+    private static final int MAX_STICKS_PER_TICK = 20;      // Макс прилипаний за тик
+    private static final int WALKER_LIFESPAN = 2000;        // Макс шагов одного walker-а
 
-    private int spawnRadius;
-
-    // Массивы состояний для параллельных частиц
     private final int[] walkerX = new int[PARALLEL_WALKERS];
     private final int[] walkerY = new int[PARALLEL_WALKERS];
-    private final int[] walkerSteps = new int[PARALLEL_WALKERS];
+    private final int[] walkerAge = new int[PARALLEL_WALKERS];
+    private final boolean[] walkerAlive = new boolean[PARALLEL_WALKERS];
+
+    // 4 направления + 4 диагонали = 8 (для блуждания используем 4, для касания — 8)
+    private static final int[][] WALK_DIRS = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
 
     @Override
     public String getId() { return "dla"; }
@@ -55,94 +57,144 @@ public class DLAMode implements VisualizationMode {
     @Override
     public String getDescription() {
         return "Частицы блуждают случайно и прилипают к кластеру.\n"
-                + "Возникают структуры кораллов, молний и кристаллов.";
+             + "Кораллы, молнии, кристаллы — из чистой случайности.";
     }
 
     @Override
     public String getIcon() { return "⚡"; }
 
     @Override
+    public boolean usesRecolorAnimation() { return false; } // DLA сам управляет цветами
+
+    @Override
+    public boolean usesDarkBackground() { return true; } // Чёрный фон
+
+    @Override
     public void initialize(BufferedImage canvas, int width, int height) {
-        if (canvas == null) throw new IllegalArgumentException("Canvas cannot be null");
         this.width = width;
         this.height = height;
         this.grid = new boolean[width][height];
         this.pointCount = 0;
         this.randomNumbersUsed = 0;
-        this.spawnRadius = 30; // Маленький старт для быстрого первого прилипания
+        this.centerX = width / 2;
+        this.centerY = height / 2;
+        this.maxDist = 1.0;
+        this.spawnRadius = 30;
 
-        // Сброс состояний блуждающих частиц
-        Arrays.fill(walkerSteps, 0);
-
-        // Семя в центре
-        int cx = width / 2;
-        int cy = height / 2;
-        grid[cx][cy] = true;
-        pointCount = 1;
-
+        // Чёрный фон
         var g2d = canvas.createGraphics();
         g2d.setColor(Color.BLACK);
-        g2d.fillRect(cx, cy, 2, 2);
+        g2d.fillRect(0, 0, width, height);
+
+        // Seed в центре
+        grid[centerX][centerY] = true;
+        pointCount = 1;
+
+        // Рисуем seed — крупный, красный
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        int seedSize = getSizeForDepth(0.0);
+        g2d.setColor(getColorForDepth(0.0));
+        g2d.fillOval(centerX - seedSize / 2, centerY - seedSize / 2, seedSize, seedSize);
         g2d.dispose();
+
+        // Все walkers неактивны
+        Arrays.fill(walkerAlive, false);
     }
 
     @Override
     public List<Point> step(RNProvider provider, BufferedImage canvas, int dotSize) {
+        this.baseDotSize = dotSize;
         var newPoints = new ArrayList<Point>();
+
         var g2d = canvas.createGraphics();
-        g2d.setColor(Color.RED);
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         int sticksThisTick = 0;
-        int totalStepsLeft = MAX_TOTAL_STEPS_PER_TICK;
+        int stepsLeft = MAX_STEPS_PER_TICK;
 
-        while (totalStepsLeft > 0) {
-            for (int i = 0; i < PARALLEL_WALKERS && totalStepsLeft > 0; i++) {
+        while (stepsLeft > 0 && sticksThisTick < MAX_STICKS_PER_TICK) {
+            boolean bufferEmpty = false; // Флаг остановки
 
-                // Если частица не активна (ещё не "спавнилась" или была убита) — запускаем
-                if (walkerSteps[i] <= 0) {
-                    spawnWalker(provider, i);
+            for (int i = 0; i < PARALLEL_WALKERS && stepsLeft > 0; i++) {
+
+                // Spawn если мёртв
+                if (!walkerAlive[i]) {
+                    if (!spawnWalker(provider, i)) { // Если spawnWalker вернул false
+                        bufferEmpty = true;         // значит буфер пуст
+                        break;
+                    }
                 }
 
-                // Шаг блуждания
-                int dirIndex = provider.getNextRandomNumber() % 4;
+                // Один шаг блуждания
+                OptionalInt dirOpt = provider.getNextRandomNumber();
+                if (dirOpt.isEmpty()) {
+                    bufferEmpty = true; // Буфер пуст
+                    break;
+                }
+
+                int dir = Math.abs(dirOpt.getAsInt()) % 4;
                 randomNumbersUsed++;
-                totalStepsLeft--;
-                walkerSteps[i]++;
+                stepsLeft--;
 
-                walkerX[i] += DIRS[dirIndex][0];
-                walkerY[i] += DIRS[dirIndex][1];
+                walkerX[i] += WALK_DIRS[dir][0];
+                walkerY[i] += WALK_DIRS[dir][1];
+                walkerAge[i]++;
 
-                // Вышла за границу
+                // Вышел за границу → убить
                 if (walkerX[i] < 1 || walkerX[i] >= width - 1 ||
                         walkerY[i] < 1 || walkerY[i] >= height - 1) {
-                    walkerSteps[i] = 0; // Пометить как неактивную (перезапустится)
+                    walkerAlive[i] = false;
                     continue;
                 }
 
-                // Убийство: застряла во фьерде (сэкономит миллионы пустых шагов)
-                if (walkerSteps[i] > KILL_RADIUS_STEPS) {
-                    walkerSteps[i] = 0; // Убить
+                // Слишком долго блуждает → убить
+                if (walkerAge[i] > WALKER_LIFESPAN) {
+                    walkerAlive[i] = false;
                     continue;
                 }
 
-                // Проверка соседства с кластером
+                // Слишком далеко от кластера → убить
+                double distFromCenter = distance(walkerX[i], walkerY[i], centerX, centerY);
+                if (distFromCenter > spawnRadius * 2.5) {
+                    walkerAlive[i] = false;
+                    continue;
+                }
+
+                // Касается кластера → прилипает!
                 if (touchesCluster(walkerX[i], walkerY[i])) {
-                    // Прилипает!
                     grid[walkerX[i]][walkerY[i]] = true;
                     pointCount++;
+                    walkerAlive[i] = false;
 
-                    // Расширяем радиус спавна по мере роста
-                    updateSpawnRadius(walkerX[i], walkerY[i]);
+                    // Обновляем максимальное расстояние
+                    double dist = distance(walkerX[i], walkerY[i], centerX, centerY);
+                    if (dist > maxDist) {
+                        maxDist = dist;
+                    }
 
-                    // Рисуем
-                    g2d.fillRect(walkerX[i], walkerY[i], dotSize, dotSize);
+                    // Расширяем радиус спавна
+                    if (dist + 20 > spawnRadius) {
+                        spawnRadius = Math.min((int) dist + 30, Math.min(width, height) / 2 - 10);
+                    }
+
+                    // Рисуем — цвет и размер зависят от расстояния до центра
+                    double t = dist / maxDist; // 0.0 = центр, 1.0 = край
+                    int size = getSizeForDepth(t);
+                    Color color = getColorForDepth(t);
+
+                    g2d.setColor(color);
+                    g2d.fillOval(walkerX[i] - size / 2, walkerY[i] - size / 2, size, size);
+
                     newPoints.add(new Point(walkerX[i], walkerY[i]));
-
                     sticksThisTick++;
-                    walkerSteps[i] = 0; // Сбросить частицу
 
                     if (sticksThisTick >= MAX_STICKS_PER_TICK) break;
                 }
+            }
+
+            // Если в этом тике обнаружили пустой буфер - прерываем ВЕСЬ процесс до следующего вызова step()
+            if (bufferEmpty) {
+                break;
             }
         }
 
@@ -150,41 +202,73 @@ public class DLAMode implements VisualizationMode {
         return newPoints;
     }
 
+    // ========================================================================
+    // Визуализация: цвет и размер
+    // ========================================================================
+
     /**
-     * Запускает конкретную частицу со случайной позиции на окружности спавна.
+     * HSB-градиент: красный (центр) → оранжевый → жёлтый → зелёный → голубой (край).
+     * Тёплые тона в ядре, холодные на периферии.
+     *
+     * @param t нормализованное расстояние [0.0 = центр, 1.0 = край]
      */
-    private void spawnWalker(RNProvider provider, int index) {
-        int angle = provider.getNextRandomNumber() % 360;
+    private Color getColorForDepth(double t) {
+        t = Math.clamp(t, 0.0, 1.0);
+
+        // Hue: 0.0 (красный) → 0.15 (оранжевый) → 0.33 (зелёный) → 0.5 (голубой)
+        float hue = (float) (t * 0.5);
+
+        // Saturation: высокая везде, чуть ярче в центре
+        float saturation = (float) (0.85 + 0.15 * (1.0 - t));
+
+        // Brightness: яркий в центре, чуть приглушённый на краях
+        float brightness = (float) (0.95 - 0.25 * t);
+
+        return Color.getHSBColor(hue, saturation, brightness);
+    }
+
+    /**
+     * Размер сферы убывает от центра к краям.
+     * Центр: baseDotSize * 2.5, Край: max(2, baseDotSize * 0.5)
+     *
+     * @param t нормализованное расстояние [0.0 = центр, 1.0 = край]
+     */
+    private int getSizeForDepth(double t) {
+        t = Math.clamp(t, 0.0, 1.0);
+        double scale = 2.5 - 2.0 * t; // 2.5 → 0.5
+        return Math.max(2, (int) (baseDotSize * scale));
+    }
+
+    // ========================================================================
+    // Частицы
+    // ========================================================================
+
+    private boolean spawnWalker(RNProvider provider, int index) {
+        OptionalInt angleOpt = provider.getNextRandomNumber();
+        if (angleOpt.isEmpty()) {
+            walkerAlive[index] = false;
+            return false; // Сигнализируем наверх, что чисел нет
+        }
+
+        int angle = Math.abs(angleOpt.getAsInt()) % 360;
         randomNumbersUsed++;
 
         double rad = Math.toRadians(angle);
-        int cx = width / 2, cy = height / 2;
-        walkerX[index] = cx + (int) (spawnRadius * Math.cos(rad));
-        walkerY[index] = cy + (int) (spawnRadius * Math.sin(rad));
+        walkerX[index] = centerX + (int) (spawnRadius * Math.cos(rad));
+        walkerY[index] = centerY + (int) (spawnRadius * Math.sin(rad));
 
-        // Clamp to bounds
+        // Clamp (ограничение координат)
         walkerX[index] = Math.clamp(walkerX[index], 1, width - 2);
         walkerY[index] = Math.clamp(walkerY[index], 1, height - 2);
 
-        walkerSteps[index] = 1; // Активировать
+        walkerAge[index] = 0;
+        walkerAlive[index] = true;
+
+        return true; // Успешный спавн
     }
 
     /**
-     * Увеличивает радиус спавна, если новая точка находится близко к его границе.
-     */
-    private void updateSpawnRadius(int x, int y) {
-        int cx = width / 2, cy = height / 2;
-        long distSq = (long)(x - cx) * (x - cx) + (long)(y - cy) * (y - cy);
-        long spawnLimitSq = (long)(spawnRadius - 20) * (spawnRadius - 20);
-
-        if (distSq > spawnLimitSq) {
-            int newRadius = (int) Math.sqrt(distSq) + 30;
-            spawnRadius = Math.min(newRadius, Math.min(width, height) / 2 - 10);
-        }
-    }
-
-    /**
-     * Проверяет, касается ли позиция (x, y) кластера (8 соседей).
+     * Проверяет, касается ли (x, y) кластера (8 соседей).
      */
     private boolean touchesCluster(int x, int y) {
         for (int dx = -1; dx <= 1; dx++) {
@@ -197,6 +281,12 @@ public class DLAMode implements VisualizationMode {
             }
         }
         return false;
+    }
+
+    private static double distance(int x1, int y1, int x2, int y2) {
+        double dx = x1 - x2;
+        double dy = y1 - y2;
+        return Math.sqrt(dx * dx + dy * dy);
     }
 
     @Override
