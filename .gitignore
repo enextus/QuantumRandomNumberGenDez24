@@ -12,10 +12,8 @@ target/
 *.log.*
 dots.txt
 
-### Application Config & Secrets ###
+### Application Secrets ###
 .env
-src/main/resources/config.properties
-config.properties
 
 ### Eclipse ###
 .apt_generated
