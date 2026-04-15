@@ -57,6 +57,18 @@ public interface VisualizationMode {
     int getRandomNumbersUsed();
 
     /**
+     * Нужна ли анимация RED→BLACK для новых точек?
+     * true = Sierpinski-style (точки сначала красные, через 1с чёрные).
+     * false = режим сам управляет цветами (DLA, Percolation и т.д.).
+     */
+    default boolean usesRecolorAnimation() { return true; }
+
+    /**
+     * Нужен ли чёрный фон? (DLA — да, Sierpinski — нет)
+     */
+    default boolean usesDarkBackground() { return false; }
+
+    /**
      * Реестр всех доступных режимов.
      * Для добавления нового — просто добавить в массив.
      */

@@ -5,8 +5,6 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -35,7 +33,7 @@ public class DotController extends JPanel {
 
     private final VisualizationMode mode;
     private final RNProvider randomNumberProvider;
-    private volatile String errorMessage;
+    private final String errorMessage;
     private final BufferedImage offscreenImage;
     private final JLabel statusLabel;
 
@@ -50,7 +48,7 @@ public class DotController extends JPanel {
         this.mode = mode;
         this.randomNumberProvider = randomNumberProvider;
         setPreferredSize(new Dimension(SIZE_WIDTH + 300, SIZE_HEIGHT));
-        setBackground(Color.WHITE);
+        setBackground(mode.usesDarkBackground() ? Color.BLACK : Color.WHITE);
         errorMessage = null;
         offscreenImage = new BufferedImage(SIZE_WIDTH, SIZE_HEIGHT, BufferedImage.TYPE_INT_ARGB);
 
@@ -81,36 +79,19 @@ public class DotController extends JPanel {
         animationTimer = new Timer(TIMER_DELAY, e -> {
 
             if (errorMessage == null) {
-                try {
-                    // Делегируем шаг визуализации выбранному режиму
-                    var newPoints = mode.step(randomNumberProvider, offscreenImage, DOT_SIZE);
+                // Делегируем шаг визуализации выбранному режиму
+                // Если буфер пуст, mode.step() просто вернет пустой список newPoints
+                var newPoints = mode.step(randomNumberProvider, offscreenImage, DOT_SIZE);
 
-                    // Запоминаем использованные числа (для тестов качества)
-                    // Берём последние из provider — уже потреблены в step()
-                    // Используем pointCount как proxy
-                    repaint();
+                repaint();
 
-                    // Кладём точки в очередь и перезапускаем единый таймер
-                    if (!newPoints.isEmpty()) {
-                        synchronized (pendingRecolorPoints) {
-                            pendingRecolorPoints.addAll(newPoints);
-                        }
-                        if (!recolorTimer.isRunning()) {
-                            recolorTimer.restart();
-                        }
+                // Перекраска RED→BLACK только для режимов с анимацией точек
+                if (mode.usesRecolorAnimation() && !newPoints.isEmpty()) {
+                    synchronized (pendingRecolorPoints) {
+                        pendingRecolorPoints.addAll(newPoints);
                     }
-
-                } catch (NoSuchElementException ex) {
-                    String msg = ex.getMessage();
-                    if (msg != null && msg.startsWith("Reached maximum")) {
-                        errorMessage = msg;
-                        LOGGER.log(Level.WARNING, "No available random numbers: " + msg);
-                        updateStatusLabel("Error: " + msg);
-                        stop();
-                    } else {
-                        // Буфер временно пуст (например, при переключении QUANTUM -> PSEUDO).
-                        // Просто пропускаем тик, не пугаем пользователя статусом.
-                        LOGGER.fine("Buffer empty, skipping tick. " + msg);
+                    if (!recolorTimer.isRunning()) {
+                        recolorTimer.restart();
                     }
                 }
             } else {
@@ -159,32 +140,39 @@ public class DotController extends JPanel {
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
+        boolean dark = mode.usesDarkBackground();
+
         // Инфо
         g2d.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        g2d.setColor(Color.BLUE);
+        g2d.setColor(dark ? new Color(180, 200, 255) : Color.BLUE);
         g2d.drawString(mode.getName() + "  |  Points: " + mode.getPointCount()
                 + "  |  Random numbers used: " + mode.getRandomNumbersUsed(), 10, 20);
 
         // Крупный счётчик точек
         g2d.setFont(new Font("SansSerif", Font.BOLD, 48));
-        g2d.setColor(Color.RED);
+        g2d.setColor(dark ? new Color(255, 100, 100) : Color.RED);
         g2d.drawString(String.valueOf(mode.getPointCount()), 10, 80);
 
         // Индикатор режима RNG
         var rngMode = randomNumberProvider.getMode();
         boolean isQuantum = rngMode == RNProvider.Mode.QUANTUM;
         g2d.setFont(new Font("SansSerif", Font.BOLD, 12));
-        g2d.setColor(isQuantum ? new Color(34, 139, 34) : new Color(204, 120, 0));
-        String modeLabel = isQuantum ? "\u25CF QUANTUM" : "\u25CF PSEUDO (L128X256MixRandom)";
+        g2d.setColor(isQuantum
+                ? (dark ? new Color(100, 220, 100) : new Color(34, 139, 34))
+                : (dark ? new Color(255, 180, 60) : new Color(204, 120, 0)));
+        String modeLabel = isQuantum ? "● QUANTUM" : "● PSEUDO (L128X256MixRandom)";
         g2d.drawString(modeLabel, 10, 100);
 
         if (errorMessage != null) {
-            g2d.setColor(Color.RED);
+            g2d.setColor(dark ? new Color(255, 120, 120) : Color.RED);
             g2d.setFont(new Font("SansSerif", Font.PLAIN, 12));
             g2d.drawString(errorMessage, 10, 120);
         }
 
-        drawRandomNumbersStack(g);
+        // Стек чисел — только для светлого фона
+        if (!dark) {
+            drawRandomNumbersStack(g);
+        }
     }
 
     private void drawRandomNumbersStack(Graphics g) {

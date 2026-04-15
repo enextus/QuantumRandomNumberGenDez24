@@ -11,6 +11,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.OptionalInt;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -233,52 +234,51 @@ public class RNProvider {
 
     /**
      * Возвращает следующее случайное число.
-     * НЕБЛОКИРУЮЩИЙ — безопасен для вызова из EDT.
+     * НЕБЛОКИРУЮЩИЙ - безопасен для вызова из EDT.
      *
-     * В режиме QUANTUM: из буфера (или бросает exception если буфер пуст).
-     * В режиме PSEUDO: генерирует на лету, если буфер пуст.
-     *
-     * @return случайное число (0–65535 для uint16)
-     * @throws NoSuchElementException только если QUANTUM и буфер пуст, или лимит запросов
+     * @return OptionalInt: число готово, или Empty (если QUANTUM буфер пуст и идет загрузка).
      */
-    public int getNextRandomNumber() {
+    public OptionalInt getNextRandomNumber() {
         Integer nextNumber = randomNumbersQueue.poll();
 
         if (nextNumber == null) {
             if (currentMode == Mode.PSEUDO) {
-                // В pseudo-режиме — генерируем на лету
+                // В PSEUDO буфер должен заполняться автоматически, но на всякий случай:
+                fillQueueWithPseudo();
                 int pseudoNum = fallbackRng.nextInt(65536);
                 consumedNumbers.add((long) pseudoNum);
-                return pseudoNum;
+                return OptionalInt.of(pseudoNum);
             }
-            // QUANTUM mode — буфер пуст
+
             synchronized (this) {
                 if (apiRequestCount >= maxApiRequests) {
-                    // Лимит исчерпан → переключаемся на pseudo
+                    // Лимит исчерпан -> бесшовный переход в PSEUDO
                     activatePseudoMode("API request limit reached (" + maxApiRequests + ")");
                     int pseudoNum = fallbackRng.nextInt(65536);
                     consumedNumbers.add((long) pseudoNum);
-                    return pseudoNum;
+                    return OptionalInt.of(pseudoNum);
                 }
             }
+
+            // Режим QUANTUM, буфер пуст, лимит не исчерпан -> запускаем фоновую подзагрузку
             loadInitialDataAsync();
-            throw new NoSuchElementException("Buffer empty, background loading started. " +
-                    (lastError != null ? lastError : "Waiting for API response."));
+            return OptionalInt.empty(); // <--- МАГИЯ ЗДЕСЬ: вместо исключения просто говорим "пусто"
         }
 
-        // сохраняем число из очереди
+        // Сохраняем число из очереди
         consumedNumbers.add((long) nextNumber);
 
-        // Превентивная подгрузка
+        // Превентивная подзагрузка
         if (randomNumbersQueue.size() < queueMinSize && apiRequestCount < maxApiRequests && !isLoading) {
             loadInitialDataAsync();
         }
 
-        return nextNumber;
+        return OptionalInt.of(nextNumber);
     }
 
     public long getNextRandomNumberInRange(long min, long max) {
-        int randomNum = getNextRandomNumber();
+        // Добавляем .orElseThrow(), так как этот метод должен гарантированно вернуть число
+        int randomNum = getNextRandomNumber().orElseThrow();
         return numberProcessor.generateNumberInRange(randomNum, min, max);
     }
 
@@ -385,7 +385,7 @@ public class RNProvider {
                 try {
                     loadInitialData();
 
-                    // Успех! Возвращаемся в QUANTUM если были в PSEUDO
+                    // Успех! Возвращаемся в QUANTUM, если были в PSEUDO
                     consecutiveFailures = 0;
                     switchToQuantumMode();
                     checkAndLoadMore();

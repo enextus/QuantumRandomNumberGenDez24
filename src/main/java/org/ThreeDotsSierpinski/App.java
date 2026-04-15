@@ -155,10 +155,10 @@ public class App {
 
         // Save PNG
         saveButton.addActionListener(_ -> {
-            int points = dotController.getUsedRandomNumbers().size();
-            var timestamp = java.time.LocalDateTime.now()
+            int points = mode.getPointCount(); // <--- ИСПРАВЛЕНО: берем реальные нарисованные точки
+            var timestamp = java.time.LocalDateTime.now() // (также починил артефакт OCR □)
                     .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-            var baseName = mode.getId() + "_" + timestamp + "_" + points + "pts";
+            var baseName = mode.getId() + " " + timestamp + " " + points + " pts";
 
             var dirChooser = new JFileChooser();
             dirChooser.setDialogTitle("Выберите папку для сохранения");

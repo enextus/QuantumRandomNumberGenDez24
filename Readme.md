@@ -1,6 +1,6 @@
 # rep-qrng-chaos-game
 
-Java Swing-приложение для визуализации **треугольника Серпинского** методом **Chaos Game** с использованием **квантовых случайных чисел** из **ANU Quantum Random Numbers API**.
+Java Swing-приложение для визуализации **треугольника Серпинского** методом **Chaos Game** с использованием **квантовых случайных чисел** из ** https://quantumnumbers.anu.edu.au/ ANU Quantum Random Numbers API**.
 
 Проект сочетает четыре задачи:
 

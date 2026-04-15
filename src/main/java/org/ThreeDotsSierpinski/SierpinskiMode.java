@@ -4,16 +4,15 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalInt;
 
 /**
  * Режим визуализации: треугольник Серпинского (Chaos Game).
- *
  * Классический алгоритм:
  * 1. Начинаем с центра треугольника
  * 2. Случайное число определяет одну из трёх вершин
  * 3. Перемещаемся на половину расстояния к вершине
  * 4. Ставим точку
- *
  * Из чистого хаоса рождается фрактальная структура.
  */
 public class SierpinskiMode implements VisualizationMode {
@@ -26,7 +25,7 @@ public class SierpinskiMode implements VisualizationMode {
     private int randomNumbersUsed = 0;
 
     @Override
-    public String getId() { return "sierpinski"; }
+    public String getId() { return "Sierpinski"; }
 
     @Override
     public String getName() { return "Sierpinski Triangle"; }
@@ -56,7 +55,12 @@ public class SierpinskiMode implements VisualizationMode {
         g2d.setColor(Color.RED);
 
         for (int i = 0; i < DOTS_PER_STEP; i++) {
-            long randomValue = provider.getNextRandomNumber();
+            OptionalInt randomOpt = provider.getNextRandomNumber();
+            if (randomOpt.isEmpty()) {
+                break; // Буфер пуст, прерываем batch, вернем то, что успели нарисовать
+            }
+
+            long randomValue = randomOpt.getAsInt();
             randomNumbersUsed++;
 
             currentPoint = algorithm.calculateNewDotPosition(currentPoint, randomValue);
