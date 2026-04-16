@@ -155,8 +155,8 @@ public class App {
 
         // Save PNG
         saveButton.addActionListener(_ -> {
-            int points = mode.getPointCount(); // <--- ИСПРАВЛЕНО: берем реальные нарисованные точки
-            var timestamp = java.time.LocalDateTime.now() // (также починил артефакт OCR □)
+            int points = mode.getPointCount();
+            var timestamp = java.time.LocalDateTime.now()
                     .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
             var baseName = mode.getId() + " " + timestamp + " " + points + " pts";
 
