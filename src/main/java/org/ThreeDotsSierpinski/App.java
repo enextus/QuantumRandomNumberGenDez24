@@ -78,7 +78,7 @@ public class App {
         statusPanel.add(playStopButton);
 
         // Слайдер переключения (по умолчанию включен - PSEUDO)
-        var rngToggle = new ToggleSwitch(true);
+        var rngToggle = new ToggleSwitch(false); // false = Левое положение (PSEUDO)
         statusPanel.add(rngToggle);
 
         var rngLabel = new JLabel("PSEUDO (Local)");
@@ -102,7 +102,13 @@ public class App {
         LOGGER.info(LOG_GUI_STARTED);
 
         // Listener для Raw Data окна
-        randomNumberProvider.addDataLoadListener(new RNLoadListenerImpl(dotController, frame));
+        randomNumberProvider.addDataLoadListener(new RNLoadListenerImpl(dotController, frame, rngToggle));
+
+        // === ИНИЦИАЛИЗАЦИЯ СОСТОЯНИЯ ТОГГЛА ПРИ СТАРТЕ ===
+        // Если ключа нет с самого начала - замораживаем тумблер сразу, не дожидаясь событий
+        if (!randomNumberProvider.isApiKeyConfigured()) {
+            rngToggle.setEnabled(false);
+        }
 
         // Play/Stop
         playStopButton.addActionListener(_ -> {
@@ -119,11 +125,11 @@ public class App {
             boolean isPseudo = rngToggle.isSelected();
             randomNumberProvider.setForcedPseudo(isPseudo);
 
-            // Меняем текст рядом со слайдером
             rngLabel.setText(isPseudo ? "PSEUDO (Local)" : "QUANTUM (API)");
 
+            // Пишем в статус, только если анимация запущена
             if (dotController.isRunning()) {
-                statusLabel.setText(isPseudo ? "Drawing ... (Local Pseudo-random)" : "Drawing ... (Quantum API)");
+                dotController.updateStatusLabel(isPseudo ? "Drawing ... (Local Pseudo-random)" : "Requesting API...");
             }
         });
 

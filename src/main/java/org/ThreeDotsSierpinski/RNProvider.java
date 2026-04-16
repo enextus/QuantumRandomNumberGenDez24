@@ -234,6 +234,11 @@ public class RNProvider {
         return initialLoadComplete;
     }
 
+    /** Проверяет, был ли изначально сконфигурирован API ключ */
+    public boolean isApiKeyConfigured() {
+        return apiKeyConfigured;
+    }
+
     public String getLastError() {
         return lastError;
     }
@@ -494,6 +499,7 @@ public class RNProvider {
     private void handleLoadFailure(String reason) {
         if (currentMode == Mode.QUANTUM) {
             activatePseudoMode(reason);
+            notifyApiAvailability(false); // <--- ДОБАВИТЬ: Замораживаем и двигаем кнопку влево
         } else {
             if (randomNumbersQueue.size() < queueMinSize) {
                 fillQueueWithPseudo();
@@ -572,7 +578,7 @@ public class RNProvider {
                 initialLoadComplete = true;
                 lastError = null;
             }
-
+            notifyApiAvailability(true); // <--- ДОБАВИТЬ: Размораживаем кнопку
             notifyRawDataReceived(responseBody);
             notifyLoadingCompleted();
 
@@ -613,6 +619,10 @@ public class RNProvider {
 
     private void notifyModeChanged(Mode mode) {
         listeners.forEach(listener -> listener.onModeChanged(mode));
+    }
+
+    private void notifyApiAvailability(boolean isAvailable) {
+        listeners.forEach(listener -> listener.onApiAvailabilityChanged(isAvailable));
     }
 
 }
