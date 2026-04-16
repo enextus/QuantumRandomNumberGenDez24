@@ -2,12 +2,12 @@ package org.ThreeDotsSierpinski;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ItemEvent;
 import java.util.List;
 import java.util.logging.Logger;
 
 /**
  * Главный класс приложения.
- *
  * Запуск: диалог выбора режима → основное окно визуализации.
  */
 public class App {
@@ -27,7 +27,7 @@ public class App {
         LoggerConfig.initializeLogger();
         LOGGER.info(LOG_APP_STARTED);
 
-        // Шаг 1: Выбор режима визуализации
+        // Выбор режима визуализации
         SwingUtilities.invokeLater(() -> {
             var selector = new ModeSelectionDialog();
             var selectedMode = selector.showAndWait(null);
@@ -38,9 +38,11 @@ public class App {
                 return;
             }
 
+            // ДОБАВИТЬ ДИАГНОСТИКУ
+            LOGGER.info("!!! DEBUG: Instantiated class is -> " + selectedMode.getClass().getSimpleName());
             LOGGER.info("Selected mode: " + selectedMode.getName());
 
-            // Шаг 2: Запуск основного окна
+            // Запуск основного окна
             launchMainWindow(selectedMode);
         });
     }
@@ -75,6 +77,14 @@ public class App {
         playStopButton.setPreferredSize(new Dimension(90, 28));
         statusPanel.add(playStopButton);
 
+        // Слайдер переключения (по умолчанию включен - PSEUDO)
+        var rngToggle = new ToggleSwitch(true);
+        statusPanel.add(rngToggle);
+
+        var rngLabel = new JLabel("PSEUDO (Local)");
+        rngLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        statusPanel.add(rngLabel);
+
         var testButton = new JButton("Проверить качество");
         testButton.setPreferredSize(new Dimension(160, 28));
         statusPanel.add(testButton);
@@ -102,6 +112,18 @@ public class App {
                 statusLabel.setText("Drawing...");
             } else {
                 statusLabel.setText("Paused. Points: " + dotController.getUsedRandomNumbers().size());
+            }
+        });
+
+        rngToggle.addActionListener(e -> {
+            boolean isPseudo = rngToggle.isSelected();
+            randomNumberProvider.setForcedPseudo(isPseudo);
+
+            // Меняем текст рядом со слайдером
+            rngLabel.setText(isPseudo ? "PSEUDO (Local)" : "QUANTUM (API)");
+
+            if (dotController.isRunning()) {
+                statusLabel.setText(isPseudo ? "Drawing ... (Local Pseudo-random)" : "Drawing ... (Quantum API)");
             }
         });
 
@@ -183,7 +205,6 @@ public class App {
                 LOGGER.info(LOG_DATA_READY);
                 var rngMode = randomNumberProvider.getMode();
                 SwingUtilities.invokeLater(() -> {
-                    // Показываем конкретную причину, если произошел fallback
                     if (rngMode == RNProvider.Mode.PSEUDO) {
                         String reason = randomNumberProvider.getFallbackReason();
                         statusLabel.setText(reason != null ? reason : "Drawing... (Pseudo-random fallback)");

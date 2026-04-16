@@ -110,6 +110,7 @@ public class RNProvider {
     private volatile String fallbackReason = null;
     private volatile int consecutiveFailures = 0;
     private volatile Mode currentMode = Mode.QUANTUM;
+    private volatile boolean isForcedPseudo = false;
     private volatile boolean apiKeyConfigured = true;
 
     /** Сколько pseudo-чисел генерировать за одну «подгрузку» */
@@ -118,6 +119,26 @@ public class RNProvider {
     /** После скольких pseudo-batch-ей пытаться переподключиться к API */
     private static final int RECONNECT_EVERY_N_BATCHES = 5;
     private volatile int pseudoBatchCount = 0;
+
+    /**
+     * Принудительно переключает в локальный режим (без запросов к API).
+     */
+    public void setForcedPseudo(boolean forced) {
+        this.isForcedPseudo = forced;
+        if (forced) {
+            currentMode = Mode.PSEUDO;
+            fallbackReason = "Manually forced to PSEUDO";
+            notifyModeChanged(Mode.PSEUDO);
+        } else {
+            // При отключении принудительного режима - пробуем снова подключиться к API
+            fallbackReason = null;
+            loadInitialDataAsync();
+        }
+    }
+
+    public boolean isForcedPseudo() {
+        return isForcedPseudo;
+    }
 
     // ========================================================================
     // Sleeper и ProviderSettings (без изменений)
@@ -277,13 +298,18 @@ public class RNProvider {
      * @return OptionalInt: число готово, или Empty (если QUANTUM буфер пуст и идет загрузка).
      */
     public OptionalInt getNextRandomNumber() {
-        Integer nextNumber = randomNumbersQueue.poll();
+        if (isForcedPseudo) {
+            int pseudoNum = fallbackRng.nextInt(65536);
+            addConsumedNumber(pseudoNum);
+            return OptionalInt.of(pseudoNum);
+        }
 
+        Integer nextNumber = randomNumbersQueue.poll();
         if (nextNumber == null) {
             if (currentMode == Mode.PSEUDO) {
                 fillQueueWithPseudo();
                 int pseudoNum = fallbackRng.nextInt(65536);
-                addConsumedNumber(pseudoNum); // <--- ИЗМЕНЕНО
+                addConsumedNumber(pseudoNum);
                 return OptionalInt.of(pseudoNum);
             }
 
@@ -291,7 +317,7 @@ public class RNProvider {
                 if (apiRequestCount >= maxApiRequests) {
                     activatePseudoMode("API request limit reached (" + maxApiRequests + ")");
                     int pseudoNum = fallbackRng.nextInt(65536);
-                    addConsumedNumber(pseudoNum); // <--- ИЗМЕНЕНО
+                    addConsumedNumber(pseudoNum);
                     return OptionalInt.of(pseudoNum);
                 }
             }
@@ -385,6 +411,10 @@ public class RNProvider {
     // ========================================================================
 
     private void loadInitialDataAsync() {
+        if (isForcedPseudo) {
+            return;
+        }
+
         synchronized (this) {
             if (isLoading || apiRequestCount >= maxApiRequests) {
                 if (apiRequestCount >= maxApiRequests && currentMode == Mode.QUANTUM) {
