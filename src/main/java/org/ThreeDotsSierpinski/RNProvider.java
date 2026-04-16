@@ -9,8 +9,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList; // <-- ДОБАВЛЕНО
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.OptionalInt;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -32,6 +32,7 @@ import java.util.random.RandomGenerator;
  * - Exponential backoff при ошибках API
  * - Graceful degradation: QUANTUM → PSEUDO → QUANTUM
  * - Фоновая предзагрузка при снижении буфера ниже порога
+ * - Кольцевой буфер (Ring Buffer) для истории потребленных чисел (фиксированный расход памяти)
  */
 public class RNProvider {
     private static final Logger LOGGER = LoggerConfig.getLogger();
@@ -88,7 +89,21 @@ public class RNProvider {
     private final List<RNLoadListener> listeners = new CopyOnWriteArrayList<>();
     private volatile boolean isLoading = false;
 
-    private final List<Long> consumedNumbers = new CopyOnWriteArrayList<>();
+    // ========================================================================
+    // RING BUFFER ДЛЯ ИСТОРИИ (Вместо List<Long>)
+    // ========================================================================
+
+    /** Максимальный размер истории потребленных чисел (~0.8 МБ памяти) */
+    private static final int HISTORY_MAX_SIZE = 100_000;
+
+    /** Сам массив-буфер */
+    private final long[] consumedNumbersRing = new long[HISTORY_MAX_SIZE];
+
+    /** Указатель, куда писать следующее число */
+    private volatile int ringWriteIndex = 0;
+
+    /** Счетчик реально сгенерированных чисел (чтобы не возвращать пустые нули из массива) */
+    private volatile int totalConsumed = 0;
 
     private volatile boolean initialLoadComplete = false;
     private volatile String lastError = null;
@@ -216,16 +231,39 @@ public class RNProvider {
         return fallbackReason;
     }
 
-    /** Возвращает неизменяемую копию всех потребленных чисел с момента старта */
+    /** Возвращает неизменяемую копию всех доступных потребленных чисел (до HISTORY_MAX_SIZE). */
     public List<Long> getConsumedNumbers() {
-        return List.copyOf(consumedNumbers);
+        return getLastConsumedNumbers(HISTORY_MAX_SIZE);
     }
 
     /** Возвращает последние N потребленных чисел (для UI без лагов). */
     public List<Long> getLastConsumedNumbers(int limit) {
-        int size = consumedNumbers.size();
-        if (limit >= size) return List.copyOf(consumedNumbers);
-        return List.copyOf(consumedNumbers.subList(size - limit, size));
+        int actualSize = Math.min(limit, Math.min(totalConsumed, HISTORY_MAX_SIZE));
+        if (actualSize <= 0) return List.of();
+
+        long[] result = new long[actualSize];
+
+        // Читаем буфер в обратном порядке (от самых новых к старым)
+        int currentIdx = ringWriteIndex == 0 ? HISTORY_MAX_SIZE - 1 : ringWriteIndex - 1;
+
+        for (int i = 0; i < actualSize; i++) {
+            result[i] = consumedNumbersRing[currentIdx];
+            currentIdx = currentIdx == 0 ? HISTORY_MAX_SIZE - 1 : currentIdx - 1;
+        }
+
+        // Разворачиваем массив, чтобы индекс 0 был самым старым из выборки
+        for (int i = 0; i < actualSize / 2; i++) {
+            long temp = result[i];
+            result[i] = result[actualSize - 1 - i];
+            result[actualSize - 1 - i] = temp;
+        }
+
+        // Конвертируем в List<Long> для совместимости с остальным кодом
+        List<Long> list = new ArrayList<>(actualSize);
+        for (long num : result) {
+            list.add(num);
+        }
+        return list;
     }
 
     public void addDataLoadListener(RNLoadListener listener) {
@@ -243,32 +281,27 @@ public class RNProvider {
 
         if (nextNumber == null) {
             if (currentMode == Mode.PSEUDO) {
-                // В PSEUDO буфер должен заполняться автоматически, но на всякий случай:
                 fillQueueWithPseudo();
                 int pseudoNum = fallbackRng.nextInt(65536);
-                consumedNumbers.add((long) pseudoNum);
+                addConsumedNumber(pseudoNum); // <--- ИЗМЕНЕНО
                 return OptionalInt.of(pseudoNum);
             }
 
             synchronized (this) {
                 if (apiRequestCount >= maxApiRequests) {
-                    // Лимит исчерпан -> бесшовный переход в PSEUDO
                     activatePseudoMode("API request limit reached (" + maxApiRequests + ")");
                     int pseudoNum = fallbackRng.nextInt(65536);
-                    consumedNumbers.add((long) pseudoNum);
+                    addConsumedNumber(pseudoNum); // <--- ИЗМЕНЕНО
                     return OptionalInt.of(pseudoNum);
                 }
             }
 
-            // Режим QUANTUM, буфер пуст, лимит не исчерпан -> запускаем фоновую подзагрузку
             loadInitialDataAsync();
-            return OptionalInt.empty(); // <--- МАГИЯ ЗДЕСЬ: вместо исключения просто говорим "пусто"
+            return OptionalInt.empty();
         }
 
-        // Сохраняем число из очереди
-        consumedNumbers.add((long) nextNumber);
+        addConsumedNumber(nextNumber); // <--- ИЗМЕНЕНО
 
-        // Превентивная подзагрузка
         if (randomNumbersQueue.size() < queueMinSize && apiRequestCount < maxApiRequests && !isLoading) {
             loadInitialDataAsync();
         }
@@ -277,7 +310,6 @@ public class RNProvider {
     }
 
     public long getNextRandomNumberInRange(long min, long max) {
-        // Добавляем .orElseThrow(), так как этот метод должен гарантированно вернуть число
         int randomNum = getNextRandomNumber().orElseThrow();
         return numberProcessor.generateNumberInRange(randomNum, min, max);
     }
@@ -298,14 +330,25 @@ public class RNProvider {
     void triggerLoad() { loadInitialDataAsync(); }
 
     // ========================================================================
-    // Pseudo-random fallback
+    // Внутренняя логика Ring Buffer
     // ========================================================================
 
     /**
-     * Активирует pseudo-random режим: заполняет буфер и уведомляет listeners.
+     * Добавляет число в кольцевой буфер.
+     * Потокобезопасно за счет атомарности записи в массив примитивов.
      */
+    private void addConsumedNumber(long value) {
+        consumedNumbersRing[ringWriteIndex] = value;
+        ringWriteIndex = (ringWriteIndex + 1) % HISTORY_MAX_SIZE;
+        totalConsumed++;
+    }
+
+    // ========================================================================
+    // Pseudo-random fallback
+    // ========================================================================
+
     private void activatePseudoMode(String reason) {
-        if (currentMode == Mode.PSEUDO) return; // Уже в pseudo
+        if (currentMode == Mode.PSEUDO) return;
 
         currentMode = Mode.PSEUDO;
         this.fallbackReason = reason;
@@ -319,9 +362,6 @@ public class RNProvider {
         notifyLoadingCompleted();
     }
 
-    /**
-     * Заполняет буфер pseudo-random числами.
-     */
     private void fillQueueWithPseudo() {
         for (int i = 0; i < PSEUDO_BATCH_SIZE; i++) {
             randomNumbersQueue.add(fallbackRng.nextInt(65536));
@@ -331,9 +371,6 @@ public class RNProvider {
                 + "Queue size: " + randomNumbersQueue.size());
     }
 
-    /**
-     * Возвращается в QUANTUM режим после успешного ответа API.
-     */
     private void switchToQuantumMode() {
         if (currentMode == Mode.QUANTUM) return;
 
@@ -356,7 +393,6 @@ public class RNProvider {
                 return;
             }
 
-            // Если уже в PSEUDO режиме — не дергаем HTTP, просто генерируем локально
             if (currentMode == Mode.PSEUDO) {
                 fillQueueWithPseudo();
                 return;
@@ -366,7 +402,6 @@ public class RNProvider {
         }
 
         CompletableFuture.runAsync(this::loadWithRetry, Thread::startVirtualThread)
-                // ... остальной код без изменений
                 .exceptionally(ex -> {
                     LOGGER.log(Level.SEVERE, "Exception during data loading", ex);
                     handleLoadFailure("Exception: " + ex.getMessage());
@@ -385,14 +420,12 @@ public class RNProvider {
                 try {
                     loadInitialData();
 
-                    // Успех! Возвращаемся в QUANTUM, если были в PSEUDO
                     consecutiveFailures = 0;
                     switchToQuantumMode();
                     checkAndLoadMore();
                     return;
 
                 } catch (RateLimitException e) {
-                    // Мгновенный fallback без ожидания
                     LOGGER.info("Rate limit (429) detected. Bypassing retries, activating fallback.");
                     handleLoadFailure("Суточный лимит исчерпан, переключаю на псевдослучайные числа.");
                     return;
@@ -428,14 +461,10 @@ public class RNProvider {
         }
     }
 
-    /**
-     * Обрабатывает неудачную загрузку: переключается в pseudo mode вместо остановки.
-     */
     private void handleLoadFailure(String reason) {
         if (currentMode == Mode.QUANTUM) {
             activatePseudoMode(reason);
         } else {
-            // Уже в pseudo — просто дозаполняем буфер если мало
             if (randomNumbersQueue.size() < queueMinSize) {
                 fillQueueWithPseudo();
             }
@@ -477,7 +506,6 @@ public class RNProvider {
             var errorBody = response.body();
             LOGGER.severe("HTTP error: " + statusCode + " - " + errorBody);
 
-            // statusCode 429 не нужно ретраить, сразу сбрасываем в PSEUDO
             if (statusCode == 429) {
                 throw new RateLimitException(errorBody);
             }

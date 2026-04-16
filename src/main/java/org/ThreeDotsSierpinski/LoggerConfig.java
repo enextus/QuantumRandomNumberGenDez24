@@ -6,7 +6,6 @@ import java.util.logging.*;
 
 /**
  * Конфигурация логгера для приложения.
- * 
  * Исправлено:
  * - Автоматическое создание директории logs
  * - Однократная инициализация (singleton)
@@ -140,7 +139,7 @@ public class LoggerConfig {
     /**
      * Проверяет, был ли логгер успешно инициализирован с файловым выводом.
      *
-     * @return true если файловый логгер работает, false если только консольный
+     * @return true, если файловый логгер работает, false если только консольный
      */
     public static boolean isFileLoggingEnabled() {
         return isInitialized && initializationAttempted;
