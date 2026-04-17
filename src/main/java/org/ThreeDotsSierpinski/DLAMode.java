@@ -34,11 +34,12 @@ public class DLAMode implements VisualizationMode {
     // Spawn/kill параметры
     private int spawnRadius = 30;
 
-    // Параллельные блуждающие частицы
-    private static final int PARALLEL_WALKERS = 50;
-    private static final int MAX_STEPS_PER_TICK = 15_000;   // Общий бюджет шагов за тик
-    private static final int MAX_STICKS_PER_TICK = 20;      // Макс прилипаний за тик
-    private static final int WALKER_LIFESPAN = 2000;        // Макс шагов одного walker-а
+    // Параллельные блуждающие частицы (ОПТИМИЗИРОВАНО)
+    private static final int PARALLEL_WALKERS = 40;         // Вернул побольше (было 20)
+    private static final int MAX_STEPS_PER_TICK = 5_000;    // Оставляем 5к (ЭКОНОМИТ API, было 15к)
+    private static final int MAX_STICKS_PER_TICK = 20;
+    private static final int WALKER_LIFESPAN = 5000;         // (быстрая смерть заблудившихся)
+
 
     private final int[] walkerX = new int[PARALLEL_WALKERS];
     private final int[] walkerY = new int[PARALLEL_WALKERS];
@@ -113,14 +114,14 @@ public class DLAMode implements VisualizationMode {
         int stepsLeft = MAX_STEPS_PER_TICK;
 
         while (stepsLeft > 0 && sticksThisTick < MAX_STICKS_PER_TICK) {
-            boolean bufferEmpty = false; // Флаг остановки
+            boolean bufferEmpty = false;
 
             for (int i = 0; i < PARALLEL_WALKERS && stepsLeft > 0; i++) {
 
                 // Spawn если мёртв
                 if (!walkerAlive[i]) {
-                    if (!spawnWalker(provider, i)) { // Если spawnWalker вернул false
-                        bufferEmpty = true;         // значит буфер пуст
+                    if (!spawnWalker(provider, i)) {
+                        bufferEmpty = true;
                         break;
                     }
                 }
@@ -128,10 +129,9 @@ public class DLAMode implements VisualizationMode {
                 // Один шаг блуждания
                 OptionalInt dirOpt = provider.getNextRandomNumber();
                 if (dirOpt.isEmpty()) {
-                    bufferEmpty = true; // Буфер пуст
+                    bufferEmpty = true;
                     break;
                 }
-
                 int dir = Math.abs(dirOpt.getAsInt()) % 4;
                 randomNumbersUsed++;
                 stepsLeft--;
@@ -140,23 +140,28 @@ public class DLAMode implements VisualizationMode {
                 walkerY[i] += WALK_DIRS[dir][1];
                 walkerAge[i]++;
 
-                // Вышел за границу → убить
+                // Вышел за жесткую границу экрана → убить
                 if (walkerX[i] < 1 || walkerX[i] >= width - 1 ||
                         walkerY[i] < 1 || walkerY[i] >= height - 1) {
                     walkerAlive[i] = false;
                     continue;
                 }
 
-                // Слишком долго блуждает → убить
+                // Слишком долго блуждает → убить (теперь с запасом для ветвлений)
                 if (walkerAge[i] > WALKER_LIFESPAN) {
                     walkerAlive[i] = false;
                     continue;
                 }
 
-                // Слишком далеко от кластера → убить
-                double distFromCenter = distance(walkerX[i], walkerY[i], centerX, centerY);
-                if (distFromCenter > spawnRadius * 2.5) {
-                    walkerAlive[i] = false;
+                // РАССТОЯНИЕ (ОПТИМИЗИРОВАНО: без Math.sqrt)
+                int dx = walkerX[i] - centerX;
+                int dy = walkerY[i] - centerY;
+                double distSquared = (double)(dx * dx + dy * dy);
+
+                // Слишком далеко от кластера → ТЕЛЕПОРТ (Экономит RNG числа)
+                double maxAllowedDist = spawnRadius * 2.0;
+                if (distSquared > maxAllowedDist * maxAllowedDist) {
+                    teleportWalkerToBorder(provider, i);
                     continue;
                 }
 
@@ -167,18 +172,18 @@ public class DLAMode implements VisualizationMode {
                     walkerAlive[i] = false;
 
                     // Обновляем максимальное расстояние
-                    double dist = distance(walkerX[i], walkerY[i], centerX, centerY);
-                    if (dist > maxDist) {
-                        maxDist = dist;
+                    if (distSquared > maxDist * maxDist) {
+                        maxDist = Math.sqrt(distSquared);
                     }
 
                     // Расширяем радиус спавна
+                    double dist = Math.sqrt(distSquared);
                     if (dist + 20 > spawnRadius) {
                         spawnRadius = Math.min((int) dist + 30, Math.min(width, height) / 2 - 10);
                     }
 
-                    // Рисуем — цвет и размер зависят от расстояния до центра
-                    double t = dist / maxDist; // 0.0 = центр, 1.0 = край
+                    // Рисуем
+                    double t = maxDist == 0 ? 0 : dist / maxDist;
                     int size = getSizeForDepth(t);
                     Color color = getColorForDepth(t);
 
@@ -192,10 +197,7 @@ public class DLAMode implements VisualizationMode {
                 }
             }
 
-            // Если в этом тике обнаружили пустой буфер - прерываем ВЕСЬ процесс до следующего вызова step()
-            if (bufferEmpty) {
-                break;
-            }
+            if (bufferEmpty) break;
         }
 
         g2d.dispose();
@@ -265,6 +267,31 @@ public class DLAMode implements VisualizationMode {
         walkerAlive[index] = true;
 
         return true; // Успешный спавн
+    }
+
+    /**
+     * Телепортирует блуждающую частицу обратно на границу спавна.
+     * Экономит 1 случайное число по сравнению с убийством и созданием новой.
+     */
+    private void teleportWalkerToBorder(RNProvider provider, int index) {
+        OptionalInt angleOpt = provider.getNextRandomNumber();
+        if (angleOpt.isEmpty()) {
+            walkerAlive[index] = false;
+            return;
+        }
+
+        int angle = Math.abs(angleOpt.getAsInt()) % 360;
+        randomNumbersUsed++;
+
+        double rad = Math.toRadians(angle);
+        walkerX[index] = centerX + (int) (spawnRadius * Math.cos(rad));
+        walkerY[index] = centerY + (int) (spawnRadius * Math.sin(rad));
+
+        walkerX[index] = Math.clamp(walkerX[index], 1, width - 2);
+        walkerY[index] = Math.clamp(walkerY[index], 1, height - 2);
+
+        walkerAge[index] = 0; // Сбрасываем возраст, даем еще один шанс
+        walkerAlive[index] = true;
     }
 
     /**
