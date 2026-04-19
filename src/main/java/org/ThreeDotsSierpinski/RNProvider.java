@@ -87,7 +87,6 @@ public class RNProvider {
     private final RandomNumberProcessor numberProcessor;
     private int apiRequestCount = 0;
     private final List<RNLoadListener> listeners = new CopyOnWriteArrayList<>();
-    private volatile boolean isLoading = false;
 
     // ========================================================================
     // RING BUFFER ДЛЯ ИСТОРИИ (Вместо List<Long>)
@@ -104,13 +103,14 @@ public class RNProvider {
 
     /** Счетчик реально сгенерированных чисел (чтобы не возвращать пустые нули из массива) */
     private volatile int totalConsumed = 0;
-
+    private volatile boolean isLoading = false;
+    private volatile boolean isReconnecting = false;
     private volatile boolean initialLoadComplete = false;
     private volatile String lastError = null;
     private volatile String fallbackReason = null;
     private volatile int consecutiveFailures = 0;
     private volatile Mode currentMode = Mode.QUANTUM;
-    private volatile boolean isForcedPseudo = false;
+    private volatile boolean isForcedPseudo = true; // По умолчанию всегда стартуем локально
     private volatile boolean apiKeyConfigured = true;
 
     /** Сколько pseudo-чисел генерировать за одну «подгрузку» */
@@ -128,11 +128,14 @@ public class RNProvider {
         if (forced) {
             currentMode = Mode.PSEUDO;
             fallbackReason = "Manually forced to PSEUDO";
+            isReconnecting = false; // Останавливаем фоновый пинг
             notifyModeChanged(Mode.PSEUDO);
         } else {
-            // При отключении принудительного режима - пробуем снова подключиться к API
+            // Юзер кликнул ВПРАВО (QUANTUM). Заставляем провайдер попытаться!
             fallbackReason = null;
-            loadInitialDataAsync();
+            currentMode = Mode.QUANTUM; // ВАЖНО: Иначе loadInitialDataAsync проигнорирует запрос!
+            isReconnecting = false;    // Останавливаем пинг, так как мы делаем ручную попытку
+            loadInitialDataAsync();     // Пойдет в API. Если провалится - handleLoadFailure сам вернет в PSEUDO
         }
     }
 
@@ -340,12 +343,51 @@ public class RNProvider {
         return OptionalInt.of(nextNumber);
     }
 
+    /**
+     * Фоновая задача: раз в 15 секунд пытается достучаться до API.
+     * Если успешно — переключает обратно в QUANTUM и разблокирует UI.
+     */
+    private void startReconnectMonitor() {
+        if (isReconnecting) return; // Если уже пингуем - не создаем еще один поток
+        isReconnecting = true;
+
+        Thread.startVirtualThread(() -> {
+            while (isReconnecting && currentMode == Mode.PSEUDO) {
+                try {
+                    Thread.sleep(15000); // Ждем 15 секунд
+                } catch (InterruptedException e) {
+                    break;
+                }
+
+                if (!isReconnecting) break;
+
+                LOGGER.info("Background reconnect attempt...");
+                try {
+                    loadInitialData();
+
+                    // Если не бросило исключение — УСПЕХ!
+                    isReconnecting = false;
+                    consecutiveFailures = 0;
+                    switchToQuantumMode();
+                    notifyApiAvailability(true); // РАЗБОКЦИРОВЫВАЕМ КНОПКУ!
+                    break;
+                } catch (RateLimitException e) {
+                    isReconnecting = false; // Суточный лимит - нечего пинговать
+                    break;
+                } catch (Exception e) {
+                    LOGGER.fine("Reconnect failed, will retry in 15s: " + e.getMessage());
+                }
+            }
+        });
+    }
+
     public long getNextRandomNumberInRange(long min, long max) {
         int randomNum = getNextRandomNumber().orElseThrow();
         return numberProcessor.generateNumberInRange(randomNum, min, max);
     }
 
     public void shutdown() {
+        isReconnecting = false; // <--- ДОБАВИТЬ
         LOGGER.info("RNProvider shutting down. Mode: " + currentMode
                 + ", API requests: " + apiRequestCount
                 + ", pseudo batches: " + pseudoBatchCount);
@@ -499,7 +541,22 @@ public class RNProvider {
     private void handleLoadFailure(String reason) {
         if (currentMode == Mode.QUANTUM) {
             activatePseudoMode(reason);
-            notifyApiAvailability(false); // <--- ДОБАВИТЬ: Замораживаем и двигаем кнопку влево
+
+            // Анализируем причину ошибки: замораживаем ТОЛЬКО при реальном отсутствии сети или 429
+            boolean isNetworkDown = reason.contains("Connection refused")
+                    || reason.contains("timed out")
+                    || reason.contains("UnknownHostException");
+            boolean isRateLimit = reason.contains("429");
+
+            if (isNetworkDown || isRateLimit) {
+                notifyApiAvailability(false); // Замораживаем кнопку и двигаем влево
+            }
+            // Иначе (ошибка 500, 403 и т.д.) - кнопку НЕ трогаем, она остается активной!
+
+            // Запускаем фоновый пинг для всех ошибок, кроме отсутствия ключа и суточного лимита
+            if (apiKeyConfigured && !isRateLimit && !reason.contains("limit")) {
+                startReconnectMonitor();
+            }
         } else {
             if (randomNumbersQueue.size() < queueMinSize) {
                 fillQueueWithPseudo();

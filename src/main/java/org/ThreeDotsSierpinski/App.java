@@ -2,7 +2,7 @@ package org.ThreeDotsSierpinski;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ItemEvent;
+
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -37,9 +37,6 @@ public class App {
                 System.exit(0);
                 return;
             }
-
-            // ДОБАВИТЬ ДИАГНОСТИКУ
-            LOGGER.info("!!! DEBUG: Instantiated class is -> " + selectedMode.getClass().getSimpleName());
             LOGGER.info("Selected mode: " + selectedMode.getName());
 
             // Запуск основного окна
@@ -72,7 +69,7 @@ public class App {
         statusLabel.setPreferredSize(new Dimension(250, 20));
         statusPanel.add(statusLabel);
 
-        var playStopButton = new JButton(BUTTON_STOP);
+        var playStopButton = new JButton(BUTTON_PLAY);
         playStopButton.setEnabled(false);
         playStopButton.setPreferredSize(new Dimension(90, 28));
         statusPanel.add(playStopButton);
@@ -201,31 +198,32 @@ public class App {
         });
 
         // Ожидание данных
+        // Ожидание инициализации провайдера (но НЕ стартуем рисование)
         Thread.startVirtualThread(() -> {
             LOGGER.info(LOG_WAITING_FOR_DATA);
             SwingUtilities.invokeLater(() -> statusLabel.setText("Connecting to API..."));
 
             boolean dataReady = randomNumberProvider.waitForInitialData(15000);
 
-            if (dataReady) {
-                LOGGER.info(LOG_DATA_READY);
-                var rngMode = randomNumberProvider.getMode();
-                SwingUtilities.invokeLater(() -> {
+            SwingUtilities.invokeLater(() -> {
+                if (dataReady) {
+                    LOGGER.info(LOG_DATA_READY);
+                    var rngMode = randomNumberProvider.getMode();
                     if (rngMode == RNProvider.Mode.PSEUDO) {
                         String reason = randomNumberProvider.getFallbackReason();
-                        statusLabel.setText(reason != null ? reason : "Drawing... (Pseudo-random fallback)");
+                        statusLabel.setText(reason != null ? reason : "Ready. (Pseudo-random fallback)");
                     } else {
-                        statusLabel.setText("Drawing... (Quantum)");
+                        statusLabel.setText("Ready. (Quantum API connected)");
                     }
-                    playStopButton.setEnabled(true);
-                    dotController.startDotMovement();
-                });
-            } else {
-                LOGGER.warning(LOG_DATA_TIMEOUT);
-                String error = randomNumberProvider.getLastError();
-                SwingUtilities.invokeLater(() ->
-                        statusLabel.setText("Error: " + (error != null ? error : "Timeout")));
-            }
+                } else {
+                    LOGGER.warning(LOG_DATA_TIMEOUT);
+                    String error = randomNumberProvider.getLastError();
+                    statusLabel.setText("Error: " + (error != null ? error : "Timeout"));
+                }
+
+                // Включаем кнопку Play в любом случае (даже если упали в PSEUDO, рисовать можно)
+                playStopButton.setEnabled(true);
+            });
         });
 
         // Window close
@@ -246,16 +244,16 @@ public class App {
         var indicator = new JLabel("●");
         indicator.setFont(new Font("SansSerif", Font.BOLD, 16));
         indicator.setForeground(switch (result.quality()) {
-            case STRONG   -> new Color(34, 139, 34);
+            case STRONG -> new Color(34, 139, 34);
             case MARGINAL -> new Color(204, 153, 0);
-            case FAIL     -> new Color(204, 0, 0);
+            case FAIL -> new Color(204, 0, 0);
         });
         row.add(indicator);
 
         var mark = new JLabel(switch (result.quality()) {
-            case STRONG   -> "✓";
+            case STRONG -> "✓";
             case MARGINAL -> "○";
-            case FAIL     -> "✗";
+            case FAIL -> "✗";
         });
         mark.setFont(new Font("SansSerif", Font.BOLD, 14));
         mark.setForeground(indicator.getForeground());
