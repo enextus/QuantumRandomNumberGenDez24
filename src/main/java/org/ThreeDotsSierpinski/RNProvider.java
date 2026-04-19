@@ -22,11 +22,9 @@ import java.util.random.RandomGenerator;
 
 /**
  * Класс для загрузки случайных чисел из ANU Quantum Numbers API.
- *
  * При недоступности API автоматически переключается на L128X256MixRandom
  * (LXM family, Java 17+, период 2³⁸⁴, проходит TestU01 и PractRand).
  * При восстановлении API переключается обратно на квантовые числа.
- *
  * Особенности:
  * - Неблокирующий getNextRandomNumber() — безопасен для вызова из EDT
  * - Exponential backoff при ошибках API
@@ -215,7 +213,13 @@ public class RNProvider {
             apiKeyConfigured = false;
             activatePseudoMode("API key not configured");
         } else if (autoLoadOnStart) {
-            loadInitialDataAsync();
+            // Ключ есть!
+            if (isForcedPseudo) {
+                activatePseudoMode("Default local mode"); // Стартуем визуально как PSEUDO
+                loadInitialDataAsync(); // Запускаем фоновую загрузку
+            } else {
+                loadInitialDataAsync();
+            }
         }
     }
 
@@ -444,24 +448,27 @@ public class RNProvider {
                 + "Queue size: " + randomNumbersQueue.size());
     }
 
-    private void switchToQuantumMode() {
-        if (currentMode == Mode.QUANTUM) return;
+        private void switchToQuantumMode() {
+            // Если юзер принудительно выбрал PSEUDO - не меняем режим,
+            // но разблокируем тумблер, показывая что API работает!
+            if (isForcedPseudo) {
+                notifyApiAvailability(true);
+                return;
+            }
 
-        currentMode = Mode.QUANTUM;
-        pseudoBatchCount = 0;
-        LOGGER.info("Switched back to QUANTUM mode (ANU API).");
-        notifyModeChanged(Mode.QUANTUM);
-    }
+            if (currentMode == Mode.QUANTUM) return;
+
+            currentMode = Mode.QUANTUM;
+            pseudoBatchCount = 0;
+            LOGGER.info("Switched back to QUANTUM mode (ANU API).");
+            notifyModeChanged(Mode.QUANTUM);
+        }
 
     // ========================================================================
     // Внутренняя логика загрузки
     // ========================================================================
 
     private void loadInitialDataAsync() {
-        if (isForcedPseudo) {
-            return;
-        }
-
         synchronized (this) {
             if (isLoading || apiRequestCount >= maxApiRequests) {
                 if (apiRequestCount >= maxApiRequests && currentMode == Mode.QUANTUM) {
@@ -470,7 +477,8 @@ public class RNProvider {
                 return;
             }
 
-            if (currentMode == Mode.PSEUDO) {
+            // ИЗМЕНЕНО: Разрешаем фоновую загрузку, если это старт по умолчанию (isForcedPseudo)
+            if (currentMode == Mode.PSEUDO && !isForcedPseudo) {
                 fillQueueWithPseudo();
                 return;
             }
@@ -538,31 +546,31 @@ public class RNProvider {
         }
     }
 
-    private void handleLoadFailure(String reason) {
-        if (currentMode == Mode.QUANTUM) {
-            activatePseudoMode(reason);
-
-            // Анализируем причину ошибки: замораживаем ТОЛЬКО при реальном отсутствии сети или 429
+        private void handleLoadFailure(String reason) {
             boolean isNetworkDown = reason.contains("Connection refused")
                     || reason.contains("timed out")
                     || reason.contains("UnknownHostException");
-            boolean isRateLimit = reason.contains("429");
+            boolean isRateLimit = reason.contains("429") || reason.contains("limit");
 
+            // Замораживаем кнопку при потере сети, независимо от текущего режима
             if (isNetworkDown || isRateLimit) {
-                notifyApiAvailability(false); // Замораживаем кнопку и двигаем влево
+                notifyApiAvailability(false);
             }
-            // Иначе (ошибка 500, 403 и т.д.) - кнопку НЕ трогаем, она остается активной!
+
+            if (currentMode == Mode.QUANTUM) {
+                activatePseudoMode(reason);
+            } else {
+                // Уже в PSEUDO - просто дозаполняем буфер локально
+                if (randomNumbersQueue.size() < queueMinSize) {
+                    fillQueueWithPseudo();
+                }
+            }
 
             // Запускаем фоновый пинг для всех ошибок, кроме отсутствия ключа и суточного лимита
-            if (apiKeyConfigured && !isRateLimit && !reason.contains("limit")) {
+            if (apiKeyConfigured && !isRateLimit) {
                 startReconnectMonitor();
             }
-        } else {
-            if (randomNumbersQueue.size() < queueMinSize) {
-                fillQueueWithPseudo();
-            }
         }
-    }
 
     long calculateBackoff(int retryAttempt) {
         long backoff = initialBackoffMs * (1L << (retryAttempt - 1));

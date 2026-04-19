@@ -68,14 +68,15 @@ class RNLoadListenerImpl implements RNLoadListener {
     public void onModeChanged(RNProvider.Mode mode) {
         SwingUtilities.invokeLater(() -> {
             if (mode == RNProvider.Mode.PSEUDO) {
-                toggleSwitch.setSelected(false); // Двигаем влево
+                toggleSwitch.setSelected(false);
             }
         });
     }
 
     @Override
     public void onApiAvailabilityChanged(boolean isAvailable) {
-        // ВАЖНО: Обязательно оборачиваем в invokeLater, чтобы Swing корректно обработал отключение кликов!
+        // КРИТИЧЕСКИ ВАЖНО: Обязательно оборачиваем в invokeLater!
+        // Иначе фоновый поток сломает состояние кнопки.
         SwingUtilities.invokeLater(() -> {
             toggleSwitch.setEnabled(isAvailable);
 

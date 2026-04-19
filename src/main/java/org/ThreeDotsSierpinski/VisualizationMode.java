@@ -6,12 +6,10 @@ import java.util.List;
 
 /**
  * Интерфейс для режимов визуализации случайных чисел.
- *
  * Каждый режим:
  * - Получает случайные числа из RNProvider
  * - Рисует на BufferedImage
  * - Возвращает список нарисованных точек (для анимации RED→BLACK)
- *
  * Для добавления нового режима:
  * 1. Создать класс, реализующий этот интерфейс
  * 2. Зарегистрировать в {@link VisualizationMode#allModes()}
@@ -58,8 +56,8 @@ public interface VisualizationMode {
 
     /**
      * Нужна ли анимация RED→BLACK для новых точек?
-     * true = Sierpinski-style (точки сначала красные, через 1с чёрные).
-     * false = режим сам управляет цветами (DLA, Percolation и т.д.).
+     * True = Sierpinski-style (точки сначала красные, через 1с чёрные).
+     * False = режим сам управляет цветами (DLA, Percolation и т.д.).
      */
     default boolean usesRecolorAnimation() { return true; }
 
