@@ -1,8 +1,9 @@
 package org.ThreeDotsSierpinski;
 
+import com.formdev.flatlaf.FlatLightLaf;
+
 import javax.swing.*;
 import java.awt.*;
-
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -19,15 +20,16 @@ public class App {
     private static final String LOG_DATA_TIMEOUT = "Timeout waiting for initial data.";
 
     private static final String BUTTON_PLAY = "► Play";
-    private static final String BUTTON_STOP = "■ Stop";
+    private static final String BUTTON_STOP = "Stop";
 
     private static final Logger LOGGER = LoggerConfig.getLogger();
 
     public static void main(String[] args) {
+        FlatLightLaf.setup();
+
         LoggerConfig.initializeLogger();
         LOGGER.info(LOG_APP_STARTED);
 
-        // Выбор режима визуализации
         SwingUtilities.invokeLater(() -> {
             var selector = new ModeSelectionDialog();
             var selectedMode = selector.showAndWait(null);
@@ -39,7 +41,6 @@ public class App {
             }
             LOGGER.info("Selected mode: " + selectedMode.getName());
 
-            // Запуск основного окна
             launchMainWindow(selectedMode);
         });
     }
@@ -50,6 +51,7 @@ public class App {
 
         String windowTitle = "Quantum Visualizer — " + mode.getName();
         var frame = new JFrame(windowTitle);
+        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
 
         int basePanelWidth = Config.getInt("panel.size.width");
@@ -71,16 +73,34 @@ public class App {
 
         var playStopButton = new JButton(BUTTON_PLAY);
         playStopButton.setEnabled(false);
-        playStopButton.setPreferredSize(new Dimension(90, 28));
         statusPanel.add(playStopButton);
 
-        // Слайдер переключения (по умолчанию включен - PSEUDO)
-        var rngToggle = new ToggleSwitch(false); // false = Левое положение (PSEUDO)
-        statusPanel.add(rngToggle);
-
-        var rngLabel = new JLabel("PSEUDO (Local)");
+        // === TOGGLE: selected=true → QUANTUM, selected=false → PSEUDO ===
+        var rngLabel = new JLabel("...");
         rngLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
         statusPanel.add(rngLabel);
+
+        statusPanel.add(Box.createHorizontalStrut(5));
+
+        var rngToggle = new JToggleButton("RNG");
+        rngToggle.putClientProperty("JToggleButton.buttonType", "toggle");
+        rngToggle.setSelected(false);
+        rngToggle.setEnabled(false); // Неактивна до загрузки данных
+        statusPanel.add(rngToggle);
+
+        // Синхронизация label с toggle
+        Runnable syncToggleLabel = () -> {
+            if (rngToggle.isSelected()) {
+                rngLabel.setText("QUANTUM (API)");
+                rngToggle.setText("QUANTUM");
+            } else {
+                rngLabel.setText("PSEUDO (Local)");
+                rngToggle.setText("PSEUDO");
+            }
+        };
+
+        rngToggle.addChangeListener(e -> syncToggleLabel.run());
+        syncToggleLabel.run();
 
         var testButton = new JButton("Проверить качество");
         testButton.setPreferredSize(new Dimension(160, 28));
@@ -92,20 +112,12 @@ public class App {
 
         frame.add(statusPanel, BorderLayout.SOUTH);
 
-        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         frame.setSize(finalWidth, finalHeight);
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
         LOGGER.info(LOG_GUI_STARTED);
 
-        // Listener для Raw Data окна
         randomNumberProvider.addDataLoadListener(new RNLoadListenerImpl(dotController, frame, rngToggle));
-
-        // === ИНИЦИАЛИЗАЦИЯ СОСТОЯНИЯ ТОГГЛА ПРИ СТАРТЕ ===
-        // Если ключа нет с самого начала - замораживаем тумблер сразу, не дожидаясь событий
-        if (!randomNumberProvider.isApiKeyConfigured()) {
-            rngToggle.setEnabled(false);
-        }
 
         // Play/Stop
         playStopButton.addActionListener(_ -> {
@@ -118,22 +130,21 @@ public class App {
             }
         });
 
-        rngToggle.addActionListener(e -> {
-            boolean isPseudo = rngToggle.isSelected();
-            randomNumberProvider.setForcedPseudo(isPseudo);
+        // FIX: selected=true → QUANTUM, selected=false → PSEUDO
+        rngToggle.addActionListener(_ -> {
+            boolean wantsQuantum = rngToggle.isSelected();
+            randomNumberProvider.setForcedPseudo(!wantsQuantum);
 
-            rngLabel.setText(isPseudo ? "PSEUDO (Local)" : "QUANTUM (API)");
-
-            // Пишем в статус, только если анимация запущена
             if (dotController.isRunning()) {
-                dotController.updateStatusLabel(isPseudo ? "Drawing ... (Local Pseudo-random)" : "Requesting API...");
+                dotController.updateStatusLabel(wantsQuantum
+                        ? "Drawing... (Quantum)"
+                        : "Drawing... (Pseudo-random)");
             }
         });
 
         // Проверить качество
         testButton.addActionListener(_ -> {
             List<Long> numbers = dotController.getUsedRandomNumbers();
-
             if (numbers.size() < 10) {
                 statusLabel.setText("Нужно минимум 10 точек для тестов");
                 return;
@@ -141,19 +152,17 @@ public class App {
 
             RandomnessTestSuite suite = new RandomnessTestSuite();
             List<TestResult> results = suite.runAll(numbers, 0.05);
-
             long passed = results.stream().filter(TestResult::passed).count();
+
             statusLabel.setText("Тесты: " + passed + "/" + results.size()
-                    + " пройдено (" + numbers.size() + " точек)");
+                    + " пройдено (" + numbers.size() + " чисел)");
 
             var panel = new JPanel();
             panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
             panel.setBorder(BorderFactory.createEmptyBorder(8, 4, 8, 4));
 
             for (TestResult result : results) {
-                var row = getJPanel(result);
-
-                panel.add(row);
+                panel.add(getJPanel(result));
             }
 
             panel.add(Box.createVerticalStrut(8));
@@ -183,7 +192,7 @@ public class App {
             int points = mode.getPointCount();
             var timestamp = java.time.LocalDateTime.now()
                     .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-            var baseName = mode.getId() + " " + timestamp + " " + points + " pts";
+            var baseName = mode.getId() + "_" + timestamp + "_" + points + "pts";
 
             var dirChooser = new JFileChooser();
             dirChooser.setDialogTitle("Выберите папку для сохранения");
@@ -197,8 +206,7 @@ public class App {
             }
         });
 
-        // Ожидание данных
-        // Ожидание инициализации провайдера (но НЕ стартуем рисование)
+        // Ожидание инициализации
         Thread.startVirtualThread(() -> {
             LOGGER.info(LOG_WAITING_FOR_DATA);
             SwingUtilities.invokeLater(() -> statusLabel.setText("Connecting to API..."));
@@ -209,38 +217,32 @@ public class App {
                 if (dataReady) {
                     LOGGER.info(LOG_DATA_READY);
                     var rngMode = randomNumberProvider.getMode();
+
+                    // FIX: sync toggle с реальным режимом ПОСЛЕ загрузки
+                    rngToggle.setSelected(rngMode == RNProvider.Mode.QUANTUM);
+                    rngToggle.setEnabled(randomNumberProvider.isApiKeyConfigured());
+
                     if (rngMode == RNProvider.Mode.PSEUDO) {
                         String reason = randomNumberProvider.getFallbackReason();
-                        statusLabel.setText(reason != null ? reason : "Ready. (Pseudo-random fallback)");
+                        statusLabel.setText(reason != null ? reason : "Ready. (PSEUDO)");
                     } else {
-                        statusLabel.setText("Ready. (Quantum API connected)");
+                        statusLabel.setText("Ready. (QUANTUM)");
                     }
                 } else {
                     LOGGER.warning(LOG_DATA_TIMEOUT);
                     String error = randomNumberProvider.getLastError();
                     statusLabel.setText("Error: " + (error != null ? error : "Timeout"));
+                    rngToggle.setSelected(randomNumberProvider.getMode() == RNProvider.Mode.QUANTUM);
+                    rngToggle.setEnabled(randomNumberProvider.isApiKeyConfigured());
                 }
 
-                // Включаем кнопку Play в любом случае (даже если упали в PSEUDO, рисовать можно)
                 playStopButton.setEnabled(true);
             });
-        });
-
-        // Window close
-        frame.addWindowListener(new java.awt.event.WindowAdapter() {
-            @Override
-            public void windowClosing(java.awt.event.WindowEvent e) {
-                LOGGER.info(LOG_APP_SHUTTING_DOWN);
-                dotController.shutdown();
-                randomNumberProvider.shutdown();
-                super.windowClosing(e);
-            }
         });
     }
 
     private static JPanel getJPanel(TestResult result) {
         var row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
-
         var indicator = new JLabel("●");
         indicator.setFont(new Font("SansSerif", Font.BOLD, 16));
         indicator.setForeground(switch (result.quality()) {
@@ -249,7 +251,6 @@ public class App {
             case FAIL -> new Color(204, 0, 0);
         });
         row.add(indicator);
-
         var mark = new JLabel(switch (result.quality()) {
             case STRONG -> "✓";
             case MARGINAL -> "○";
@@ -258,7 +259,6 @@ public class App {
         mark.setFont(new Font("SansSerif", Font.BOLD, 14));
         mark.setForeground(indicator.getForeground());
         row.add(mark);
-
         var text = new JLabel(result.statistic() + "    " + result.testName());
         text.setFont(new Font("Monospaced", Font.PLAIN, 13));
         row.add(text);

@@ -448,21 +448,16 @@ public class RNProvider {
                 + "Queue size: " + randomNumbersQueue.size());
     }
 
-        private void switchToQuantumMode() {
-            // Если юзер принудительно выбрал PSEUDO - не меняем режим,
-            // но разблокируем тумблер, показывая что API работает!
-            if (isForcedPseudo) {
-                notifyApiAvailability(true);
-                return;
-            }
+    private void switchToQuantumMode() {
+        // Мы больше не управляем кнопкой отсюда.
+        // Кнопка активна по умолчанию (если есть ключ), замораживается только при handleLoadFailure.
+        if (currentMode == Mode.QUANTUM) return;
 
-            if (currentMode == Mode.QUANTUM) return;
-
-            currentMode = Mode.QUANTUM;
-            pseudoBatchCount = 0;
-            LOGGER.info("Switched back to QUANTUM mode (ANU API).");
-            notifyModeChanged(Mode.QUANTUM);
-        }
+        currentMode = Mode.QUANTUM;
+        pseudoBatchCount = 0;
+        LOGGER.info("Switched back to QUANTUM mode (ANU API).");
+        notifyModeChanged(RNProvider.Mode.QUANTUM);
+    }
 
     // ========================================================================
     // Внутренняя логика загрузки
@@ -643,7 +638,7 @@ public class RNProvider {
                 initialLoadComplete = true;
                 lastError = null;
             }
-            notifyApiAvailability(true); // <--- ДОБАВИТЬ: Размораживаем кнопку
+
             notifyRawDataReceived(responseBody);
             notifyLoadingCompleted();
 

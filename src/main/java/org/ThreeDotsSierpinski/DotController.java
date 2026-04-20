@@ -145,8 +145,8 @@ public class DotController extends JPanel {
         // Инфо
         g2d.setFont(new Font("SansSerif", Font.PLAIN, 12));
         g2d.setColor(dark ? new Color(180, 200, 255) : Color.BLUE);
-        g2d.drawString(mode.getName() + "  |  Points: " + mode.getPointCount()
-                + "  |  Random numbers used: " + mode.getRandomNumbersUsed(), 10, 20);
+        String rngName = randomNumberProvider.getMode() == RNProvider.Mode.QUANTUM ? "QUANTUM (API)" : "PSEUDO (Local)";
+        g2d.drawString(mode.getName() + "  |  Points: " + mode.getPointCount() + "  |  Random numbers: " + rngName, 10, 20);
 
         // Крупный счётчик точек
         g2d.setFont(new Font("SansSerif", Font.BOLD, 48));

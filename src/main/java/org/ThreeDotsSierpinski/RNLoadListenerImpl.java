@@ -5,13 +5,13 @@ import javax.swing.*;
 class RNLoadListenerImpl implements RNLoadListener {
     private final DotController controller;
     private final JFrame mainFrame;
-    private final ToggleSwitch toggleSwitch;
+    private final JToggleButton toggleSwitch;
 
     private final JTextArea rawDataTextArea;
     private JFrame rawDataFrame;
     private boolean quantumDataReceived = false;
 
-    public RNLoadListenerImpl(DotController controller, JFrame mainFrame, ToggleSwitch toggleSwitch) {
+    public RNLoadListenerImpl(DotController controller, JFrame mainFrame, JToggleButton toggleSwitch) {
         this.controller = controller;
         this.mainFrame = mainFrame;
         this.toggleSwitch = toggleSwitch;
@@ -22,21 +22,17 @@ class RNLoadListenerImpl implements RNLoadListener {
 
     private void showRawDataWindowIfNeeded() {
         if (rawDataFrame != null) return;
-
         rawDataFrame = new JFrame("Raw Data");
         rawDataFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         rawDataFrame.add(new JScrollPane(rawDataTextArea));
-
         int mainX = mainFrame.getX();
         int mainY = mainFrame.getY();
         int mainWidth = mainFrame.getWidth();
         int mainHeight = mainFrame.getHeight();
-
         int rawDataHeight = 150;
         int windowShadowOffset = 7;
         rawDataFrame.setSize(mainWidth, rawDataHeight);
         rawDataFrame.setLocation(mainX, mainY + mainHeight - windowShadowOffset);
-
         rawDataFrame.setVisible(true);
     }
 
@@ -64,22 +60,19 @@ class RNLoadListenerImpl implements RNLoadListener {
         });
     }
 
+    // FIX: Обработка ОБОИХ направлений переключения
     @Override
     public void onModeChanged(RNProvider.Mode mode) {
         SwingUtilities.invokeLater(() -> {
-            if (mode == RNProvider.Mode.PSEUDO) {
-                toggleSwitch.setSelected(false);
-            }
+            // selected=true → QUANTUM, selected=false → PSEUDO
+            toggleSwitch.setSelected(mode == RNProvider.Mode.QUANTUM);
         });
     }
 
     @Override
     public void onApiAvailabilityChanged(boolean isAvailable) {
-        // КРИТИЧЕСКИ ВАЖНО: Обязательно оборачиваем в invokeLater!
-        // Иначе фоновый поток сломает состояние кнопки.
         SwingUtilities.invokeLater(() -> {
             toggleSwitch.setEnabled(isAvailable);
-
             if (!isAvailable) {
                 if (quantumDataReceived) {
                     controller.updateStatusLabel("API недоступно. Переключено на PSEUDO (Local).");
