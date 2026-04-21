@@ -72,14 +72,17 @@ class RNLoadListenerImpl implements RNLoadListener {
     @Override
     public void onApiAvailabilityChanged(boolean isAvailable) {
         SwingUtilities.invokeLater(() -> {
-            toggleSwitch.setEnabled(isAvailable);
+            // FIX: Не трогаем enabled/disabled здесь для сетевых ошибок.
+            // Enabled/disabled управляется ТОЛЬКО наличием API ключа (в App.launchMainWindow).
+            // Этот callback только для обновления статусных сообщений.
+
             if (!isAvailable) {
                 if (quantumDataReceived) {
-                    controller.updateStatusLabel("API недоступно. Переключено на PSEUDO (Local).");
+                    controller.updateStatusLabel("API unavailable. Switched to PSEUDO (Local).");
                 }
             } else {
                 if (toggleSwitch.isSelected()) {
-                    controller.updateStatusLabel("Подключение к API восстановлено.");
+                    controller.updateStatusLabel("API connection restored.");
                 }
             }
         });

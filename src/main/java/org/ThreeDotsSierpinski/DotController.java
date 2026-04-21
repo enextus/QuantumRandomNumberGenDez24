@@ -34,7 +34,8 @@ public class DotController extends JPanel {
     private final VisualizationMode mode;
     private final RNProvider randomNumberProvider;
     private final String errorMessage;
-    private final BufferedImage offscreenImage;
+    private BufferedImage offscreenImage;
+    private boolean canvasInitialized = false;
     private final JLabel statusLabel;
 
     private Timer animationTimer;
@@ -47,13 +48,19 @@ public class DotController extends JPanel {
         this.statusLabel = statusLabel;
         this.mode = mode;
         this.randomNumberProvider = randomNumberProvider;
-        setPreferredSize(new Dimension(SIZE_WIDTH + 300, SIZE_HEIGHT));
+
+        // FIX: для тёмных режимов предпочтительный размер = полное окно
+        int prefWidth = mode.usesDarkBackground()
+                ? (int)(SIZE_WIDTH * Config.getDouble("window.scale.width"))
+                : SIZE_WIDTH + 300;
+        int prefHeight = mode.usesDarkBackground()
+                ? (int)(SIZE_HEIGHT * Config.getDouble("window.scale.height"))
+                : SIZE_HEIGHT;
+        setPreferredSize(new Dimension(prefWidth, prefHeight));
+
         setBackground(mode.usesDarkBackground() ? Color.BLACK : Color.WHITE);
         errorMessage = null;
-        offscreenImage = new BufferedImage(SIZE_WIDTH, SIZE_HEIGHT, BufferedImage.TYPE_INT_ARGB);
-
-        // Инициализируем выбранный режим
-        mode.initialize(offscreenImage, SIZE_WIDTH, SIZE_HEIGHT);
+        // offscreenImage создадим лениво в paintComponent по реальным размерам
 
         initAnimationTimer();
 
@@ -135,6 +142,18 @@ public class DotController extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
+
+        // FIX: ленивая инициализация offscreenImage по реальным размерам панели
+        if (!canvasInitialized || offscreenImage == null
+                || offscreenImage.getWidth() != getWidth()
+                || offscreenImage.getHeight() != getHeight()) {
+            int w = Math.max(1, getWidth());
+            int h = Math.max(1, getHeight());
+            offscreenImage = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+            mode.initialize(offscreenImage, w, h);
+            canvasInitialized = true;
+        }
+
         g.drawImage(offscreenImage, 0, 0, null);
 
         Graphics2D g2d = (Graphics2D) g;

@@ -74,6 +74,7 @@ public interface VisualizationMode {
         return new VisualizationMode[] {
                 new SierpinskiMode(),
                 new DLAMode(),
+                new VoronoiMode(),
                 // Добавьте новые режимы здесь:
                 // new PercolationMode(),
                 // new BlueNoiseMode(),

@@ -39,7 +39,9 @@ public class RNProvider {
      * Исключение-маркер для мгновенного переключения в PSEUDO без ретраев.
      */
     private static class RateLimitException extends RuntimeException {
-        RateLimitException(String message) { super(message); }
+        RateLimitException(String message) {
+            super(message);
+        }
     }
 
     // ========================================================================
@@ -50,9 +52,13 @@ public class RNProvider {
      * Источник случайных чисел.
      */
     public enum Mode {
-        /** Квантовые числа от ANU API */
+        /**
+         * Квантовые числа от ANU API
+         */
         QUANTUM,
-        /** Псевдослучайные числа от L128X256MixRandom (fallback) */
+        /**
+         * Псевдослучайные числа от L128X256MixRandom (fallback)
+         */
         PSEUDO
     }
 
@@ -90,16 +96,24 @@ public class RNProvider {
     // RING BUFFER ДЛЯ ИСТОРИИ (Вместо List<Long>)
     // ========================================================================
 
-    /** Максимальный размер истории потребленных чисел (~0.8 МБ памяти) */
+    /**
+     * Максимальный размер истории потребленных чисел (~0.8 МБ памяти)
+     */
     private static final int HISTORY_MAX_SIZE = 100_000;
 
-    /** Сам массив-буфер */
+    /**
+     * Сам массив-буфер
+     */
     private final long[] consumedNumbersRing = new long[HISTORY_MAX_SIZE];
 
-    /** Указатель, куда писать следующее число */
+    /**
+     * Указатель, куда писать следующее число
+     */
     private volatile int ringWriteIndex = 0;
 
-    /** Счетчик реально сгенерированных чисел (чтобы не возвращать пустые нули из массива) */
+    /**
+     * Счетчик реально сгенерированных чисел (чтобы не возвращать пустые нули из массива)
+     */
     private volatile int totalConsumed = 0;
     private volatile boolean isLoading = false;
     private volatile boolean isReconnecting = false;
@@ -111,10 +125,14 @@ public class RNProvider {
     private volatile boolean isForcedPseudo = true; // По умолчанию всегда стартуем локально
     private volatile boolean apiKeyConfigured = true;
 
-    /** Сколько pseudo-чисел генерировать за одну «подгрузку» */
+    /**
+     * Сколько pseudo-чисел генерировать за одну «подгрузку»
+     */
     private static final int PSEUDO_BATCH_SIZE = 1024;
 
-    /** После скольких pseudo-batch-ей пытаться переподключиться к API */
+    /**
+     * После скольких pseudo-batch-ей пытаться переподключиться к API
+     */
     private static final int RECONNECT_EVERY_N_BATCHES = 5;
     private volatile int pseudoBatchCount = 0;
 
@@ -126,14 +144,20 @@ public class RNProvider {
         if (forced) {
             currentMode = Mode.PSEUDO;
             fallbackReason = "Manually forced to PSEUDO";
-            isReconnecting = false; // Останавливаем фоновый пинг
+            isReconnecting = false;
             notifyModeChanged(Mode.PSEUDO);
         } else {
-            // Юзер кликнул ВПРАВО (QUANTUM). Заставляем провайдер попытаться!
+            // Юзер кликнул ВПРАВО (QUANTUM)
+            if (!apiKeyConfigured) {
+                // Нет ключа — не даём переключиться
+                notifyModeChanged(Mode.PSEUDO); // Сигнализируем, что остались в PSEUDO
+                return;
+            }
+
             fallbackReason = null;
-            currentMode = Mode.QUANTUM; // ВАЖНО: Иначе loadInitialDataAsync проигнорирует запрос!
-            isReconnecting = false;    // Останавливаем пинг, так как мы делаем ручную попытку
-            loadInitialDataAsync();     // Пойдет в API. Если провалится - handleLoadFailure сам вернет в PSEUDO
+            currentMode = Mode.QUANTUM;
+            isReconnecting = false;
+            loadInitialDataAsync(); // Попытка подключиться
         }
     }
 
@@ -207,11 +231,11 @@ public class RNProvider {
         objectMapper = new ObjectMapper();
         numberProcessor = new RandomNumberProcessor();
 
-        // Проверка наличия API ключа
+// Проверка наличия API ключа
         if (apiKey == null || apiKey.isEmpty() || apiKey.startsWith("YOUR_")) {
             LOGGER.warning("API key is not configured. Falling back to pseudo-random mode (L128X256MixRandom).");
             apiKeyConfigured = false;
-            activatePseudoMode("API key not configured");
+            activatePseudoMode("no API key"); // FIX: более короткий, консистентный текст
         } else if (autoLoadOnStart) {
             // Ключ есть!
             if (isForcedPseudo) {
@@ -241,7 +265,9 @@ public class RNProvider {
         return initialLoadComplete;
     }
 
-    /** Проверяет, был ли изначально сконфигурирован API ключ */
+    /**
+     * Проверяет, был ли изначально сконфигурирован API ключ
+     */
     public boolean isApiKeyConfigured() {
         return apiKeyConfigured;
     }
@@ -254,22 +280,30 @@ public class RNProvider {
         return randomNumbersQueue.size();
     }
 
-    /** Текущий режим работы: QUANTUM или PSEUDO */
+    /**
+     * Текущий режим работы: QUANTUM или PSEUDO
+     */
     public Mode getMode() {
         return currentMode;
     }
 
-    /** Возвращает причину последнего переключения в PSEUDO режим */
+    /**
+     * Возвращает причину последнего переключения в PSEUDO режим
+     */
     public String getFallbackReason() {
         return fallbackReason;
     }
 
-    /** Возвращает неизменяемую копию всех доступных потребленных чисел (до HISTORY_MAX_SIZE). */
+    /**
+     * Возвращает неизменяемую копию всех доступных потребленных чисел (до HISTORY_MAX_SIZE).
+     */
     public List<Long> getConsumedNumbers() {
         return getLastConsumedNumbers(HISTORY_MAX_SIZE);
     }
 
-    /** Возвращает последние N потребленных чисел (для UI без лагов). */
+    /**
+     * Возвращает последние N потребленных чисел (для UI без лагов).
+     */
     public List<Long> getLastConsumedNumbers(int limit) {
         int actualSize = Math.min(limit, Math.min(totalConsumed, HISTORY_MAX_SIZE));
         if (actualSize <= 0) return List.of();
@@ -401,10 +435,17 @@ public class RNProvider {
     // Package-private accessors
     // ========================================================================
 
-    int getApiRequestCount() { return apiRequestCount; }
-    boolean isInitialLoadComplete() { return initialLoadComplete; }
+    int getApiRequestCount() {
+        return apiRequestCount;
+    }
 
-    void triggerLoad() { loadInitialDataAsync(); }
+    boolean isInitialLoadComplete() {
+        return initialLoadComplete;
+    }
+
+    void triggerLoad() {
+        loadInitialDataAsync();
+    }
 
     // ========================================================================
     // Внутренняя логика Ring Buffer
@@ -425,10 +466,19 @@ public class RNProvider {
     // ========================================================================
 
     private void activatePseudoMode(String reason) {
-        if (currentMode == Mode.PSEUDO) return;
+        // FIX: Всегда обновляем причину, даже если уже в PSEUDO
+        this.fallbackReason = reason;
+
+        if (currentMode == Mode.PSEUDO) {
+            // Уже в PSEUDO — просто обновляем причину и дозаполняем буфер если нужно
+            LOGGER.info("Updated PSEUDO fallback reason: " + reason);
+            if (randomNumbersQueue.size() < queueMinSize) {
+                fillQueueWithPseudo();
+            }
+            return;
+        }
 
         currentMode = Mode.PSEUDO;
-        this.fallbackReason = reason;
         lastError = null;
         LOGGER.info("Switched to PSEUDO mode (L128X256MixRandom). Reason: " + reason);
 
@@ -541,31 +591,36 @@ public class RNProvider {
         }
     }
 
-        private void handleLoadFailure(String reason) {
-            boolean isNetworkDown = reason.contains("Connection refused")
-                    || reason.contains("timed out")
-                    || reason.contains("UnknownHostException");
-            boolean isRateLimit = reason.contains("429") || reason.contains("limit");
+    private void handleLoadFailure(String reason) {
+        boolean isNetworkDown = reason.contains("Connection refused")
+                || reason.contains("timed out")
+                || reason.contains("UnknownHostException");
+        boolean isRateLimit = reason.contains("429") || reason.contains("limit") || reason.contains("Limit Exceeded");
 
-            // Замораживаем кнопку при потере сети, независимо от текущего режима
-            if (isNetworkDown || isRateLimit) {
-                notifyApiAvailability(false);
-            }
-
-            if (currentMode == Mode.QUANTUM) {
-                activatePseudoMode(reason);
-            } else {
-                // Уже в PSEUDO - просто дозаполняем буфер локально
-                if (randomNumbersQueue.size() < queueMinSize) {
-                    fillQueueWithPseudo();
-                }
-            }
-
-            // Запускаем фоновый пинг для всех ошибок, кроме отсутствия ключа и суточного лимита
-            if (apiKeyConfigured && !isRateLimit) {
-                startReconnectMonitor();
-            }
+        // FIX: Rate limit = особый случай. Не пингуем бесконечно, но оставляем toggle enabled.
+        if (isRateLimit) {
+            // Не запускаем reconnect monitor для rate limit
+            LOGGER.info("Rate limit active. Reconnect monitor disabled until manual retry.");
         }
+
+        if (currentMode == Mode.QUANTUM) {
+            activatePseudoMode(reason);
+        } else {
+            // Уже в PSEUDO — обновляем причину (см. activatePseudoMode выше)
+            activatePseudoMode(reason);
+        }
+
+        // Запускаем фоновый пинг только для сетевых ошибок, НЕ для rate limit
+        if (apiKeyConfigured && !isRateLimit && !isNetworkDown) {
+            // Для "мягких" ошибок — пингуем
+            startReconnectMonitor();
+        }
+        // Для isNetworkDown — тоже пингуем (сеть может восстановиться)
+        if (apiKeyConfigured && isNetworkDown) {
+            startReconnectMonitor();
+        }
+        // Для isRateLimit — НЕ пингуем (бессмысленно, лимит не сбросится через 15 сек)
+    }
 
     long calculateBackoff(int retryAttempt) {
         long backoff = initialBackoffMs * (1L << (retryAttempt - 1));

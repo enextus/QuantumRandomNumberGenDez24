@@ -75,7 +75,7 @@ public class App {
         playStopButton.setEnabled(false);
         statusPanel.add(playStopButton);
 
-        // === TOGGLE: selected=true → QUANTUM, selected=false → PSEUDO ===
+// === TOGGLE: selected=true → QUANTUM, selected=false → PSEUDO ===
         var rngLabel = new JLabel("...");
         rngLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
         statusPanel.add(rngLabel);
@@ -88,7 +88,10 @@ public class App {
         rngToggle.setEnabled(false); // Неактивна до загрузки данных
         statusPanel.add(rngToggle);
 
-        // Синхронизация label с toggle
+// Добавляем tooltip для ясности
+        rngToggle.setToolTipText("Toggle between QUANTUM and PSEUDO random number sources");
+
+// Синхронизация label с toggle
         Runnable syncToggleLabel = () -> {
             if (rngToggle.isSelected()) {
                 rngLabel.setText("QUANTUM (API)");
@@ -119,20 +122,58 @@ public class App {
 
         randomNumberProvider.addDataLoadListener(new RNLoadListenerImpl(dotController, frame, rngToggle));
 
-        // Play/Stop
+// Play/Stop
         playStopButton.addActionListener(_ -> {
             boolean running = dotController.toggle();
             playStopButton.setText(running ? BUTTON_STOP : BUTTON_PLAY);
             if (running) {
-                statusLabel.setText("Drawing...");
+                // FIX: показываем режим при рисовании
+                boolean isQuantum = rngToggle.isSelected() && rngToggle.isEnabled();
+                statusLabel.setText(isQuantum ? "Drawing... (Quantum)" : "Drawing... (Pseudo-random)");
             } else {
                 statusLabel.setText("Paused. Points: " + dotController.getUsedRandomNumbers().size());
             }
         });
 
-        // FIX: selected=true → QUANTUM, selected=false → PSEUDO
+// FIX: selected=true → QUANTUM, selected=false → PSEUDO
         rngToggle.addActionListener(_ -> {
+            // Если toggle disabled (нет API ключа), показываем диалог
+            if (!rngToggle.isEnabled()) {
+                JOptionPane.showMessageDialog(
+                        frame,
+                        "API key not configured.\n\nQuantum random numbers require a valid API key.\n" +
+                                "Set QRNG_API_KEY environment variable or add it to .env file.",
+                        "API Key Required",
+                        JOptionPane.WARNING_MESSAGE
+                );
+                rngToggle.setSelected(false);
+                syncToggleLabel.run();
+                return;
+            }
+
             boolean wantsQuantum = rngToggle.isSelected();
+
+            // FIX: Проверяем rate limit перед переключением
+            String currentReason = randomNumberProvider.getFallbackReason();
+            boolean isRateLimit = currentReason != null &&
+                    (currentReason.contains("429") || currentReason.contains("limit") ||
+                            currentReason.contains("Limit Exceeded") || currentReason.contains("лимит"));
+
+            if (wantsQuantum && isRateLimit) {
+                // Пытаемся переключиться на QUANTUM, но rate limit активен
+                JOptionPane.showMessageDialog(
+                        frame,
+                        "Daily API limit exceeded.\n\nQuantum random numbers are temporarily unavailable.\n" +
+                                "Please try again later or continue using PSEUDO mode.",
+                        "Rate Limit Exceeded",
+                        JOptionPane.WARNING_MESSAGE
+                );
+                // Возвращаем toggle в PSEUDO
+                rngToggle.setSelected(false);
+                syncToggleLabel.run();
+                return;
+            }
+
             randomNumberProvider.setForcedPseudo(!wantsQuantum);
 
             if (dotController.isRunning()) {
@@ -218,22 +259,48 @@ public class App {
                     LOGGER.info(LOG_DATA_READY);
                     var rngMode = randomNumberProvider.getMode();
 
-                    // FIX: sync toggle с реальным режимом ПОСЛЕ загрузки
-                    rngToggle.setSelected(rngMode == RNProvider.Mode.QUANTUM);
                     rngToggle.setEnabled(randomNumberProvider.isApiKeyConfigured());
+                    rngToggle.setSelected(rngMode == RNProvider.Mode.QUANTUM);
+                    syncToggleLabel.run();
 
                     if (rngMode == RNProvider.Mode.PSEUDO) {
                         String reason = randomNumberProvider.getFallbackReason();
-                        statusLabel.setText(reason != null ? reason : "Ready. (PSEUDO)");
+                        String displayReason;
+
+                        if (reason == null) {
+                            displayReason = "fallback";
+                        } else if (reason.contains("API key") || reason.contains("key")) {
+                            displayReason = "no API key";
+                        } else if (reason.contains("429") || reason.contains("limit") ||
+                                reason.contains("Limit Exceeded") || reason.contains("лимит")) {
+                            displayReason = "rate limit";
+                        } else if (reason.contains("Connection refused") || reason.contains("timed out")
+                                || reason.contains("UnknownHost") || reason.contains("unavailable")) {
+                            displayReason = "API unavailable";
+                        } else if (reason.contains("forced") || reason.contains("Forced") ||
+                                reason.contains("Default local")) {
+                            displayReason = "manual";
+                        } else {
+                            displayReason = reason;
+                        }
+
+                        statusLabel.setText("PSEUDO mode (" + displayReason + ")");
                     } else {
                         statusLabel.setText("Ready. (QUANTUM)");
                     }
                 } else {
                     LOGGER.warning(LOG_DATA_TIMEOUT);
                     String error = randomNumberProvider.getLastError();
-                    statusLabel.setText("Error: " + (error != null ? error : "Timeout"));
-                    rngToggle.setSelected(randomNumberProvider.getMode() == RNProvider.Mode.QUANTUM);
+
                     rngToggle.setEnabled(randomNumberProvider.isApiKeyConfigured());
+                    rngToggle.setSelected(false);
+                    syncToggleLabel.run();
+
+                    if (!randomNumberProvider.isApiKeyConfigured()) {
+                        statusLabel.setText("PSEUDO mode (no API key)");
+                    } else {
+                        statusLabel.setText("PSEUDO mode (API unavailable)");
+                    }
                 }
 
                 playStopButton.setEnabled(true);
