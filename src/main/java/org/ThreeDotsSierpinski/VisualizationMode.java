@@ -100,4 +100,5 @@ public interface VisualizationMode {
                 new DLAMode(),
         };
     }
+
 }
