@@ -96,6 +96,7 @@ public interface VisualizationMode {
                 new GaltonBoardMode(),
                 new PercolationMode(),
                 new BarnsleyFernMode(),
+                new ForestFireMode(),
                 new DLAMode(),
         };
     }
