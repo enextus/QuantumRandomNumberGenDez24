@@ -35,7 +35,6 @@ public class MonteCarloPiMode implements VisualizationMode {
     private static final int RANDOM_RANGE = 65_536;
     private static final double RANDOM_MAX = 65_535.0;
     private static final int SAMPLES_PER_STEP = 180;
-    private static final int VALUES_PER_SAMPLE = 2;
 
     private static final int PANEL_RADIUS = 22;
     private static final int OUTER_PADDING = 18;
@@ -44,9 +43,11 @@ public class MonteCarloPiMode implements VisualizationMode {
     private static final int PANEL_INSET = 16;
     private static final int SAMPLE_AXIS_EXTRA_BOTTOM = 22;
     private static final int SAMPLE_AXIS_EXTRA_LEFT = 18;
-    private static final int RIGHT_PANEL_MIN_WIDTH = 280;
-    private static final int CARD_HEIGHT = 86;
+    private static final int CARD_HEIGHT = 90;
     private static final int CARD_GAP = 10;
+    private static final int METRIC_CARD_COUNT = 6;
+    private static final int METRICS_ROW_MIN_HEIGHT = 74;
+    private static final int METRICS_ROW_MAX_HEIGHT = 92;
     private static final int STATUS_BOX_WIDTH = 252;
     private static final int STATUS_BOX_HEIGHT = 68;
 
@@ -91,7 +92,6 @@ public class MonteCarloPiMode implements VisualizationMode {
     private static final Font SUBTITLE_FONT = new Font("SansSerif", Font.PLAIN, 15);
     private static final Font PANEL_TITLE_FONT = new Font("SansSerif", Font.BOLD, 19);
     private static final Font PANEL_META_FONT = new Font("SansSerif", Font.PLAIN, 12);
-    private static final Font LABEL_FONT = new Font("SansSerif", Font.PLAIN, 12);
     private static final Font CHART_VALUE_FONT = new Font("SansSerif", Font.PLAIN, 11);
     private static final Font CARD_LABEL_FONT = new Font("SansSerif", Font.PLAIN, 12);
     private static final Font CARD_VALUE_FONT = new Font("SansSerif", Font.BOLD, 18);
@@ -113,6 +113,7 @@ public class MonteCarloPiMode implements VisualizationMode {
     private Rectangle samplePlotBounds = new Rectangle();
     private Rectangle convergenceChartBounds = new Rectangle();
     private Rectangle errorChartBounds = new Rectangle();
+    private int metricsRowHeight;
     private final List<Rectangle> metricCardBounds = new ArrayList<>();
 
     private final List<Double> estimateHistory = new ArrayList<>();
@@ -161,7 +162,7 @@ public class MonteCarloPiMode implements VisualizationMode {
         JButton resetButton = new JButton(RESET_TEXT);
         resetButton.setPreferredSize(new Dimension(RESET_BUTTON_WIDTH, CONTROL_HEIGHT));
         resetButton.setToolTipText(RESET_TOOLTIP);
-        resetButton.addActionListener(event -> {
+        resetButton.addActionListener(ignored -> {
             resetState();
             if (controller != null) {
                 controller.refreshVisualization();
@@ -296,12 +297,13 @@ public class MonteCarloPiMode implements VisualizationMode {
     }
 
     private void layoutDashboard() {
-        int cardHeight = Math.min(CARD_HEIGHT, Math.max(56, height / 6));
-        int cardsY = height - OUTER_PADDING - cardHeight;
+        metricsRowHeight = Math.clamp(height / 7, METRICS_ROW_MIN_HEIGHT, METRICS_ROW_MAX_HEIGHT);
+        int metricsY = height - OUTER_PADDING - metricsRowHeight;
         int mainTop = Math.min(height - 40, HEADER_HEIGHT + OUTER_PADDING);
-        int availableMainHeight = Math.max(90, cardsY - mainTop - SECTION_GAP);
-        int mainHeight = availableMainHeight;
-        int leftWidth = Math.max(120, Math.min(width - OUTER_PADDING * 2, (int) Math.round(width * 0.47)));
+        int mainBottom = metricsY - SECTION_GAP;
+        int mainHeight = Math.max(90, mainBottom - mainTop);
+        int leftMaxWidth = Math.max(120, width - OUTER_PADDING * 2);
+        int leftWidth = Math.clamp((int) Math.round(width * 0.48), 120, leftMaxWidth);
         int rightX = OUTER_PADDING + leftWidth + SECTION_GAP;
         int rightWidth = Math.max(80, width - rightX - OUTER_PADDING);
 
@@ -309,7 +311,7 @@ public class MonteCarloPiMode implements VisualizationMode {
 
         int plotAvailableWidth = samplePanelBounds.width - PANEL_INSET * 2 - SAMPLE_AXIS_EXTRA_LEFT;
         int plotAvailableHeight = samplePanelBounds.height - PANEL_INSET * 2 - 38 - SAMPLE_AXIS_EXTRA_BOTTOM;
-        int plotSize = Math.max(40, Math.min(plotAvailableWidth, plotAvailableHeight));
+        int plotSize = Math.clamp(Math.min(plotAvailableWidth, plotAvailableHeight), 40, Integer.MAX_VALUE);
         int plotX = samplePanelBounds.x + PANEL_INSET + SAMPLE_AXIS_EXTRA_LEFT;
         int plotY = samplePanelBounds.y + 46;
         samplePlotBounds = new Rectangle(plotX, plotY, plotSize, plotSize);
@@ -324,17 +326,16 @@ public class MonteCarloPiMode implements VisualizationMode {
     private void layoutMetricCards() {
         metricCardBounds.clear();
 
-        int cardCount = 5;
-        int availableWidth = width - OUTER_PADDING * 2 - CARD_GAP * (cardCount - 1);
-        int cardWidth = Math.max(120, availableWidth / cardCount);
-        int totalWidth = cardWidth * cardCount + CARD_GAP * (cardCount - 1);
-        int startX = OUTER_PADDING + Math.max(0, (width - OUTER_PADDING * 2 - totalWidth) / 2);
-        int cardHeight = Math.min(CARD_HEIGHT, Math.max(56, height / 6));
-        int y = height - OUTER_PADDING - cardHeight;
+        int availableWidth = width - OUTER_PADDING * 2 - CARD_GAP * (METRIC_CARD_COUNT - 1);
+        int baseCardWidth = Math.max(120, availableWidth / METRIC_CARD_COUNT);
+        int usedWidth = baseCardWidth * METRIC_CARD_COUNT + CARD_GAP * (METRIC_CARD_COUNT - 1);
+        int startX = OUTER_PADDING + Math.max(0, (width - OUTER_PADDING * 2 - usedWidth) / 2);
+        int y = height - OUTER_PADDING - metricsRowHeight;
+        int x = startX;
 
-        for (int i = 0; i < cardCount; i++) {
-            int x = startX + i * (cardWidth + CARD_GAP);
-            metricCardBounds.add(new Rectangle(x, y, cardWidth, cardHeight));
+        for (int i = 0; i < METRIC_CARD_COUNT; i++) {
+            metricCardBounds.add(new Rectangle(x, y, baseCardWidth, metricsRowHeight));
+            x += baseCardWidth + CARD_GAP;
         }
     }
 
@@ -477,7 +478,7 @@ public class MonteCarloPiMode implements VisualizationMode {
         drawChartGrid(g, plot);
 
         double[] estimateScale = estimateScale();
-        drawTrueValueLine(g, plot, normalizeRange(Math.PI, estimateScale[0], estimateScale[1]), "π true");
+        drawTrueValueLine(g, plot, normalizeRange(Math.PI, estimateScale[0], estimateScale[1]));
 
         if (estimateHistory.size() >= 2) {
             g.setColor(CONVERGENCE_LINE);
@@ -523,7 +524,7 @@ public class MonteCarloPiMode implements VisualizationMode {
     }
 
     private void drawMetricCards(Graphics2D g) {
-        if (metricCardBounds.size() < 5) {
+        if (metricCardBounds.size() < METRIC_CARD_COUNT) {
             return;
         }
 
@@ -531,33 +532,39 @@ public class MonteCarloPiMode implements VisualizationMode {
         double absoluteError = currentError();
         double relativeError = pointCount == 0 ? 0.0 : absoluteError / Math.PI;
         double insideRatio = pointCount == 0 ? 0.0 : (double) insideCount / pointCount;
+        double outsideRatio = pointCount == 0 ? 0.0 : 1.0 - insideRatio;
 
         drawMetricCard(g, metricCardBounds.get(0), "TOTAL SAMPLES", formatWithGrouping(pointCount),
-                pointCount == 0 ? "waiting" : "inside + outside", CARD_VALUE_CYAN);
+                pointCount == 0 ? "waiting for samples" : "inside + outside", CARD_VALUE_CYAN);
         drawMetricCard(g, metricCardBounds.get(1), "POINTS INSIDE", formatWithGrouping(insideCount),
-                pointCount == 0 ? "0.0000%" : percent(insideRatio), CARD_VALUE_GREEN);
+                pointCount == 0 ? "0.00000%" : percent(insideRatio), CARD_VALUE_GREEN);
         drawMetricCard(g, metricCardBounds.get(2), "POINTS OUTSIDE", formatWithGrouping(outsideCount),
-                pointCount == 0 ? "0.0000%" : percent(1.0 - insideRatio), CARD_VALUE_ORANGE);
+                pointCount == 0 ? "0.00000%" : percent(outsideRatio), CARD_VALUE_ORANGE);
         drawMetricCard(g, metricCardBounds.get(3), "ESTIMATE OF π", pointCount == 0 ? "—" : String.format(java.util.Locale.US, "%.8f", estimate),
-                "4 × (inside / N)", CARD_VALUE_CYAN);
-        drawMetricCard(g, metricCardBounds.get(4), "ABS / REL ERROR", pointCount == 0 ? "—" : formatScientific(absoluteError),
-                pointCount == 0 ? "relative —" : "rel " + formatScientific(relativeError), CARD_VALUE_YELLOW);
+                "π = 4 × inside / total", CARD_VALUE_CYAN);
+        drawMetricCard(g, metricCardBounds.get(4), "ABSOLUTE ERROR", pointCount == 0 ? "—" : formatScientific(absoluteError),
+                "|πestimate − πtrue|", CARD_VALUE_YELLOW);
+        drawMetricCard(g, metricCardBounds.get(5), "RELATIVE ERROR", pointCount == 0 ? "—" : formatScientific(relativeError),
+                "relative to πtrue", CARD_VALUE_YELLOW);
     }
 
     private void drawMetricCard(Graphics2D g, Rectangle bounds, String label, String value, String meta, Color valueColor) {
         drawPanelBox(g, bounds.x, bounds.y, bounds.width, bounds.height, PANEL_BACKGROUND_SOFT);
 
+        g.setColor(new Color(valueColor.getRed(), valueColor.getGreen(), valueColor.getBlue(), 210));
+        g.fillRoundRect(bounds.x + 14, bounds.y + 12, 28, 5, 5, 5);
+
         g.setFont(CARD_LABEL_FONT);
         g.setColor(CARD_LABEL_COLOR);
-        g.drawString(label, bounds.x + 14, bounds.y + 22);
+        g.drawString(label, bounds.x + 14, bounds.y + 30);
 
         g.setFont(CARD_VALUE_FONT);
         g.setColor(valueColor);
-        g.drawString(value, bounds.x + 14, bounds.y + 48);
+        g.drawString(value, bounds.x + 14, bounds.y + 57);
 
         g.setFont(CARD_SMALL_FONT);
         g.setColor(TEXT_DIM);
-        g.drawString(meta, bounds.x + 14, bounds.y + 67);
+        g.drawString(meta, bounds.x + 14, bounds.y + bounds.height - 14);
     }
 
     private void drawPanelBox(Graphics2D g, int x, int y, int panelWidth, int panelHeight, Color fill) {
@@ -587,7 +594,7 @@ public class MonteCarloPiMode implements VisualizationMode {
         g.drawRect(plot.x, plot.y, plot.width, plot.height);
     }
 
-    private void drawTrueValueLine(Graphics2D g, Rectangle plot, double relativeY, String label) {
+    private void drawTrueValueLine(Graphics2D g, Rectangle plot, double relativeY) {
         Stroke oldStroke = g.getStroke();
         g.setColor(TRUE_VALUE_LINE);
         g.setStroke(new BasicStroke(1f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10f, new float[]{6f, 6f}, 0f));
@@ -596,7 +603,7 @@ public class MonteCarloPiMode implements VisualizationMode {
         g.setStroke(oldStroke);
 
         g.setFont(CHART_VALUE_FONT);
-        g.drawString(label, plot.x + plot.width - 34, y - 6);
+        g.drawString("π true", plot.x + plot.width - 34, y - 6);
     }
 
     private void drawEstimatePolyline(Graphics2D g, Rectangle plot, double minEstimate, double maxEstimate) {
@@ -697,7 +704,7 @@ public class MonteCarloPiMode implements VisualizationMode {
     private static <T> void appendBounded(List<T> list, T value) {
         list.add(value);
         if (list.size() > HISTORY_CAPACITY) {
-            list.remove(0);
+            list.removeFirst();
         }
     }
 
@@ -730,7 +737,7 @@ public class MonteCarloPiMode implements VisualizationMode {
         if (max <= min) {
             return 0.5;
         }
-        return Math.max(0.0, Math.min(1.0, (value - min) / (max - min)));
+        return Math.clamp((value - min) / (max - min), 0.0, 1.0);
     }
 
     private static String formatWithGrouping(int value) {
@@ -738,7 +745,7 @@ public class MonteCarloPiMode implements VisualizationMode {
     }
 
     private static String percent(double value) {
-        return String.format(java.util.Locale.US, "%.4f%%", value * 100.0);
+        return String.format(java.util.Locale.US, "%.5f%%", value * 100.0);
     }
 
     private static String formatScientific(double value) {

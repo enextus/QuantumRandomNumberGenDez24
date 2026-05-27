@@ -31,7 +31,7 @@ class VisualizationModeRegistryTest {
         assertTrue(ids.contains("percolation"));
         assertTrue(ids.contains("forest-fire"));
         assertTrue(ids.contains("spectral-plot"));
-        assertTrue(ids.contains("chaos-game-representation"));
+        assertTrue(ids.contains("cgr-bitstream"));
         assertTrue(ids.contains("dla"));
     }
 
