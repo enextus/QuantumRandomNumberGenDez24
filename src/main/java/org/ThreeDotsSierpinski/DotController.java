@@ -478,6 +478,10 @@ public class DotController extends JPanel {
         return randomNumberProvider.getConsumedNumbers();
     }
 
+    public RNProvider getRandomNumberProvider() {
+        return randomNumberProvider;
+    }
+
     /**
      * Перерисовывает текущее состояние режима без выполнения нового animation step
      * и без потребления новых случайных чисел.

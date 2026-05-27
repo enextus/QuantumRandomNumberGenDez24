@@ -92,13 +92,16 @@ public interface VisualizationMode {
         return new VisualizationMode[] {
                 new SierpinskiMode(),
                 new VoronoiMode(),
+                new BarnsleyFernMode(),
                 new RandomWalkHeatmapMode(),
                 new GaltonBoardMode(),
+                new MonteCarloPiMode(),
                 new PercolationMode(),
-                new BarnsleyFernMode(),
                 new ForestFireMode(),
+                new SpectralPlotMode(),
+                new ChaosGameRepresentationMode(),
                 new DLAMode(),
-        };
+        }; 
     }
 
 }

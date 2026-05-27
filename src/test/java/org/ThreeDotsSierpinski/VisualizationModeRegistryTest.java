@@ -8,7 +8,8 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DisplayName("VisualizationMode registry")
 @Tag("fast")
@@ -22,12 +23,16 @@ class VisualizationModeRegistryTest {
                 .collect(Collectors.toSet());
 
         assertTrue(ids.contains("Sierpinski"));
-        assertTrue(ids.contains("dla"));
         assertTrue(ids.contains("voronoi"));
         assertTrue(ids.contains("barnsley-fern"));
         assertTrue(ids.contains("random-walk-heatmap"));
         assertTrue(ids.contains("galton-board"));
+        assertTrue(ids.contains("monte-carlo-pi"));
         assertTrue(ids.contains("percolation"));
+        assertTrue(ids.contains("forest-fire"));
+        assertTrue(ids.contains("spectral-plot"));
+        assertTrue(ids.contains("chaos-game-representation"));
+        assertTrue(ids.contains("dla"));
     }
 
     @Test

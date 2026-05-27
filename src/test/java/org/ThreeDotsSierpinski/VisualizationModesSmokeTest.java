@@ -70,11 +70,39 @@ class VisualizationModesSmokeTest {
         assertFalse(mode.usesRecolorAnimation());
     }
 
+
+    @Test
+    @DisplayName("MonteCarloPiMode consumes pairs and supports reset control")
+    void monteCarloPiModeConsumesPairsAndSupportsReset() {
+        MonteCarloPiMode mode = new MonteCarloPiMode();
+        BufferedImage canvas = newCanvas();
+        mode.initialize(canvas, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+        mode.step(sequentialProvider(), canvas, DOT_SIZE);
+
+        assertTrue(mode.getPointCount() > 0);
+        assertEquals(mode.getPointCount() * 2, mode.getRandomNumbersUsed());
+        assertTrue(mode.usesDarkBackground());
+        assertFalse(mode.usesRecolorAnimation());
+
+        CountingDotController controller = new CountingDotController(new MonteCarloPiMode());
+        List<JComponent> controls = mode.createModeControls(controller);
+        JButton resetButton = controls.stream()
+                .filter(JButton.class::isInstance)
+                .map(JButton.class::cast)
+                .findFirst()
+                .orElseThrow();
+
+        resetButton.doClick();
+        assertEquals(1, controller.refreshCount());
+        controller.shutdown();
+    }
+
     @Test
     @DisplayName("VoronoiMode exposes marker controls and refreshes on toggle")
     void voronoiMarkerToggleRefreshesController() {
         VoronoiMode mode = new VoronoiMode();
-        CountingDotController controller = new CountingDotController();
+        CountingDotController controller = new CountingDotController(new VoronoiMode());
 
         List<JComponent> controls = mode.createModeControls(controller);
 
@@ -131,6 +159,7 @@ class VisualizationModesSmokeTest {
                 new BarnsleyFernMode(),
                 new RandomWalkHeatmapMode(),
                 new GaltonBoardMode(),
+                new MonteCarloPiMode(),
                 new PercolationMode()
         );
 
@@ -176,8 +205,8 @@ class VisualizationModesSmokeTest {
     private static final class CountingDotController extends DotController {
         private int refreshCount = 0;
 
-        private CountingDotController() {
-            super(emptyProvider(), new VoronoiMode(), new JLabel());
+        private CountingDotController(VisualizationMode mode) {
+            super(emptyProvider(), mode, new JLabel());
         }
 
         @Override
