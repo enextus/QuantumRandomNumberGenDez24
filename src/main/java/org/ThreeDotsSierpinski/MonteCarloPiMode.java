@@ -1,5 +1,7 @@
 package org.ThreeDotsSierpinski;
 
+import org.jetbrains.annotations.NotNull;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
@@ -45,7 +47,6 @@ public class MonteCarloPiMode implements VisualizationMode {
     private static final int PANEL_INSET = 16;
     private static final int SAMPLE_AXIS_EXTRA_BOTTOM = 22;
     private static final int SAMPLE_AXIS_EXTRA_LEFT = 18;
-    private static final int CARD_HEIGHT = 90;
     private static final int CARD_GAP = 10;
     private static final int METRIC_CARD_COUNT = 6;
     private static final int METRICS_ROW_MIN_HEIGHT = 74;
@@ -1100,6 +1101,14 @@ public class MonteCarloPiMode implements VisualizationMode {
         title.setForeground(HELP_DIALOG_LANGUAGE_COLOR);
         panel.add(title, BorderLayout.NORTH);
 
+        JScrollPane scrollPane = getJScrollPane(text);
+        scrollPane.getViewport().setBackground(HELP_DIALOG_COLUMN_BACKGROUND);
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private static @NotNull JScrollPane getJScrollPane(String text) {
         JTextArea textArea = new JTextArea(text, HELP_DIALOG_TEXT_ROWS, HELP_DIALOG_TEXT_COLUMNS);
         textArea.setFont(HELP_DIALOG_TEXT_FONT);
         textArea.setForeground(HELP_DIALOG_TEXT_COLOR);
@@ -1111,10 +1120,7 @@ public class MonteCarloPiMode implements VisualizationMode {
 
         JScrollPane scrollPane = new JScrollPane(textArea);
         scrollPane.setBorder(null);
-        scrollPane.getViewport().setBackground(HELP_DIALOG_COLUMN_BACKGROUND);
-        panel.add(scrollPane, BorderLayout.CENTER);
-
-        return panel;
+        return scrollPane;
     }
 
 
