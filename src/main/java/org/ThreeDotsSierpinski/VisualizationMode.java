@@ -105,6 +105,7 @@ public interface VisualizationMode {
                 new RandomWalkHeatmapMode(),
                 new MonteCarloMandelbrotAreaMode(),
                 new MonteCarloMandelbrot3DAreaMode(),
+                new LorenzAttractor3DMode(),
                 new MonteCarloPiMode(),
                 new GaltonBoardMode(),
                 new PercolationMode(),

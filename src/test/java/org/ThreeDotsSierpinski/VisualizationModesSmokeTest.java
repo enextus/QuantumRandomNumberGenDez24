@@ -160,6 +160,9 @@ class VisualizationModesSmokeTest {
                 new RandomWalkHeatmapMode(),
                 new GaltonBoardMode(),
                 new MonteCarloPiMode(),
+                new MonteCarloMandelbrotAreaMode(),
+                new MonteCarloMandelbrot3DAreaMode(),
+                new LorenzAttractor3DMode(),
                 new PercolationMode()
         );
 
@@ -169,6 +172,22 @@ class VisualizationModesSmokeTest {
             assertDoesNotThrow(() -> mode.step(emptyProvider, canvas, DOT_SIZE), mode.getName());
             assertEquals(0, mode.getRandomNumbersUsed(), mode.getName());
         }
+    }
+
+    @Test
+    @DisplayName("LorenzAttractor3DMode advances trajectories and consumes QRNG jitter")
+    void lorenzAttractor3DAdvancesTrajectoriesAndConsumesJitter() {
+        LorenzAttractor3DMode mode = new LorenzAttractor3DMode();
+        BufferedImage canvas = newCanvas();
+
+        mode.initialize(canvas, CANVAS_WIDTH, CANVAS_HEIGHT);
+        mode.step(sequentialProvider(), canvas, DOT_SIZE);
+
+        assertTrue(mode.getPointCount() > 0);
+        assertTrue(mode.getRandomNumbersUsed() > 0);
+        assertTrue(mode.usesDarkBackground());
+        assertFalse(mode.usesRecolorAnimation());
+        assertDoesNotThrow(() -> mode.redraw(canvas, CANVAS_WIDTH, CANVAS_HEIGHT, DOT_SIZE));
     }
 
     @Test
