@@ -8,16 +8,16 @@ import java.util.OptionalInt;
 
 /**
  * Режим визуализации: Monte Carlo Mandelbrot area estimation.
- *
+ * <p>
  * Случайные точки бросаются в прямоугольник комплексной плоскости:
  * x ∈ [-2.0, 1.0], y ∈ [-1.5, 1.5].
- *
+ * <p>
  * Для каждой точки проверяется, принадлежит ли она множеству Мандельброта:
  * z₀ = 0
  * zₙ₊₁ = zₙ² + c
- *
- * Если точка не "убегает" за MAX_ITERATIONS, она считается bounded/inside.
- * Доля bounded-точек даёт Monte Carlo оценку площади множества Мандельброта.
+ * <p>
+ * Если точка не "убегает" за заданное количество итераций, она считается
+ * bounded/inside. Доля bounded-точек даёт Monte Carlo оценку площади.
  */
 public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
 
@@ -39,7 +39,22 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
     private static final double PLANE_HEIGHT = MAX_IMAG - MIN_IMAG;
     private static final double PLANE_AREA = PLANE_WIDTH * PLANE_HEIGHT;
 
-    private static final int MAX_ITERATIONS = 96;
+    /**
+     * Численная справочная оценка площади множества Мандельброта.
+     * Точное аналитическое значение неизвестно; это reference value только для UI-ориентира.
+     */
+    private static final double REFERENCE_AREA_ESTIMATE = 1.5065918849;
+
+    private static final int DEFAULT_MAX_ITERATIONS = 96;
+    private static final int ITERATIONS_PRESET_LOW = 96;
+    private static final int ITERATIONS_PRESET_MEDIUM = 256;
+    private static final int ITERATIONS_PRESET_HIGH = 512;
+    private static final Integer[] ITERATION_PRESETS = {
+            ITERATIONS_PRESET_LOW,
+            ITERATIONS_PRESET_MEDIUM,
+            ITERATIONS_PRESET_HIGH
+    };
+
     private static final double ESCAPE_RADIUS_SQUARED = 4.0;
     private static final int SAMPLES_PER_STEP = 220;
 
@@ -49,12 +64,16 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
     private static final int PANEL_RADIUS = 22;
     private static final int STAT_CARD_HEIGHT = 74;
     private static final int STAT_CARD_GAP = 10;
-    private static final int STAT_CARD_COUNT = 4;
+    private static final int STAT_CARD_COUNT = 6;
     private static final int RESET_BUTTON_WIDTH = 82;
+    private static final int ITERATIONS_COMBO_WIDTH = 92;
     private static final int CONTROL_HEIGHT = 28;
 
     private static final String RESET_TEXT = "Reset";
     private static final String RESET_TOOLTIP = "Restart Monte Carlo Mandelbrot area estimation";
+    private static final String ITERATIONS_LABEL_TEXT = "Iterations";
+    private static final String ITERATIONS_TOOLTIP =
+            "Higher values are slower but classify Mandelbrot boundary points more accurately";
 
     private static final Color BACKGROUND = new Color(2, 7, 14);
     private static final Color PANEL_BACKGROUND = new Color(8, 16, 30);
@@ -69,6 +88,8 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
     private static final Color INSIDE_COLOR = new Color(45, 255, 205, 210);
     private static final Color BORDER_COLOR = new Color(255, 225, 96, 210);
     private static final Color FAST_ESCAPE_COLOR = new Color(70, 90, 135, 120);
+    private static final Color ERROR_GOOD_COLOR = new Color(90, 230, 160);
+    private static final Color ERROR_WARN_COLOR = new Color(255, 210, 95);
 
     private static final Font TITLE_FONT = new Font("SansSerif", Font.BOLD, 29);
     private static final Font SUBTITLE_FONT = new Font("SansSerif", Font.PLAIN, 14);
@@ -84,6 +105,7 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
     private int randomNumbersUsed;
     private int insideCount;
     private int escapedCount;
+    private int maxIterations = DEFAULT_MAX_ITERATIONS;
 
     private BufferedImage sampleLayer;
     private Rectangle plotBounds = new Rectangle();
@@ -132,13 +154,25 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
         resetButton.addActionListener(ignored -> {
             resetState();
             layoutDashboard();
+            refreshController();
+        });
 
-            if (this.controller != null) {
-                this.controller.refreshVisualization();
+        JLabel iterationsLabel = new JLabel(ITERATIONS_LABEL_TEXT);
+        JComboBox<Integer> iterationsComboBox = new JComboBox<>(ITERATION_PRESETS);
+        iterationsComboBox.setSelectedItem(maxIterations);
+        iterationsComboBox.setPreferredSize(new Dimension(ITERATIONS_COMBO_WIDTH, CONTROL_HEIGHT));
+        iterationsComboBox.setToolTipText(ITERATIONS_TOOLTIP);
+        iterationsComboBox.addActionListener(ignored -> {
+            Object selectedItem = iterationsComboBox.getSelectedItem();
+            if (selectedItem instanceof Integer selectedIterations && selectedIterations != maxIterations) {
+                maxIterations = selectedIterations;
+                resetState();
+                layoutDashboard();
+                refreshController();
             }
         });
 
-        return List.of(resetButton);
+        return List.of(resetButton, iterationsLabel, iterationsComboBox);
     }
 
     @Override
@@ -179,8 +213,8 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
                 double real = MIN_REAL + normalize(rawX.getAsInt()) * PLANE_WIDTH;
                 double imaginary = MIN_IMAG + normalize(rawY.getAsInt()) * PLANE_HEIGHT;
 
-                int escapeIteration = escapeIterations(real, imaginary);
-                boolean inside = escapeIteration >= MAX_ITERATIONS;
+                int escapeIteration = escapeIterations(real, imaginary, maxIterations);
+                boolean inside = escapeIteration >= maxIterations;
 
                 pointCount++;
                 drawnThisStep++;
@@ -226,6 +260,12 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
     @Override
     public int getRandomNumbersUsed() {
         return randomNumbersUsed;
+    }
+
+    private void refreshController() {
+        if (controller != null) {
+            controller.refreshVisualization();
+        }
     }
 
     private void ensureInitialized(BufferedImage canvas) {
@@ -323,7 +363,15 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
         g.setFont(SMALL_FONT);
         g.setColor(TEXT_DIM);
         g.drawString(
-                "window: Re ∈ [-2.0, 1.0], Im ∈ [-1.5, 1.5], max iterations = " + MAX_ITERATIONS,
+                String.format(
+                        java.util.Locale.US,
+                        "window: Re ∈ [%.1f, %.1f], Im ∈ [%.1f, %.1f], max iterations = %d",
+                        MIN_REAL,
+                        MAX_REAL,
+                        MIN_IMAG,
+                        MAX_IMAG,
+                        maxIterations
+                ),
                 OUTER_PADDING,
                 86
         );
@@ -381,13 +429,32 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
     }
 
     private void drawStats(Graphics2D g) {
-        drawStatCard(g, statCards[0], "TOTAL SAMPLES", Integer.toString(pointCount), "random complex points");
-        drawStatCard(g, statCards[1], "BOUNDED", Integer.toString(insideCount), formatPercent(insideRatio()));
-        drawStatCard(g, statCards[2], "ESCAPED", Integer.toString(escapedCount), formatPercent(escapedRatio()));
-        drawStatCard(g, statCards[3], "AREA ESTIMATE", formatArea(areaEstimate()), "area ≈ 9 × bounded / total");
+        double areaEstimate = areaEstimate();
+        double absoluteAreaError = Math.abs(areaEstimate - REFERENCE_AREA_ESTIMATE);
+
+        drawStatCard(g, statCards[0], "TOTAL SAMPLES", Integer.toString(pointCount), "random complex points", TITLE_COLOR);
+        drawStatCard(g, statCards[1], "BOUNDED", Integer.toString(insideCount), formatPercent(insideRatio()), INSIDE_COLOR);
+        drawStatCard(g, statCards[2], "ESCAPED", Integer.toString(escapedCount), formatPercent(escapedRatio()), TEXT_PRIMARY);
+        drawStatCard(g, statCards[3], "AREA ESTIMATE", formatArea(areaEstimate), "area ≈ 9 × bounded / total", TITLE_COLOR);
+        drawStatCard(g, statCards[4], "MAX ITERATIONS", Integer.toString(maxIterations), "higher = stricter boundary test", BORDER_COLOR);
+        drawStatCard(
+                g,
+                statCards[5],
+                "ABS ERROR VS REF",
+                formatArea(absoluteAreaError),
+                "ref ≈ " + formatArea(REFERENCE_AREA_ESTIMATE),
+                absoluteAreaError < 0.05 ? ERROR_GOOD_COLOR : ERROR_WARN_COLOR
+        );
     }
 
-    private void drawStatCard(Graphics2D g, Rectangle bounds, String label, String value, String smallText) {
+    private void drawStatCard(
+            Graphics2D g,
+            Rectangle bounds,
+            String label,
+            String value,
+            String smallText,
+            Color valueColor
+    ) {
         if (bounds == null) {
             return;
         }
@@ -399,7 +466,7 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
         g.drawString(label, bounds.x + 14, bounds.y + 22);
 
         g.setFont(VALUE_FONT);
-        g.setColor(TITLE_COLOR);
+        g.setColor(valueColor);
         g.drawString(value, bounds.x + 14, bounds.y + 47);
 
         g.setFont(SMALL_FONT);
@@ -442,28 +509,28 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
         if (inside) {
             g.setColor(INSIDE_COLOR);
         } else {
-            g.setColor(colorForEscape(escapeIteration));
+            g.setColor(colorForEscape(escapeIteration, maxIterations));
         }
 
         g.fillRect(px, py, drawSize, drawSize);
     }
 
-    private static Color colorForEscape(int iteration) {
+    private static Color colorForEscape(int iteration, int iterationLimit) {
         if (iteration <= 4) {
             return FAST_ESCAPE_COLOR;
         }
 
-        float hue = 0.62f - Math.min(0.48f, iteration / (float) MAX_ITERATIONS * 0.48f);
+        float hue = 0.62f - Math.min(0.48f, iteration / (float) iterationLimit * 0.48f);
         float saturation = 0.85f;
         float brightness = 0.95f;
         return Color.getHSBColor(hue, saturation, brightness);
     }
 
-    private static int escapeIterations(double cx, double cy) {
+    private static int escapeIterations(double cx, double cy, int iterationLimit) {
         double zx = 0.0;
         double zy = 0.0;
 
-        for (int iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+        for (int iteration = 0; iteration < iterationLimit; iteration++) {
             double zxNext = zx * zx - zy * zy + cx;
             double zyNext = 2.0 * zx * zy + cy;
 
@@ -475,7 +542,7 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
             }
         }
 
-        return MAX_ITERATIONS;
+        return iterationLimit;
     }
 
     private static double normalize(int value) {

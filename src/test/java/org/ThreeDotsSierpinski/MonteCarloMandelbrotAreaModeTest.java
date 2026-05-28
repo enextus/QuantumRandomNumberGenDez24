@@ -4,9 +4,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-import java.awt.*;
+import javax.swing.*;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
+import java.util.List;
 import java.util.OptionalInt;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -75,6 +76,38 @@ class MonteCarloMandelbrotAreaModeTest {
 
         assertEquals(pointsBefore, mode.getPointCount());
         assertEquals(randomBefore, mode.getRandomNumbersUsed());
+    }
+
+    @Test
+    @DisplayName("Mode exposes reset and iteration controls")
+    void exposesResetAndIterationControls() {
+        MonteCarloMandelbrotAreaMode mode = new MonteCarloMandelbrotAreaMode();
+        List<JComponent> controls = mode.createModeControls(null);
+
+        assertTrue(controls.stream().anyMatch(JButton.class::isInstance));
+        assertTrue(controls.stream().anyMatch(JComboBox.class::isInstance));
+    }
+
+    @Test
+    @DisplayName("Changing iteration preset resets accumulated samples")
+    void changingIterationPresetResetsSamples() {
+        MonteCarloMandelbrotAreaMode mode = new MonteCarloMandelbrotAreaMode();
+        BufferedImage canvas = newCanvas();
+
+        mode.initialize(canvas, CANVAS_WIDTH, CANVAS_HEIGHT);
+        mode.step(sequentialProvider(), canvas, DOT_SIZE);
+        assertTrue(mode.getPointCount() > 0);
+
+        JComboBox<?> comboBox = mode.createModeControls(null).stream()
+                .filter(JComboBox.class::isInstance)
+                .map(JComboBox.class::cast)
+                .findFirst()
+                .orElseThrow();
+
+        comboBox.setSelectedItem(256);
+
+        assertEquals(0, mode.getPointCount());
+        assertEquals(0, mode.getRandomNumbersUsed());
     }
 
     @Test

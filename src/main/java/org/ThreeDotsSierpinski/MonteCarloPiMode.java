@@ -1123,7 +1123,6 @@ public class MonteCarloPiMode implements VisualizationMode {
         return scrollPane;
     }
 
-
     @Override
     public int getPointCount() {
         return pointCount;
