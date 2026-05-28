@@ -18,6 +18,16 @@ import java.util.OptionalInt;
  * <p>
  * Если точка не "убегает" за заданное количество итераций, она считается
  * bounded/inside. Доля bounded-точек даёт Monte Carlo оценку площади.
+ * <p>
+ * Оптимизации относительно исходной версии:
+ * <ol>
+ *   <li>Аналитическая проверка главной кардиоиды и бутона периода-2 —
+ *       основная масса внутренних точек классифицируется без итераций.</li>
+ *   <li>Кэширование квадратов zx²/zy² в основном цикле (−2 умножения на итерацию).</li>
+ *   <li>Таблица цветов (LUT) вместо {@code Color.getHSBColor} на каждую точку.</li>
+ *   <li>Статичная "обвязка" (фон, заголовок, панель, сетка) запекается в отдельный
+ *       слой и переиспользуется между кадрами вместо полной перерисовки.</li>
+ * </ol>
  */
 public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
 
@@ -29,6 +39,7 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
     private static final String ICON = "𝕄";
 
     private static final double RANDOM_MAX = 65_535.0;
+    private static final int RANDOM_RANGE = 65_536;
 
     private static final double MIN_REAL = -2.0;
     private static final double MAX_REAL = 1.0;
@@ -57,6 +68,8 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
 
     private static final double ESCAPE_RADIUS_SQUARED = 4.0;
     private static final int SAMPLES_PER_STEP = 220;
+
+    private static final int FAST_ESCAPE_THRESHOLD = 4;
 
     private static final int HEADER_HEIGHT = 96;
     private static final int OUTER_PADDING = 18;
@@ -108,6 +121,9 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
     private int maxIterations = DEFAULT_MAX_ITERATIONS;
 
     private BufferedImage sampleLayer;
+    private BufferedImage chromeLayer;
+    private Color[] escapeColorLut;
+
     private Rectangle plotBounds = new Rectangle();
     private Rectangle panelBounds = new Rectangle();
     private final Rectangle[] statCards = new Rectangle[STAT_CARD_COUNT];
@@ -151,28 +167,33 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
         JButton resetButton = new JButton(RESET_TEXT);
         resetButton.setPreferredSize(new Dimension(RESET_BUTTON_WIDTH, CONTROL_HEIGHT));
         resetButton.setToolTipText(RESET_TOOLTIP);
-        resetButton.addActionListener(ignored -> {
-            resetState();
-            layoutDashboard();
-            refreshController();
-        });
+        resetButton.addActionListener(ignored -> restart());
 
         JLabel iterationsLabel = new JLabel(ITERATIONS_LABEL_TEXT);
-        JComboBox<Integer> iterationsComboBox = new JComboBox<>(ITERATION_PRESETS);
-        iterationsComboBox.setSelectedItem(maxIterations);
-        iterationsComboBox.setPreferredSize(new Dimension(ITERATIONS_COMBO_WIDTH, CONTROL_HEIGHT));
-        iterationsComboBox.setToolTipText(ITERATIONS_TOOLTIP);
-        iterationsComboBox.addActionListener(ignored -> {
-            Object selectedItem = iterationsComboBox.getSelectedItem();
-            if (selectedItem instanceof Integer selectedIterations && selectedIterations != maxIterations) {
-                maxIterations = selectedIterations;
-                resetState();
-                layoutDashboard();
-                refreshController();
-            }
-        });
+        JComboBox<Integer> iterationsComboBox = createIterationsComboBox();
 
         return List.of(resetButton, iterationsLabel, iterationsComboBox);
+    }
+
+    private JComboBox<Integer> createIterationsComboBox() {
+        JComboBox<Integer> comboBox = new JComboBox<>(ITERATION_PRESETS);
+        comboBox.setSelectedItem(maxIterations);
+        comboBox.setPreferredSize(new Dimension(ITERATIONS_COMBO_WIDTH, CONTROL_HEIGHT));
+        comboBox.setToolTipText(ITERATIONS_TOOLTIP);
+        comboBox.addActionListener(ignored -> {
+            Object selectedItem = comboBox.getSelectedItem();
+            if (selectedItem instanceof Integer selectedIterations && selectedIterations != maxIterations) {
+                maxIterations = selectedIterations;
+                restart();
+            }
+        });
+        return comboBox;
+    }
+
+    private void restart() {
+        resetState();
+        layoutDashboard();
+        refreshController();
     }
 
     @Override
@@ -280,6 +301,8 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
         insideCount = 0;
         escapedCount = 0;
 
+        buildColorLut();
+
         sampleLayer = new BufferedImage(
                 Math.max(1, width),
                 Math.max(1, height),
@@ -296,6 +319,17 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
         }
     }
 
+    /**
+     * Предрасчёт цвета для каждого возможного числа итераций выхода.
+     * Перестраивается только при смене {@code maxIterations}.
+     */
+    private void buildColorLut() {
+        escapeColorLut = new Color[maxIterations + 1];
+        for (int i = 0; i <= maxIterations; i++) {
+            escapeColorLut[i] = computeEscapeColor(i, maxIterations);
+        }
+    }
+
     private void layoutDashboard() {
         int cardsY = height - OUTER_PADDING - STAT_CARD_HEIGHT;
         int mainTop = HEADER_HEIGHT + OUTER_PADDING;
@@ -308,13 +342,11 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
                 mainHeight
         );
 
-        int plotSize = Math.max(
-                80,
-                Math.min(
-                        panelBounds.width - PANEL_INSET * 2,
-                        panelBounds.height - PANEL_INSET * 2 - 34
-                )
+        int availablePlotSize = Math.min(
+                panelBounds.width - PANEL_INSET * 2,
+                panelBounds.height - PANEL_INSET * 2 - 34
         );
+        int plotSize = Math.max(80, availablePlotSize);
 
         int plotX = panelBounds.x + (panelBounds.width - plotSize) / 2;
         int plotY = panelBounds.y + PANEL_INSET + 34;
@@ -328,10 +360,23 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
             int x = OUTER_PADDING + i * (cardWidth + STAT_CARD_GAP);
             statCards[i] = new Rectangle(x, cardsY, cardWidth, STAT_CARD_HEIGHT);
         }
+
+        buildChrome();
     }
 
-    private void render(BufferedImage canvas) {
-        Graphics2D g = canvas.createGraphics();
+    /**
+     * Запекает статичные элементы кадра (фон, заголовок, панель, заголовок панели,
+     * сетку) в отдельный непрозрачный слой. Пересобирается только при изменении
+     * геометрии или {@code maxIterations} (через {@link #layoutDashboard()}).
+     */
+    private void buildChrome() {
+        chromeLayer = new BufferedImage(
+                Math.max(1, width),
+                Math.max(1, height),
+                BufferedImage.TYPE_INT_RGB
+        );
+
+        Graphics2D g = chromeLayer.createGraphics();
         try {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -340,7 +385,32 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
             g.fillRect(0, 0, width, height);
 
             drawHeader(g);
-            drawPanel(g);
+
+            drawPanelBox(g, panelBounds);
+            g.setFont(PANEL_TITLE_FONT);
+            g.setColor(TEXT_PRIMARY);
+            g.drawString("RANDOM SAMPLE SPACE OVER COMPLEX PLANE", panelBounds.x + PANEL_INSET, panelBounds.y + 24);
+
+            drawGrid(g);
+        } finally {
+            g.dispose();
+        }
+    }
+
+    private void render(BufferedImage canvas) {
+        Graphics2D g = canvas.createGraphics();
+        try {
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+            // 1. Статичная обвязка (фон, заголовок, панель, сетка) — один blit.
+            g.drawImage(chromeLayer, 0, 0, null);
+
+            // 2. Накопленные сэмплы.
+            g.drawImage(sampleLayer, 0, 0, null);
+
+            // 3. Лёгкие динамичные/верхние элементы.
+            drawPlotDecorations(g);
             drawStats(g);
         } finally {
             g.dispose();
@@ -377,16 +447,11 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
         );
     }
 
-    private void drawPanel(Graphics2D g) {
-        drawPanelBox(g, panelBounds);
-
-        g.setFont(PANEL_TITLE_FONT);
-        g.setColor(TEXT_PRIMARY);
-        g.drawString("RANDOM SAMPLE SPACE OVER COMPLEX PLANE", panelBounds.x + PANEL_INSET, panelBounds.y + 24);
-
-        drawGrid(g);
-        g.drawImage(sampleLayer, 0, 0, null);
-
+    /**
+     * Элементы поверх облака сэмплов: рамка графика, подписи осей, легенда.
+     * Дешёвые, перерисовываются каждый кадр для сохранения исходного порядка слоёв.
+     */
+    private void drawPlotDecorations(Graphics2D g) {
         g.setColor(PANEL_BORDER);
         g.drawRect(plotBounds.x, plotBounds.y, plotBounds.width, plotBounds.height);
 
@@ -494,14 +559,14 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
             boolean inside,
             int drawSize
     ) {
-        int px = plotBounds.x + clampInt(
-                (int) Math.round((real - MIN_REAL) / PLANE_WIDTH * plotBounds.width),
+        int px = plotBounds.x + Math.clamp(
+                Math.round((real - MIN_REAL) / PLANE_WIDTH * plotBounds.width),
                 0,
                 Math.max(0, plotBounds.width - 1)
         );
 
-        int py = plotBounds.y + clampInt(
-                (int) Math.round((MAX_IMAG - imaginary) / PLANE_HEIGHT * plotBounds.height),
+        int py = plotBounds.y + Math.clamp(
+                Math.round((MAX_IMAG - imaginary) / PLANE_HEIGHT * plotBounds.height),
                 0,
                 Math.max(0, plotBounds.height - 1)
         );
@@ -509,14 +574,22 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
         if (inside) {
             g.setColor(INSIDE_COLOR);
         } else {
-            g.setColor(colorForEscape(escapeIteration, maxIterations));
+            g.setColor(escapeColor(escapeIteration));
         }
 
         g.fillRect(px, py, drawSize, drawSize);
     }
 
-    private static Color colorForEscape(int iteration, int iterationLimit) {
-        if (iteration <= 4) {
+    private Color escapeColor(int iteration) {
+        Color[] lut = escapeColorLut;
+        if (lut != null && iteration >= 0 && iteration < lut.length) {
+            return lut[iteration];
+        }
+        return computeEscapeColor(iteration, maxIterations);
+    }
+
+    private static Color computeEscapeColor(int iteration, int iterationLimit) {
+        if (iteration <= FAST_ESCAPE_THRESHOLD) {
             return FAST_ESCAPE_COLOR;
         }
 
@@ -526,18 +599,45 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
         return Color.getHSBColor(hue, saturation, brightness);
     }
 
+    /**
+     * Возвращает число итераций до выхода за радиус убегания, либо
+     * {@code iterationLimit}, если точка считается ограниченной.
+     * <p>
+     * Перед основным циклом выполняется аналитическая проверка двух крупнейших
+     * областей множества — главной кардиоиды и бутона периода-2. Все их точки
+     * доказуемо ограничены, поэтому возвращается {@code iterationLimit} без
+     * итераций (результат идентичен полному циклу).
+     * <p>
+     * В основном цикле квадраты zx²/zy² кэшируются и переиспользуются для
+     * следующего шага и проверки выхода (−2 умножения на итерацию).
+     */
     private static int escapeIterations(double cx, double cy, int iterationLimit) {
+        // Главная кардиоида: q·(q + (cx − 1/4)) ≤ 1/4·cy²
+        double xMinusQuarter = cx - 0.25;
+        double cy2 = cy * cy;
+        double q = xMinusQuarter * xMinusQuarter + cy2;
+        if (q * (q + xMinusQuarter) <= 0.25 * cy2) {
+            return iterationLimit;
+        }
+
+        // Бутон периода-2: круг радиуса 1/4 с центром в (−1, 0)
+        double xPlusOne = cx + 1.0;
+        if (xPlusOne * xPlusOne + cy2 <= 0.0625) {
+            return iterationLimit;
+        }
+
         double zx = 0.0;
         double zy = 0.0;
+        double zx2 = 0.0;
+        double zy2 = 0.0;
 
         for (int iteration = 0; iteration < iterationLimit; iteration++) {
-            double zxNext = zx * zx - zy * zy + cx;
-            double zyNext = 2.0 * zx * zy + cy;
+            zy = 2.0 * zx * zy + cy;   // использует старое zx
+            zx = zx2 - zy2 + cx;       // использует кэшированные квадраты
+            zx2 = zx * zx;
+            zy2 = zy * zy;
 
-            zx = zxNext;
-            zy = zyNext;
-
-            if (zx * zx + zy * zy > ESCAPE_RADIUS_SQUARED) {
+            if (zx2 + zy2 > ESCAPE_RADIUS_SQUARED) {
                 return iteration;
             }
         }
@@ -546,7 +646,7 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
     }
 
     private static double normalize(int value) {
-        return Math.max(0.0, Math.min(1.0, value / RANDOM_MAX));
+        return Math.floorMod(value, RANDOM_RANGE) / RANDOM_MAX;
     }
 
     private double insideRatio() {
@@ -571,9 +671,5 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
         }
 
         return String.format(java.util.Locale.US, "%.6f", value);
-    }
-
-    private static int clampInt(int value, int min, int max) {
-        return Math.max(min, Math.min(max, value));
     }
 }
