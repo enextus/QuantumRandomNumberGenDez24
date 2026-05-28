@@ -5,7 +5,9 @@ import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalInt;
 
 /**
@@ -100,6 +102,209 @@ public class MonteCarloPiMode implements VisualizationMode {
     private static final Font STATUS_VALUE_FONT = new Font("SansSerif", Font.BOLD, 18);
     private static final Font STATUS_SMALL_FONT = new Font("SansSerif", Font.PLAIN, 11);
 
+    private static final String MAIN_TITLE = "MONTE CARLO ESTIMATION OF π";
+    private static final String MAIN_SUBTITLE =
+            "True random numbers reveal a circle, an estimate and a converging law.";
+    private static final String RANDOMNESS_SOURCE_TITLE = "RANDOMNESS SOURCE";
+    private static final String SAMPLE_SPACE_TITLE = "MONTE CARLO SAMPLE SPACE";
+    private static final String CONVERGENCE_TITLE = "CONVERGENCE OF π ESTIMATE";
+    private static final String ABSOLUTE_ERROR_TITLE = "ABSOLUTE ERROR  |πestimate − πtrue|";
+
+    private static final int HELP_ICON_SIZE = 16;
+    private static final int HELP_ICON_MARGIN_LEFT = 8;
+    private static final int HELP_ICON_VERTICAL_OFFSET = 13;
+    private static final int HELP_ICON_TEXT_X_OFFSET = 5;
+    private static final int HELP_ICON_TEXT_Y_OFFSET = 12;
+    private static final int HELP_ICON_STROKE_WIDTH = 1;
+    private static final int HELP_ICON_HIT_PADDING = 3;
+
+    private static final int HELP_DIALOG_WIDTH = 920;
+    private static final int HELP_DIALOG_HEIGHT = 520;
+    private static final int HELP_DIALOG_PADDING = 18;
+    private static final int HELP_DIALOG_COLUMN_GAP = 16;
+    private static final int HELP_DIALOG_TITLE_FONT_SIZE = 22;
+    private static final int HELP_DIALOG_LANGUAGE_FONT_SIZE = 15;
+    private static final int HELP_DIALOG_TEXT_FONT_SIZE = 14;
+    private static final int HELP_DIALOG_TEXT_ROWS = 16;
+    private static final int HELP_DIALOG_TEXT_COLUMNS = 34;
+    private static final int HELP_DIALOG_CLOSE_BUTTON_WIDTH = 96;
+    private static final int HELP_DIALOG_CLOSE_BUTTON_HEIGHT = 30;
+
+    private static final Color HELP_ICON_BORDER = new Color(120, 170, 220, 215);
+    private static final Color HELP_ICON_BACKGROUND = new Color(18, 34, 55, 225);
+    private static final Color HELP_ICON_TEXT = new Color(215, 235, 255);
+    private static final Color HELP_DIALOG_BACKGROUND = new Color(7, 14, 26);
+    private static final Color HELP_DIALOG_COLUMN_BACKGROUND = new Color(12, 22, 38);
+    private static final Color HELP_DIALOG_BORDER = new Color(70, 112, 160);
+    private static final Color HELP_DIALOG_TITLE_COLOR = new Color(242, 244, 250);
+    private static final Color HELP_DIALOG_LANGUAGE_COLOR = new Color(95, 225, 255);
+    private static final Color HELP_DIALOG_TEXT_COLOR = new Color(220, 230, 244);
+
+    private static final Font HELP_ICON_FONT = new Font("SansSerif", Font.BOLD, 11);
+    private static final Font HELP_DIALOG_TITLE_FONT =
+            new Font("SansSerif", Font.BOLD, HELP_DIALOG_TITLE_FONT_SIZE);
+    private static final Font HELP_DIALOG_LANGUAGE_FONT =
+            new Font("SansSerif", Font.BOLD, HELP_DIALOG_LANGUAGE_FONT_SIZE);
+    private static final Font HELP_DIALOG_TEXT_FONT =
+            new Font("SansSerif", Font.PLAIN, HELP_DIALOG_TEXT_FONT_SIZE);
+
+    private enum HelpTopic {
+        MAIN_TITLE(
+                "MONTE CARLO ESTIMATION OF π",
+                """
+                Это общий заголовок режима. Он показывает, что визуализация использует метод Монте-Карло для оценки числа π.
+
+                Смысл метода: мы бросаем случайные точки в квадрат и считаем, какая доля попала внутрь вписанной окружности. Так как отношение площади окружности к площади квадрата связано с π, из случайных точек постепенно появляется численная оценка π.
+                """,
+                """
+                This is the main title of the mode. It indicates that the visualization uses a Monte Carlo method to estimate π.
+
+                The idea is to throw random points into a square and count what fraction lands inside the inscribed circle. Since the circle-to-square area ratio is related to π, the random samples gradually produce a numerical estimate of π.
+                """
+        ),
+        RANDOMNESS_SOURCE(
+                "RANDOMNESS SOURCE",
+                """
+                Этот блок показывает, откуда сейчас поступают случайные числа.
+
+                TRUE RANDOM / QRNG означает внешний квантовый источник. PSEUDO / LOCAL PRNG означает локальный псевдослучайный генератор fallback-режима. Для самого метода Монте-Карло важно, чтобы точки были распределены как можно равномернее и независимее.
+                """,
+                """
+                This block shows where the random numbers currently come from.
+
+                TRUE RANDOM / QRNG means the external quantum source. PSEUDO / LOCAL PRNG means the local fallback pseudo-random generator. For Monte Carlo estimation, the important property is that points are as uniform and independent as possible.
+                """
+        ),
+        SAMPLE_SPACE(
+                "MONTE CARLO SAMPLE SPACE",
+                """
+                Это пространство выборки: квадрат [0..1] × [0..1], в который бросаются случайные точки.
+
+                Голубая окружность — вписанная окружность. Точки внутри окружности учитываются как inside, точки вне окружности — как outside. Чем больше точек, тем яснее проявляется круг.
+                """,
+                """
+                This is the sample space: the unit square [0..1] × [0..1] where random points are placed.
+
+                The cyan circle is the inscribed circle. Points inside it count as inside, points outside it count as outside. As more points accumulate, the circle becomes visually clearer.
+                """
+        ),
+        CONVERGENCE(
+                "CONVERGENCE OF π ESTIMATE",
+                """
+                Этот график показывает, как текущая оценка π меняется по мере роста количества точек.
+
+                В начале линия может сильно колебаться, потому что выборка маленькая. С ростом числа samples случайные отклонения частично компенсируются, и оценка обычно приближается к истинному значению π.
+                """,
+                """
+                This chart shows how the current π estimate changes as the number of samples grows.
+
+                At the beginning the line may fluctuate strongly because the sample size is small. As more samples are collected, random deviations partly cancel out and the estimate usually approaches the true value of π.
+                """
+        ),
+        ABSOLUTE_ERROR_PANEL(
+                "ABSOLUTE ERROR |πestimate − πtrue|",
+                """
+                Этот график показывает абсолютную ошибку оценки π.
+
+                Ошибка равна расстоянию между текущей оценкой и истинным значением π. На логарифмической шкале удобно видеть, уменьшается ли ошибка на больших выборках.
+                """,
+                """
+                This chart shows the absolute error of the π estimate.
+
+                The error is the distance between the current estimate and the true value of π. A logarithmic scale makes it easier to see whether the error decreases as the sample size grows.
+                """
+        ),
+        TOTAL_SAMPLES(
+                "TOTAL SAMPLES",
+                """
+                Это общее количество случайных точек, уже использованных в оценке π.
+
+                Каждая точка создаётся из пары случайных чисел: одно задаёт координату x, другое — координату y. Чем больше total samples, тем устойчивее становится статистическая оценка.
+                """,
+                """
+                This is the total number of random points already used in the π estimation.
+
+                Each point is generated from a pair of random numbers: one for x and one for y. The larger the total sample count, the more stable the statistical estimate becomes.
+                """
+        ),
+        POINTS_INSIDE(
+                "POINTS INSIDE",
+                """
+                Это количество точек, попавших внутрь вписанной окружности.
+
+                Именно эта величина входит в формулу π ≈ 4 × inside / total. Если случайные точки равномерны, доля inside постепенно приближается к площади четверти круга относительно единичного квадрата.
+                """,
+                """
+                This is the number of points that landed inside the inscribed circle.
+
+                This value is used in the formula π ≈ 4 × inside / total. If the random points are uniform, the inside fraction gradually approaches the area ratio of the quarter circle within the unit square.
+                """
+        ),
+        POINTS_OUTSIDE(
+                "POINTS OUTSIDE",
+                """
+                Это количество точек, которые попали в квадрат, но оказались вне окружности.
+
+                Эти точки не входят в inside-count, но они важны для total samples. Вместе inside и outside образуют полную статистическую выборку.
+                """,
+                """
+                This is the number of points that landed inside the square but outside the circle.
+
+                These points do not contribute to the inside count, but they are part of the total sample count. Inside and outside together form the complete statistical sample.
+                """
+        ),
+        ESTIMATE_PI(
+                "ESTIMATE OF π",
+                """
+                Это текущая оценка числа π, рассчитанная по формуле π ≈ 4 × inside / total.
+
+                Оценка меняется после накопления новых точек. Она не обязана становиться лучше на каждом отдельном шаге, но на большой выборке обычно стабилизируется около истинного значения.
+                """,
+                """
+                This is the current estimate of π, calculated as π ≈ 4 × inside / total.
+
+                The estimate changes as new points are collected. It does not have to improve on every single step, but with a large sample it usually stabilizes near the true value.
+                """
+        ),
+        ABSOLUTE_ERROR_METRIC(
+                "ABSOLUTE ERROR",
+                """
+                Это текущее абсолютное отклонение оценки от истинного значения π.
+
+                Формула: |πestimate − πtrue|. Чем меньше это число, тем ближе текущая оценка к математическому π.
+                """,
+                """
+                This is the current absolute deviation of the estimate from the true value of π.
+
+                Formula: |πestimate − πtrue|. The smaller this number is, the closer the current estimate is to mathematical π.
+                """
+        ),
+        RELATIVE_ERROR(
+                "RELATIVE ERROR",
+                """
+                Это ошибка, нормированная относительно истинного значения π.
+
+                Она показывает масштаб ошибки не в абсолютных единицах, а как долю от πtrue. Это удобно для сравнения точности между разными экспериментами.
+                """,
+                """
+                This is the error normalized relative to the true value of π.
+
+                It shows the error not as an absolute distance, but as a fraction of πtrue. This is useful for comparing accuracy across different experiments.
+                """
+        );
+
+        private final String title;
+        private final String russianText;
+        private final String englishText;
+
+        HelpTopic(String title, String russianText, String englishText) {
+            this.title = title;
+            this.russianText = russianText.strip();
+            this.englishText = englishText.strip();
+        }
+    }
+
+
     private int width;
     private int height;
 
@@ -115,6 +320,7 @@ public class MonteCarloPiMode implements VisualizationMode {
     private Rectangle errorChartBounds = new Rectangle();
     private int metricsRowHeight;
     private final List<Rectangle> metricCardBounds = new ArrayList<>();
+    private final Map<HelpTopic, Rectangle> helpHitAreas = new EnumMap<>(HelpTopic.class);
 
     private final List<Double> estimateHistory = new ArrayList<>();
     private final List<Double> errorHistory = new ArrayList<>();
@@ -345,6 +551,8 @@ public class MonteCarloPiMode implements VisualizationMode {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
+            helpHitAreas.clear();
+
             g.setColor(BACKGROUND);
             g.fillRect(0, 0, width, height);
 
@@ -361,11 +569,12 @@ public class MonteCarloPiMode implements VisualizationMode {
     private void drawHeader(Graphics2D g) {
         g.setFont(TITLE_FONT);
         g.setColor(TITLE_COLOR);
-        g.drawString("MONTE CARLO ESTIMATION OF π", OUTER_PADDING, 44);
+        g.drawString(MAIN_TITLE, OUTER_PADDING, 44);
+        drawHelpIconAfterText(g, HelpTopic.MAIN_TITLE, MAIN_TITLE, OUTER_PADDING, 44, TITLE_FONT);
 
         g.setFont(SUBTITLE_FONT);
         g.setColor(SUBTITLE_COLOR);
-        g.drawString("True random numbers reveal a circle, an estimate and a converging law.", OUTER_PADDING, 68);
+        g.drawString(MAIN_SUBTITLE, OUTER_PADDING, 68);
 
         int statusX = width - OUTER_PADDING - STATUS_BOX_WIDTH;
         int statusY = 16;
@@ -373,7 +582,8 @@ public class MonteCarloPiMode implements VisualizationMode {
 
         g.setFont(STATUS_TITLE_FONT);
         g.setColor(TEXT_MUTED);
-        g.drawString("RANDOMNESS SOURCE", statusX + 14, statusY + 20);
+        g.drawString(RANDOMNESS_SOURCE_TITLE, statusX + 14, statusY + 20);
+        drawHelpIconAfterText(g, HelpTopic.RANDOMNESS_SOURCE, RANDOMNESS_SOURCE_TITLE, statusX + 14, statusY + 20, STATUS_TITLE_FONT);
 
         boolean quantum = displayedProviderMode == RNProvider.Mode.QUANTUM;
         String sourceLabel = quantum ? "TRUE RANDOM / QRNG" : "PSEUDO / LOCAL PRNG";
@@ -408,7 +618,9 @@ public class MonteCarloPiMode implements VisualizationMode {
 
         g.setFont(PANEL_TITLE_FONT);
         g.setColor(TEXT_PRIMARY);
-        g.drawString("MONTE CARLO SAMPLE SPACE", samplePanelBounds.x + PANEL_INSET, samplePanelBounds.y + 24);
+        g.drawString(SAMPLE_SPACE_TITLE, samplePanelBounds.x + PANEL_INSET, samplePanelBounds.y + 24);
+        drawHelpIconAfterText(g, HelpTopic.SAMPLE_SPACE, SAMPLE_SPACE_TITLE,
+                samplePanelBounds.x + PANEL_INSET, samplePanelBounds.y + 24, PANEL_TITLE_FONT);
 
         g.setFont(PANEL_META_FONT);
         g.setColor(CARD_VALUE_GREEN);
@@ -463,7 +675,9 @@ public class MonteCarloPiMode implements VisualizationMode {
 
         g.setFont(PANEL_TITLE_FONT);
         g.setColor(TEXT_PRIMARY);
-        g.drawString("CONVERGENCE OF π ESTIMATE", convergenceChartBounds.x + PANEL_INSET, convergenceChartBounds.y + 24);
+        g.drawString(CONVERGENCE_TITLE, convergenceChartBounds.x + PANEL_INSET, convergenceChartBounds.y + 24);
+        drawHelpIconAfterText(g, HelpTopic.CONVERGENCE, CONVERGENCE_TITLE,
+                convergenceChartBounds.x + PANEL_INSET, convergenceChartBounds.y + 24, PANEL_TITLE_FONT);
 
         double currentEstimate = currentEstimate();
         String valueText = pointCount == 0
@@ -503,7 +717,9 @@ public class MonteCarloPiMode implements VisualizationMode {
 
         g.setFont(PANEL_TITLE_FONT);
         g.setColor(TEXT_PRIMARY);
-        g.drawString("ABSOLUTE ERROR  |πestimate − πtrue|", errorChartBounds.x + PANEL_INSET, errorChartBounds.y + 24);
+        g.drawString(ABSOLUTE_ERROR_TITLE, errorChartBounds.x + PANEL_INSET, errorChartBounds.y + 24);
+        drawHelpIconAfterText(g, HelpTopic.ABSOLUTE_ERROR_PANEL, ABSOLUTE_ERROR_TITLE,
+                errorChartBounds.x + PANEL_INSET, errorChartBounds.y + 24, PANEL_TITLE_FONT);
 
         g.setFont(PANEL_META_FONT);
         g.setColor(TEXT_MUTED);
@@ -534,21 +750,21 @@ public class MonteCarloPiMode implements VisualizationMode {
         double insideRatio = pointCount == 0 ? 0.0 : (double) insideCount / pointCount;
         double outsideRatio = pointCount == 0 ? 0.0 : 1.0 - insideRatio;
 
-        drawMetricCard(g, metricCardBounds.get(0), "TOTAL SAMPLES", formatWithGrouping(pointCount),
+        drawMetricCard(g, metricCardBounds.get(0), HelpTopic.TOTAL_SAMPLES, "TOTAL SAMPLES", formatWithGrouping(pointCount),
                 pointCount == 0 ? "waiting for samples" : "inside + outside", CARD_VALUE_CYAN);
-        drawMetricCard(g, metricCardBounds.get(1), "POINTS INSIDE", formatWithGrouping(insideCount),
+        drawMetricCard(g, metricCardBounds.get(1), HelpTopic.POINTS_INSIDE, "POINTS INSIDE", formatWithGrouping(insideCount),
                 pointCount == 0 ? "0.00000%" : percent(insideRatio), CARD_VALUE_GREEN);
-        drawMetricCard(g, metricCardBounds.get(2), "POINTS OUTSIDE", formatWithGrouping(outsideCount),
+        drawMetricCard(g, metricCardBounds.get(2), HelpTopic.POINTS_OUTSIDE, "POINTS OUTSIDE", formatWithGrouping(outsideCount),
                 pointCount == 0 ? "0.00000%" : percent(outsideRatio), CARD_VALUE_ORANGE);
-        drawMetricCard(g, metricCardBounds.get(3), "ESTIMATE OF π", pointCount == 0 ? "—" : String.format(java.util.Locale.US, "%.8f", estimate),
+        drawMetricCard(g, metricCardBounds.get(3), HelpTopic.ESTIMATE_PI, "ESTIMATE OF π", pointCount == 0 ? "—" : String.format(java.util.Locale.US, "%.8f", estimate),
                 "π = 4 × inside / total", CARD_VALUE_CYAN);
-        drawMetricCard(g, metricCardBounds.get(4), "ABSOLUTE ERROR", pointCount == 0 ? "—" : formatScientific(absoluteError),
+        drawMetricCard(g, metricCardBounds.get(4), HelpTopic.ABSOLUTE_ERROR_METRIC, "ABSOLUTE ERROR", pointCount == 0 ? "—" : formatScientific(absoluteError),
                 "|πestimate − πtrue|", CARD_VALUE_YELLOW);
-        drawMetricCard(g, metricCardBounds.get(5), "RELATIVE ERROR", pointCount == 0 ? "—" : formatScientific(relativeError),
+        drawMetricCard(g, metricCardBounds.get(5), HelpTopic.RELATIVE_ERROR, "RELATIVE ERROR", pointCount == 0 ? "—" : formatScientific(relativeError),
                 "relative to πtrue", CARD_VALUE_YELLOW);
     }
 
-    private void drawMetricCard(Graphics2D g, Rectangle bounds, String label, String value, String meta, Color valueColor) {
+    private void drawMetricCard(Graphics2D g, Rectangle bounds, HelpTopic topic, String label, String value, String meta, Color valueColor) {
         drawPanelBox(g, bounds.x, bounds.y, bounds.width, bounds.height, PANEL_BACKGROUND_SOFT);
 
         g.setColor(new Color(valueColor.getRed(), valueColor.getGreen(), valueColor.getBlue(), 210));
@@ -556,7 +772,10 @@ public class MonteCarloPiMode implements VisualizationMode {
 
         g.setFont(CARD_LABEL_FONT);
         g.setColor(CARD_LABEL_COLOR);
-        g.drawString(label, bounds.x + 14, bounds.y + 30);
+        int labelX = bounds.x + 14;
+        int labelY = bounds.y + 30;
+        g.drawString(label, labelX, labelY);
+        drawHelpIconAfterText(g, topic, label, labelX, labelY, CARD_LABEL_FONT);
 
         g.setFont(CARD_VALUE_FONT);
         g.setColor(valueColor);
@@ -758,6 +977,145 @@ public class MonteCarloPiMode implements VisualizationMode {
     private static void drawAxisValue(Graphics2D g, String text, int x, int y) {
         g.drawString(text, x, y);
     }
+
+
+    @Override
+    public void handleMouseClicked(Point point, Component parent) {
+        for (var entry : helpHitAreas.entrySet()) {
+            if (entry.getValue().contains(point)) {
+                showHelpDialog(parent, entry.getKey());
+                return;
+            }
+        }
+    }
+
+    private void drawHelpIconAfterText(
+            Graphics2D g,
+            HelpTopic topic,
+            String text,
+            int textX,
+            int baselineY,
+            Font textFont
+    ) {
+        FontMetrics metrics = g.getFontMetrics(textFont);
+        int iconX = textX + metrics.stringWidth(text) + HELP_ICON_MARGIN_LEFT;
+        int iconY = baselineY - HELP_ICON_VERTICAL_OFFSET;
+
+        Rectangle hitArea = new Rectangle(
+                iconX - HELP_ICON_HIT_PADDING,
+                iconY - HELP_ICON_HIT_PADDING,
+                HELP_ICON_SIZE + HELP_ICON_HIT_PADDING * 2,
+                HELP_ICON_SIZE + HELP_ICON_HIT_PADDING * 2
+        );
+        helpHitAreas.put(topic, hitArea);
+
+        Font oldFont = g.getFont();
+        Color oldColor = g.getColor();
+        Stroke oldStroke = g.getStroke();
+
+        try {
+            g.setColor(HELP_ICON_BACKGROUND);
+            g.fillOval(iconX, iconY, HELP_ICON_SIZE, HELP_ICON_SIZE);
+
+            g.setColor(HELP_ICON_BORDER);
+            g.setStroke(new BasicStroke(HELP_ICON_STROKE_WIDTH));
+            g.drawOval(iconX, iconY, HELP_ICON_SIZE, HELP_ICON_SIZE);
+
+            g.setFont(HELP_ICON_FONT);
+            g.setColor(HELP_ICON_TEXT);
+            g.drawString(
+                    "?",
+                    iconX + HELP_ICON_TEXT_X_OFFSET,
+                    iconY + HELP_ICON_TEXT_Y_OFFSET
+            );
+        } finally {
+            g.setFont(oldFont);
+            g.setColor(oldColor);
+            g.setStroke(oldStroke);
+        }
+    }
+
+    private static void showHelpDialog(Component parent, HelpTopic topic) {
+        Window owner = parent == null ? null : SwingUtilities.getWindowAncestor(parent);
+        JDialog dialog = new JDialog(
+                owner,
+                "Monte Carlo π Help — " + topic.title,
+                Dialog.ModalityType.APPLICATION_MODAL
+        );
+
+        dialog.setLayout(new BorderLayout());
+        dialog.getContentPane().setBackground(HELP_DIALOG_BACKGROUND);
+
+        JLabel title = new JLabel(topic.title);
+        title.setFont(HELP_DIALOG_TITLE_FONT);
+        title.setForeground(HELP_DIALOG_TITLE_COLOR);
+        title.setBorder(BorderFactory.createEmptyBorder(
+                HELP_DIALOG_PADDING,
+                HELP_DIALOG_PADDING,
+                HELP_DIALOG_PADDING / 2,
+                HELP_DIALOG_PADDING
+        ));
+        dialog.add(title, BorderLayout.NORTH);
+
+        JPanel content = new JPanel(new GridLayout(1, 2, HELP_DIALOG_COLUMN_GAP, 0));
+        content.setBackground(HELP_DIALOG_BACKGROUND);
+        content.setBorder(BorderFactory.createEmptyBorder(
+                HELP_DIALOG_PADDING / 2,
+                HELP_DIALOG_PADDING,
+                HELP_DIALOG_PADDING,
+                HELP_DIALOG_PADDING
+        ));
+
+        content.add(createHelpColumn("Русский", topic.russianText));
+        content.add(createHelpColumn("English", topic.englishText));
+
+        dialog.add(content, BorderLayout.CENTER);
+
+        JButton closeButton = new JButton("OK");
+        closeButton.setPreferredSize(new Dimension(HELP_DIALOG_CLOSE_BUTTON_WIDTH, HELP_DIALOG_CLOSE_BUTTON_HEIGHT));
+        closeButton.addActionListener(ignored -> dialog.dispose());
+
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        footer.setBackground(HELP_DIALOG_BACKGROUND);
+        footer.setBorder(BorderFactory.createEmptyBorder(0, HELP_DIALOG_PADDING, HELP_DIALOG_PADDING, HELP_DIALOG_PADDING));
+        footer.add(closeButton);
+        dialog.add(footer, BorderLayout.SOUTH);
+
+        dialog.setSize(HELP_DIALOG_WIDTH, HELP_DIALOG_HEIGHT);
+        dialog.setLocationRelativeTo(parent);
+        dialog.setVisible(true);
+    }
+
+    private static JComponent createHelpColumn(String languageTitle, String text) {
+        JPanel panel = new JPanel(new BorderLayout(0, 8));
+        panel.setBackground(HELP_DIALOG_COLUMN_BACKGROUND);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(HELP_DIALOG_BORDER, 1, true),
+                BorderFactory.createEmptyBorder(HELP_DIALOG_PADDING, HELP_DIALOG_PADDING, HELP_DIALOG_PADDING, HELP_DIALOG_PADDING)
+        ));
+
+        JLabel title = new JLabel(languageTitle);
+        title.setFont(HELP_DIALOG_LANGUAGE_FONT);
+        title.setForeground(HELP_DIALOG_LANGUAGE_COLOR);
+        panel.add(title, BorderLayout.NORTH);
+
+        JTextArea textArea = new JTextArea(text, HELP_DIALOG_TEXT_ROWS, HELP_DIALOG_TEXT_COLUMNS);
+        textArea.setFont(HELP_DIALOG_TEXT_FONT);
+        textArea.setForeground(HELP_DIALOG_TEXT_COLOR);
+        textArea.setBackground(HELP_DIALOG_COLUMN_BACKGROUND);
+        textArea.setLineWrap(true);
+        textArea.setWrapStyleWord(true);
+        textArea.setEditable(false);
+        textArea.setCaretPosition(0);
+
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        scrollPane.setBorder(null);
+        scrollPane.getViewport().setBackground(HELP_DIALOG_COLUMN_BACKGROUND);
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        return panel;
+    }
+
 
     @Override
     public int getPointCount() {
