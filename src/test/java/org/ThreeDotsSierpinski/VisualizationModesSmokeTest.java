@@ -186,6 +186,21 @@ class VisualizationModesSmokeTest {
         assertFalse(mode.usesRecolorAnimation());
     }
 
+    @Test
+    @DisplayName("MonteCarloMandelbrot3DAreaMode consumes random pairs")
+    void monteCarloMandelbrot3DAreaConsumesRandomPairs() {
+        MonteCarloMandelbrot3DAreaMode mode = new MonteCarloMandelbrot3DAreaMode();
+        BufferedImage canvas = newCanvas();
+
+        mode.initialize(canvas, CANVAS_WIDTH, CANVAS_HEIGHT);
+        mode.step(sequentialProvider(), canvas, DOT_SIZE);
+
+        assertTrue(mode.getPointCount() > 0);
+        assertEquals(mode.getPointCount() * 2, mode.getRandomNumbersUsed());
+        assertTrue(mode.usesDarkBackground());
+        assertFalse(mode.usesRecolorAnimation());
+    }
+
     private static BufferedImage newCanvas() {
         return new BufferedImage(CANVAS_WIDTH, CANVAS_HEIGHT, BufferedImage.TYPE_INT_ARGB);
     }

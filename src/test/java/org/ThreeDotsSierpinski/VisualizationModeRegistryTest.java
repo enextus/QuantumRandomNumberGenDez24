@@ -33,6 +33,7 @@ class VisualizationModeRegistryTest {
         assertTrue(ids.contains("spectral-plot"));
         assertTrue(ids.contains("cgr-bitstream"));
         assertTrue(ids.contains("dla"));
+        assertTrue(ids.contains("monte-carlo-mandelbrot-3d-area"));
     }
 
     @Test
