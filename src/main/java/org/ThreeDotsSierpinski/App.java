@@ -256,6 +256,7 @@ public class App {
             }
 
             randomNumberProvider.setForcedPseudo(!wantsQuantum);
+            dotController.refreshVisualization();
 
             if (dotController.isRunning()) {
                 dotController.updateStatusLabel(wantsQuantum
@@ -356,6 +357,7 @@ public class App {
                     rngToggle.setEnabled(randomNumberProvider.isApiKeyConfigured());
                     rngToggle.setSelected(rngMode == RNProvider.Mode.QUANTUM);
                     syncToggleLabel.run();
+                    dotController.refreshVisualization();
 
                     if (rngMode == RNProvider.Mode.PSEUDO) {
                         String reason = randomNumberProvider.getFallbackReason();
@@ -387,6 +389,7 @@ public class App {
                     rngToggle.setEnabled(randomNumberProvider.isApiKeyConfigured());
                     rngToggle.setSelected(false);
                     syncToggleLabel.run();
+                    dotController.refreshVisualization();
 
                     if (!randomNumberProvider.isApiKeyConfigured()) {
                         statusLabel.setText("PSEUDO mode (no API key)");

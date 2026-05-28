@@ -3,6 +3,8 @@ package org.ThreeDotsSierpinski;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
@@ -177,6 +179,8 @@ public class DotController extends JPanel {
         setPreferredSize(new Dimension(prefWidth, prefHeight));
         setBackground(mode.usesDarkBackground() ? DARK_BACKGROUND_COLOR : LIGHT_BACKGROUND_COLOR);
 
+        initModeMouseForwarding();
+
         errorMessage = null;
 
         initAnimationTimer();
@@ -199,6 +203,16 @@ public class DotController extends JPanel {
         });
 
         recolorTimer.setRepeats(RECOLOR_TIMER_REPEATS);
+    }
+
+
+    private void initModeMouseForwarding() {
+        addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                mode.handleMouseClicked(e.getPoint(), DotController.this);
+            }
+        });
     }
 
     private void initAnimationTimer() {
@@ -476,6 +490,10 @@ public class DotController extends JPanel {
 
     public List<Long> getUsedRandomNumbers() {
         return randomNumberProvider.getConsumedNumbers();
+    }
+
+    public RNProvider getRandomNumberProvider() {
+        return randomNumberProvider;
     }
 
     /**

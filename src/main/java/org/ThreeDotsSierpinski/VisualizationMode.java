@@ -72,6 +72,15 @@ public interface VisualizationMode {
         return List.of();
     }
 
+
+    /**
+     * Обработка кликов мыши по области визуализации.
+     * Режимы, которым нужны canvas-hit areas или help overlays, могут переопределить этот hook.
+     */
+    default void handleMouseClicked(Point point, Component parent) {
+        // Default no-op.
+    }
+
     /**
      * Нужна ли анимация RED→BLACK для новых точек?
      * True = Sierpinski-style (точки сначала красные, через 1с чёрные).
@@ -92,11 +101,19 @@ public interface VisualizationMode {
         return new VisualizationMode[] {
                 new SierpinskiMode(),
                 new VoronoiMode(),
+                new BarnsleyFernMode(),
                 new RandomWalkHeatmapMode(),
+                new MonteCarloMandelbrotAreaMode(),
+                new MonteCarloMandelbrot3DAreaMode(),
+                new LorenzAttractor3DMode(),
+                new MonteCarloPiMode(),
                 new GaltonBoardMode(),
                 new PercolationMode(),
-                new BarnsleyFernMode(),
+                new ForestFireMode(),
+                new SpectralPlotMode(),
+                new ChaosGameRepresentationMode(),
                 new DLAMode(),
-        };
+        }; 
     }
+
 }

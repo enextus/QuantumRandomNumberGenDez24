@@ -2,36 +2,106 @@ package org.ThreeDotsSierpinski;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 /**
  * Диалог выбора режима визуализации.
- *
  * Показывается при запуске приложения. Отображает карточки
  * с описанием каждого доступного режима.
  */
 public class ModeSelectionDialog {
 
     private static final String DIALOG_TITLE = "Quantum Random Visualizer";
+    private static final String SUBTITLE_TEXT = "Выберите визуализацию";
+    private static final String FOOTER_TEXT =
+            "Powered by ANU Quantum Random Numbers API + L128X256MixRandom fallback";
+    private static final String DESCRIPTION_LINE_SEPARATOR = "\\n";
+    private static final String CARD_ARROW_TEXT = "→";
+
+    private static final String FONT_SANS_SERIF = "SansSerif";
+
+    private static final int DIALOG_LAYOUT_H_GAP = 0;
+    private static final int DIALOG_LAYOUT_V_GAP = 0;
+
+    private static final int DIALOG_WIDTH = 980;
+    private static final int DIALOG_BASE_HEIGHT = 180;
+    private static final int DIALOG_ROW_HEIGHT = 120;
+    private static final int DIALOG_MAX_HEIGHT = 900;
+    private static final int DIALOG_MIN_WIDTH = 700;
+    private static final int DIALOG_MIN_HEIGHT = 300;
+
+    private static final int MODE_GRID_COLUMNS = 2;
+    private static final int MODE_GRID_H_GAP = 12;
+    private static final int MODE_GRID_V_GAP = 12;
+
+    private static final int SCROLL_UNIT_INCREMENT = 16;
+
+    private static final int HEADER_BORDER_TOP = 20;
+    private static final int HEADER_BORDER_LEFT = 24;
+    private static final int HEADER_BORDER_BOTTOM = 10;
+    private static final int HEADER_BORDER_RIGHT = 24;
+
+    private static final int CARDS_BORDER_TOP = 10;
+    private static final int CARDS_BORDER_LEFT = 20;
+    private static final int CARDS_BORDER_BOTTOM = 20;
+    private static final int CARDS_BORDER_RIGHT = 20;
+
+    private static final int FOOTER_BORDER_TOP = 4;
+    private static final int FOOTER_BORDER_LEFT = 0;
+    private static final int FOOTER_BORDER_BOTTOM = 12;
+    private static final int FOOTER_BORDER_RIGHT = 0;
+
+    private static final int CARD_LAYOUT_H_GAP = 12;
+    private static final int CARD_LAYOUT_V_GAP = 0;
+    private static final int CARD_BORDER_THICKNESS = 1;
+    private static final int CARD_BORDER_TOP = 14;
+    private static final int CARD_BORDER_LEFT = 16;
+    private static final int CARD_BORDER_BOTTOM = 14;
+    private static final int CARD_BORDER_RIGHT = 16;
+    private static final int CARD_PREF_WIDTH = 420;
+    private static final int CARD_PREF_HEIGHT = 90;
+    private static final int CARD_ICON_SIZE = 48;
+    private static final int CARD_DESCRIPTION_TOP_SPACING = 4;
+
+    private static final int TITLE_FONT_SIZE = 20;
+    private static final int SUBTITLE_FONT_SIZE = 13;
+    private static final int FOOTER_FONT_SIZE = 10;
+    private static final int ICON_FONT_SIZE = 32;
+    private static final int MODE_NAME_FONT_SIZE = 15;
+    private static final int MODE_DESCRIPTION_FONT_SIZE = 12;
+    private static final int ARROW_FONT_SIZE = 20;
+
+    private static final int SCREEN_CENTER_DIVISOR = 2;
+    private static final int MIN_USABLE_SCREEN_SIZE = 1;
+    private static final int NO_INTERSECTION_AREA = 0;
+    private static final int MIN_CENTERING_OFFSET = 0;
+
+    private static final Color HEADER_BACKGROUND = new Color(245, 245, 242);
+    private static final Color FOOTER_BACKGROUND = new Color(245, 245, 242);
+    private static final Color CARDS_BACKGROUND = Color.WHITE;
+    private static final Color CARD_BACKGROUND = Color.WHITE;
+    private static final Color CARD_HOVER_BACKGROUND = new Color(240, 245, 255);
+    private static final Color CARD_BORDER_COLOR = new Color(220, 220, 215);
+    private static final Color CARD_HOVER_BORDER_COLOR = new Color(100, 140, 200);
+    private static final Color SUBTITLE_COLOR = new Color(120, 120, 120);
+    private static final Color FOOTER_COLOR = new Color(160, 160, 160);
+    private static final Color DESCRIPTION_COLOR = new Color(100, 100, 100);
+    private static final Color ARROW_COLOR = new Color(180, 180, 180);
+
+    private static final Font TITLE_FONT = new Font(FONT_SANS_SERIF, Font.BOLD, TITLE_FONT_SIZE);
+    private static final Font SUBTITLE_FONT = new Font(FONT_SANS_SERIF, Font.PLAIN, SUBTITLE_FONT_SIZE);
+    private static final Font FOOTER_FONT = new Font(FONT_SANS_SERIF, Font.PLAIN, FOOTER_FONT_SIZE);
+    private static final Font ICON_FONT = new Font(FONT_SANS_SERIF, Font.PLAIN, ICON_FONT_SIZE);
+    private static final Font MODE_NAME_FONT = new Font(FONT_SANS_SERIF, Font.BOLD, MODE_NAME_FONT_SIZE);
+    private static final Font MODE_DESCRIPTION_FONT = new Font(FONT_SANS_SERIF, Font.PLAIN, MODE_DESCRIPTION_FONT_SIZE);
+    private static final Font ARROW_FONT = new Font(FONT_SANS_SERIF, Font.PLAIN, ARROW_FONT_SIZE);
 
     private VisualizationMode selectedMode = null;
     private GraphicsConfiguration lastDialogGraphicsConfiguration = null;
 
     public GraphicsConfiguration getLastDialogGraphicsConfiguration() {
         return lastDialogGraphicsConfiguration;
-    }
-
-    /**
-     * Показывает диалог и ждёт выбора.
-     *
-     * @param parent родительский фрейм (может быть null)
-     * @return выбранный режим, или null если закрыли без выбора
-     */
-    public VisualizationMode showAndWait(JFrame parent) {
-        GraphicsConfiguration targetGraphicsConfiguration = parent == null
-                ? null
-                : parent.getGraphicsConfiguration();
-
-        return showAndWait(parent, targetGraphicsConfiguration);
     }
 
     /**
@@ -50,63 +120,108 @@ public class ModeSelectionDialog {
         var modes = VisualizationMode.allModes();
 
         var dialog = new JDialog(parent, DIALOG_TITLE, true);
-        dialog.setLayout(new BorderLayout(0, 0));
+        dialog.setLayout(new BorderLayout(DIALOG_LAYOUT_H_GAP, DIALOG_LAYOUT_V_GAP));
         dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 
-        // Заголовок
-        var header = new JPanel(new BorderLayout());
-        header.setBorder(BorderFactory.createEmptyBorder(20, 24, 10, 24));
-        header.setBackground(new Color(245, 245, 242));
+        dialog.add(createHeaderPanel(), BorderLayout.NORTH);
+        dialog.add(createModeCardsScrollPane(modes, dialog), BorderLayout.CENTER);
+        dialog.add(createFooterPanel(), BorderLayout.SOUTH);
 
-        var title = new JLabel(DIALOG_TITLE);
-        title.setFont(new Font("SansSerif", Font.BOLD, 20));
-        header.add(title, BorderLayout.WEST);
+        int rows = (modes.length + MODE_GRID_COLUMNS - 1) / MODE_GRID_COLUMNS;
+        int dialogHeight = Math.min(DIALOG_MAX_HEIGHT, DIALOG_BASE_HEIGHT + rows * DIALOG_ROW_HEIGHT);
 
-        var subtitle = new JLabel("Выберите визуализацию");
-        subtitle.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        subtitle.setForeground(new Color(120, 120, 120));
-        header.add(subtitle, BorderLayout.SOUTH);
-
-        dialog.add(header, BorderLayout.NORTH);
-
-        // Карточки режимов
-        var cardsPanel = new JPanel();
-        cardsPanel.setLayout(new BoxLayout(cardsPanel, BoxLayout.Y_AXIS));
-        cardsPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 20, 20));
-        cardsPanel.setBackground(Color.WHITE);
-
-        for (var mode : modes) {
-            var card = createModeCard(mode, dialog);
-            cardsPanel.add(card);
-            cardsPanel.add(Box.createVerticalStrut(10));
-        }
-
-        var scrollPane = new JScrollPane(cardsPanel);
-        scrollPane.setBorder(null);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        dialog.add(scrollPane, BorderLayout.CENTER);
-
-        // Footer
-        var footer = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        footer.setBorder(BorderFactory.createEmptyBorder(4, 0, 12, 0));
-        footer.setBackground(new Color(245, 245, 242));
-        var footerLabel = new JLabel("Powered by ANU Quantum Random Numbers API + L128X256MixRandom fallback");
-        footerLabel.setFont(new Font("SansSerif", Font.PLAIN, 10));
-        footerLabel.setForeground(new Color(160, 160, 160));
-        footer.add(footerLabel);
-        dialog.add(footer, BorderLayout.SOUTH);
-
-        // Размер и позиционирование
-        dialog.setSize(640, 180 + modes.length * 110);
-        dialog.setMinimumSize(new Dimension(400, 300));
+        dialog.setSize(DIALOG_WIDTH, dialogHeight);
+        dialog.setMinimumSize(new Dimension(DIALOG_MIN_WIDTH, DIALOG_MIN_HEIGHT));
         centerDialog(dialog, parent, targetGraphicsConfiguration);
-        dialog.setVisible(true); // Блокирует до закрытия (modal)
+        dialog.setVisible(true);
 
         lastDialogGraphicsConfiguration = resolveDialogGraphicsConfiguration(dialog);
 
         return selectedMode;
     }
 
+    private static JPanel createHeaderPanel() {
+        var header = new JPanel(new BorderLayout());
+        header.setBorder(BorderFactory.createEmptyBorder(
+                HEADER_BORDER_TOP,
+                HEADER_BORDER_LEFT,
+                HEADER_BORDER_BOTTOM,
+                HEADER_BORDER_RIGHT
+        ));
+        header.setBackground(HEADER_BACKGROUND);
+
+        var title = new JLabel(DIALOG_TITLE);
+        title.setFont(TITLE_FONT);
+        header.add(title, BorderLayout.WEST);
+
+        var subtitle = new JLabel(SUBTITLE_TEXT);
+        subtitle.setFont(SUBTITLE_FONT);
+        subtitle.setForeground(SUBTITLE_COLOR);
+        header.add(subtitle, BorderLayout.SOUTH);
+
+        return header;
+    }
+
+    private JScrollPane createModeCardsScrollPane(VisualizationMode[] modes, JDialog dialog) {
+        var cardsPanel = new JPanel(new GridLayout(
+                0,
+                MODE_GRID_COLUMNS,
+                MODE_GRID_H_GAP,
+                MODE_GRID_V_GAP
+        ));
+        cardsPanel.setBorder(BorderFactory.createEmptyBorder(
+                CARDS_BORDER_TOP,
+                CARDS_BORDER_LEFT,
+                CARDS_BORDER_BOTTOM,
+                CARDS_BORDER_RIGHT
+        ));
+        cardsPanel.setBackground(CARDS_BACKGROUND);
+
+        for (var mode : modes) {
+            cardsPanel.add(createModeCard(mode, dialog));
+        }
+
+        addGridFillersIfNeeded(cardsPanel, modes.length);
+
+        var scrollPane = new JScrollPane(cardsPanel);
+        scrollPane.setBorder(null);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(SCROLL_UNIT_INCREMENT);
+
+        return scrollPane;
+    }
+
+    private static void addGridFillersIfNeeded(JPanel cardsPanel, int modeCount) {
+        int remainder = modeCount % MODE_GRID_COLUMNS;
+
+        if (remainder == 0) {
+            return;
+        }
+
+        int fillersToAdd = MODE_GRID_COLUMNS - remainder;
+        for (int i = 0; i < fillersToAdd; i++) {
+            var filler = new JPanel();
+            filler.setOpaque(false);
+            cardsPanel.add(filler);
+        }
+    }
+
+    private static JPanel createFooterPanel() {
+        var footer = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        footer.setBorder(BorderFactory.createEmptyBorder(
+                FOOTER_BORDER_TOP,
+                FOOTER_BORDER_LEFT,
+                FOOTER_BORDER_BOTTOM,
+                FOOTER_BORDER_RIGHT
+        ));
+        footer.setBackground(FOOTER_BACKGROUND);
+
+        var footerLabel = new JLabel(FOOTER_TEXT);
+        footerLabel.setFont(FOOTER_FONT);
+        footerLabel.setForeground(FOOTER_COLOR);
+        footer.add(footerLabel);
+
+        return footer;
+    }
 
     /**
      * Возвращает монитор, на котором фактически находился диалог выбора режима
@@ -121,7 +236,7 @@ public class ModeSelectionDialog {
 
         Rectangle dialogBounds = dialog.getBounds();
 
-        if (dialogBounds != null && !dialogBounds.isEmpty()) {
+        if (!dialogBounds.isEmpty()) {
             GraphicsConfiguration largestIntersectionGraphicsConfiguration =
                     findGraphicsConfigurationWithLargestIntersection(dialogBounds);
             if (largestIntersectionGraphicsConfiguration != null) {
@@ -129,8 +244,8 @@ public class ModeSelectionDialog {
             }
 
             Point dialogCenter = new Point(
-                    dialogBounds.x + dialogBounds.width / 2,
-                    dialogBounds.y + dialogBounds.height / 2
+                    dialogBounds.x + dialogBounds.width / SCREEN_CENTER_DIVISOR,
+                    dialogBounds.y + dialogBounds.height / SCREEN_CENTER_DIVISOR
             );
 
             GraphicsConfiguration centerGraphicsConfiguration = findGraphicsConfiguration(dialogCenter);
@@ -151,14 +266,14 @@ public class ModeSelectionDialog {
         GraphicsEnvironment graphicsEnvironment = GraphicsEnvironment.getLocalGraphicsEnvironment();
 
         GraphicsConfiguration bestGraphicsConfiguration = null;
-        long bestIntersectionArea = 0;
+        long bestIntersectionArea = NO_INTERSECTION_AREA;
 
         for (GraphicsDevice screenDevice : graphicsEnvironment.getScreenDevices()) {
             GraphicsConfiguration graphicsConfiguration = screenDevice.getDefaultConfiguration();
             Rectangle intersection = graphicsConfiguration.getBounds().intersection(windowBounds);
 
-            long intersectionArea = (long) Math.max(0, intersection.width)
-                    * Math.max(0, intersection.height);
+            long intersectionArea = (long) Math.max(NO_INTERSECTION_AREA, intersection.width)
+                    * Math.max(NO_INTERSECTION_AREA, intersection.height);
 
             if (intersectionArea > bestIntersectionArea) {
                 bestIntersectionArea = intersectionArea;
@@ -206,8 +321,14 @@ public class ModeSelectionDialog {
 
         Rectangle usableBounds = getUsableScreenBounds(targetGraphicsConfiguration);
 
-        int x = usableBounds.x + Math.max(0, (usableBounds.width - dialog.getWidth()) / 2);
-        int y = usableBounds.y + Math.max(0, (usableBounds.height - dialog.getHeight()) / 2);
+        int x = usableBounds.x + Math.max(
+                MIN_CENTERING_OFFSET,
+                (usableBounds.width - dialog.getWidth()) / SCREEN_CENTER_DIVISOR
+        );
+        int y = usableBounds.y + Math.max(
+                MIN_CENTERING_OFFSET,
+                (usableBounds.height - dialog.getHeight()) / SCREEN_CENTER_DIVISOR
+        );
 
         dialog.setLocation(x, y);
     }
@@ -219,8 +340,8 @@ public class ModeSelectionDialog {
         return new Rectangle(
                 bounds.x + insets.left,
                 bounds.y + insets.top,
-                Math.max(1, bounds.width - insets.left - insets.right),
-                Math.max(1, bounds.height - insets.top - insets.bottom)
+                Math.max(MIN_USABLE_SCREEN_SIZE, bounds.width - insets.left - insets.right),
+                Math.max(MIN_USABLE_SCREEN_SIZE, bounds.height - insets.top - insets.bottom)
         );
     }
 
@@ -228,78 +349,81 @@ public class ModeSelectionDialog {
      * Создаёт карточку одного режима.
      */
     private JPanel createModeCard(VisualizationMode mode, JDialog dialog) {
-        var card = new JPanel(new BorderLayout(12, 0));
-        card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(220, 220, 215), 1, true),
-                BorderFactory.createEmptyBorder(14, 16, 14, 16)
-        ));
-        card.setBackground(Color.WHITE);
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
+        var card = new JPanel(new BorderLayout(CARD_LAYOUT_H_GAP, CARD_LAYOUT_V_GAP));
+        card.setBorder(createCardBorder(CARD_BORDER_COLOR));
+        card.setBackground(CARD_BACKGROUND);
+        card.setPreferredSize(new Dimension(CARD_PREF_WIDTH, CARD_PREF_HEIGHT));
         card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        // Иконка (символ)
         var icon = new JLabel(mode.getIcon());
-        icon.setFont(new Font("SansSerif", Font.PLAIN, 32));
-        icon.setPreferredSize(new Dimension(48, 48));
+        icon.setFont(ICON_FONT);
+        icon.setPreferredSize(new Dimension(CARD_ICON_SIZE, CARD_ICON_SIZE));
         icon.setHorizontalAlignment(SwingConstants.CENTER);
         card.add(icon, BorderLayout.WEST);
 
-        // Текст
-        var textPanel = new JPanel();
-        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
-        textPanel.setOpaque(false);
-
-        var name = new JLabel(mode.getName());
-        name.setFont(new Font("SansSerif", Font.BOLD, 15));
-        name.setAlignmentX(Component.LEFT_ALIGNMENT);
-        textPanel.add(name);
-
-        textPanel.add(Box.createVerticalStrut(4));
-
-        // Описание (может содержать \n)
-        for (String line : mode.getDescription().split("\n")) {
-            var desc = new JLabel(line);
-            desc.setFont(new Font("SansSerif", Font.PLAIN, 12));
-            desc.setForeground(new Color(100, 100, 100));
-            desc.setAlignmentX(Component.LEFT_ALIGNMENT);
-            textPanel.add(desc);
-        }
-
+        var textPanel = createModeTextPanel(mode);
         card.add(textPanel, BorderLayout.CENTER);
 
-        // Стрелка →
-        var arrow = new JLabel("→");
-        arrow.setFont(new Font("SansSerif", Font.PLAIN, 20));
-        arrow.setForeground(new Color(180, 180, 180));
+        var arrow = new JLabel(CARD_ARROW_TEXT);
+        arrow.setFont(ARROW_FONT);
+        arrow.setForeground(ARROW_COLOR);
         card.add(arrow, BorderLayout.EAST);
 
-        // Hover эффект
-        card.addMouseListener(new java.awt.event.MouseAdapter() {
+        card.addMouseListener(new MouseAdapter() {
             @Override
-            public void mouseEntered(java.awt.event.MouseEvent e) {
-                card.setBackground(new Color(240, 245, 255));
-                card.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(new Color(100, 140, 200), 1, true),
-                        BorderFactory.createEmptyBorder(14, 16, 14, 16)
-                ));
+            public void mouseEntered(MouseEvent e) {
+                card.setBackground(CARD_HOVER_BACKGROUND);
+                card.setBorder(createCardBorder(CARD_HOVER_BORDER_COLOR));
             }
 
             @Override
-            public void mouseExited(java.awt.event.MouseEvent e) {
-                card.setBackground(Color.WHITE);
-                card.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(new Color(220, 220, 215), 1, true),
-                        BorderFactory.createEmptyBorder(14, 16, 14, 16)
-                ));
+            public void mouseExited(MouseEvent e) {
+                card.setBackground(CARD_BACKGROUND);
+                card.setBorder(createCardBorder(CARD_BORDER_COLOR));
             }
 
             @Override
-            public void mouseClicked(java.awt.event.MouseEvent e) {
+            public void mouseClicked(MouseEvent e) {
                 selectedMode = mode;
                 dialog.dispose();
             }
         });
 
         return card;
+    }
+
+    private static JPanel createModeTextPanel(VisualizationMode mode) {
+        var textPanel = new JPanel();
+        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
+        textPanel.setOpaque(false);
+
+        var name = new JLabel(mode.getName());
+        name.setFont(MODE_NAME_FONT);
+        name.setAlignmentX(Component.LEFT_ALIGNMENT);
+        textPanel.add(name);
+
+        textPanel.add(Box.createVerticalStrut(CARD_DESCRIPTION_TOP_SPACING));
+
+        for (String line : mode.getDescription().split(DESCRIPTION_LINE_SEPARATOR)) {
+            var desc = new JLabel(line);
+            desc.setFont(MODE_DESCRIPTION_FONT);
+            desc.setForeground(DESCRIPTION_COLOR);
+            desc.setAlignmentX(Component.LEFT_ALIGNMENT);
+            textPanel.add(desc);
+        }
+
+        return textPanel;
+    }
+
+    private static javax.swing.border.Border createCardBorder(Color color) {
+        return BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(color, CARD_BORDER_THICKNESS, true),
+                BorderFactory.createEmptyBorder(
+                        CARD_BORDER_TOP,
+                        CARD_BORDER_LEFT,
+                        CARD_BORDER_BOTTOM,
+                        CARD_BORDER_RIGHT
+                )
+        );
     }
 }
