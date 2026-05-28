@@ -370,6 +370,8 @@ public class MonteCarloPiMode implements VisualizationMode {
         resetButton.setToolTipText(RESET_TOOLTIP);
         resetButton.addActionListener(ignored -> {
             resetState();
+            layoutDashboard();
+
             if (controller != null) {
                 controller.refreshVisualization();
             }
@@ -484,7 +486,6 @@ public class MonteCarloPiMode implements VisualizationMode {
         this.estimateHistory.clear();
         this.errorHistory.clear();
         this.sampleHistory.clear();
-        this.metricCardBounds.clear();
 
         this.sampleLayer = new BufferedImage(
                 Math.max(1, width),
