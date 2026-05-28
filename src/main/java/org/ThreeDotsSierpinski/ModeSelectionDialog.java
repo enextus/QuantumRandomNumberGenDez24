@@ -75,6 +75,7 @@ public class ModeSelectionDialog {
     private static final int SCREEN_CENTER_DIVISOR = 2;
     private static final int MIN_USABLE_SCREEN_SIZE = 1;
     private static final int NO_INTERSECTION_AREA = 0;
+    private static final int MIN_CENTERING_OFFSET = 0;
 
     private static final Color HEADER_BACKGROUND = new Color(245, 245, 242);
     private static final Color FOOTER_BACKGROUND = new Color(245, 245, 242);
@@ -101,20 +102,6 @@ public class ModeSelectionDialog {
 
     public GraphicsConfiguration getLastDialogGraphicsConfiguration() {
         return lastDialogGraphicsConfiguration;
-    }
-
-    /**
-     * Показывает диалог и ждёт выбора.
-     *
-     * @param parent родительский фрейм (может быть null)
-     * @return выбранный режим, или null если закрыли без выбора
-     */
-    public VisualizationMode showAndWait(JFrame parent) {
-        GraphicsConfiguration targetGraphicsConfiguration = parent == null
-                ? null
-                : parent.getGraphicsConfiguration();
-
-        return showAndWait(parent, targetGraphicsConfiguration);
     }
 
     /**
@@ -249,7 +236,7 @@ public class ModeSelectionDialog {
 
         Rectangle dialogBounds = dialog.getBounds();
 
-        if (dialogBounds != null && !dialogBounds.isEmpty()) {
+        if (!dialogBounds.isEmpty()) {
             GraphicsConfiguration largestIntersectionGraphicsConfiguration =
                     findGraphicsConfigurationWithLargestIntersection(dialogBounds);
             if (largestIntersectionGraphicsConfiguration != null) {
@@ -335,11 +322,11 @@ public class ModeSelectionDialog {
         Rectangle usableBounds = getUsableScreenBounds(targetGraphicsConfiguration);
 
         int x = usableBounds.x + Math.max(
-                NO_INTERSECTION_AREA,
+                MIN_CENTERING_OFFSET,
                 (usableBounds.width - dialog.getWidth()) / SCREEN_CENTER_DIVISOR
         );
         int y = usableBounds.y + Math.max(
-                NO_INTERSECTION_AREA,
+                MIN_CENTERING_OFFSET,
                 (usableBounds.height - dialog.getHeight()) / SCREEN_CENTER_DIVISOR
         );
 
