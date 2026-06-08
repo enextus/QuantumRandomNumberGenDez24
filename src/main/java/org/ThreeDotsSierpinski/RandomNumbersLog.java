@@ -30,9 +30,12 @@ final class RandomNumbersLog implements AutoCloseable {
     private static final String TRUE_LOG_FILE_CONFIG_KEY = "random.log.true.file.name";
     private static final String PSEUDO_LOG_FILE_CONFIG_KEY = "random.log.pseudo.file.name";
     private static final String PSEUDO_LOG_ENABLED_CONFIG_KEY = "random.log.pseudo.enabled";
+    private static final String FLUSH_EVERY_VALUES_CONFIG_KEY = "random.log.flush.every.values";
 
     private static final String DEFAULT_TRUE_LOG_FILE = "logs/rnds-true.log";
     private static final String DEFAULT_PSEUDO_LOG_FILE = "logs/rnds-pseudo.log";
+    private static final int DEFAULT_FLUSH_EVERY_VALUES = 256;
+    private static final int MIN_FLUSH_EVERY_VALUES = 1;
 
     private static final String VALUE_SEPARATOR = ",";
     private static final String BATCH_SEPARATOR = System.lineSeparator() + System.lineSeparator();
@@ -44,14 +47,21 @@ final class RandomNumbersLog implements AutoCloseable {
         this(
                 resolvePath(TRUE_LOG_FILE_CONFIG_KEY, DEFAULT_TRUE_LOG_FILE),
                 resolvePath(PSEUDO_LOG_FILE_CONFIG_KEY, DEFAULT_PSEUDO_LOG_FILE),
-                isPseudoLoggingEnabled()
+                isPseudoLoggingEnabled(),
+                resolveFlushEveryValues()
         );
     }
 
     RandomNumbersLog(Path trueLogPath, Path pseudoLogPath, boolean logPseudoNumbers) {
-        this.trueNumbersWriter = NumberFileWriter.open("TRUE random numbers", trueLogPath);
+        this(trueLogPath, pseudoLogPath, logPseudoNumbers, DEFAULT_FLUSH_EVERY_VALUES);
+    }
+
+    RandomNumbersLog(Path trueLogPath, Path pseudoLogPath, boolean logPseudoNumbers, int flushEveryValues) {
+        int safeFlushEveryValues = Math.max(MIN_FLUSH_EVERY_VALUES, flushEveryValues);
+
+        this.trueNumbersWriter = NumberFileWriter.open("TRUE random numbers", trueLogPath, safeFlushEveryValues);
         this.pseudoNumbersWriter = logPseudoNumbers
-                ? NumberFileWriter.open("PSEUDO random numbers", pseudoLogPath)
+                ? NumberFileWriter.open("PSEUDO random numbers", pseudoLogPath, safeFlushEveryValues)
                 : NumberFileWriter.disabled("PSEUDO random numbers logging disabled");
     }
 
@@ -87,20 +97,39 @@ final class RandomNumbersLog implements AutoCloseable {
         return configuredValue != null && Boolean.parseBoolean(configuredValue.trim());
     }
 
+    private static int resolveFlushEveryValues() {
+        String configuredValue = Config.getString(FLUSH_EVERY_VALUES_CONFIG_KEY);
+        if (configuredValue == null || configuredValue.isBlank()) {
+            return DEFAULT_FLUSH_EVERY_VALUES;
+        }
+
+        try {
+            return Math.max(MIN_FLUSH_EVERY_VALUES, Integer.parseInt(configuredValue.trim()));
+        } catch (NumberFormatException e) {
+            LOGGER.warning("Invalid " + FLUSH_EVERY_VALUES_CONFIG_KEY
+                    + " value: " + configuredValue
+                    + ". Using default: " + DEFAULT_FLUSH_EVERY_VALUES);
+            return DEFAULT_FLUSH_EVERY_VALUES;
+        }
+    }
+
     private static final class NumberFileWriter implements AutoCloseable {
         private final Object lock = new Object();
         private final String label;
         private final BufferedWriter writer;
+        private final int flushEveryValues;
 
         private boolean firstNumberInBatch = true;
         private boolean closed = false;
+        private int valuesSinceFlush = 0;
 
-        private NumberFileWriter(String label, BufferedWriter writer) {
+        private NumberFileWriter(String label, BufferedWriter writer, int flushEveryValues) {
             this.label = label;
             this.writer = writer;
+            this.flushEveryValues = flushEveryValues;
         }
 
-        static NumberFileWriter open(String label, Path logPath) {
+        static NumberFileWriter open(String label, Path logPath, int flushEveryValues) {
             try {
                 Path parent = logPath.getParent();
                 if (parent != null) {
@@ -115,7 +144,7 @@ final class RandomNumbersLog implements AutoCloseable {
                 );
 
                 LOGGER.info(label + " log initialized: " + logPath.toAbsolutePath());
-                return new NumberFileWriter(label, writer);
+                return new NumberFileWriter(label, writer, flushEveryValues);
             } catch (IOException e) {
                 LOGGER.log(Level.WARNING, "Could not initialize " + label + " log: " + logPath, e);
                 return disabled(label + " log unavailable");
@@ -123,7 +152,7 @@ final class RandomNumbersLog implements AutoCloseable {
         }
 
         static NumberFileWriter disabled(String label) {
-            return new NumberFileWriter(label, null);
+            return new NumberFileWriter(label, null, DEFAULT_FLUSH_EVERY_VALUES);
         }
 
         void writeNumber(long value) {
@@ -133,11 +162,19 @@ final class RandomNumbersLog implements AutoCloseable {
                 }
 
                 try {
+                    boolean isFirstWrittenNumber = firstNumberInBatch;
+
                     if (!firstNumberInBatch) {
                         writer.write(VALUE_SEPARATOR);
                     }
                     writer.write(Long.toString(value));
                     firstNumberInBatch = false;
+                    valuesSinceFlush++;
+
+                    if (isFirstWrittenNumber || valuesSinceFlush >= flushEveryValues) {
+                        writer.flush();
+                        valuesSinceFlush = 0;
+                    }
                 } catch (IOException e) {
                     LOGGER.log(Level.WARNING, "Failed to write to " + label + " log", e);
                 }
@@ -154,6 +191,7 @@ final class RandomNumbersLog implements AutoCloseable {
                     writer.write(BATCH_SEPARATOR);
                     writer.flush();
                     firstNumberInBatch = true;
+                    valuesSinceFlush = 0;
                 } catch (IOException e) {
                     LOGGER.log(Level.WARNING, "Failed to finish " + label + " log batch", e);
                 }

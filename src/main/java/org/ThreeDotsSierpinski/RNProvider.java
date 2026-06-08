@@ -362,7 +362,12 @@ public class RNProvider {
      * @return OptionalInt: число готово, или Empty (если QUANTUM буфер пуст и идет загрузка).
      */
     public OptionalInt getNextRandomNumber() {
-        if (isForcedPseudo) {
+        // Manual/local PSEUDO mode must return fallback numbers directly.
+        // After the background API load succeeds, currentMode becomes QUANTUM;
+        // then we must consume queued QUANTUM entries instead of continuing
+        // to generate local pseudo numbers just because the app started in
+        // the default-local boot mode.
+        if (isForcedPseudo && currentMode == Mode.PSEUDO) {
             int pseudoNum = fallbackRng.nextInt(65536);
             addConsumedNumber(pseudoNum, Mode.PSEUDO);
             return OptionalInt.of(pseudoNum);
@@ -529,8 +534,32 @@ public class RNProvider {
                 + "Queue size: " + randomNumbersQueue.size());
     }
 
+    /**
+     * Removes stale fallback values from the queue before adding fresh API data.
+     *
+     * The application starts in a local PSEUDO mode while the API request runs
+     * in the background. When the API succeeds, the queue may still contain
+     * fallback numbers. Keeping them would make the UI show QUANTUM while the
+     * first consumed values are still pseudo-random and therefore not written
+     * to rnds-true.log.
+     */
+    private void removePseudoEntriesFromQueue() {
+        int queueSizeBefore = randomNumbersQueue.size();
+        boolean removedAny = randomNumbersQueue.removeIf(entry -> entry.sourceMode() == Mode.PSEUDO);
+
+        if (removedAny) {
+            int removedCount = Math.max(0, queueSizeBefore - randomNumbersQueue.size());
+            LOGGER.info("Removed " + removedCount + " stale PSEUDO numbers before enqueuing QUANTUM data.");
+        }
+    }
+
     private void switchToQuantumMode() {
         // Кнопка активна по умолчанию (если есть ключ), замораживается только при handleLoadFailure.
+        // Successful API loading ends the default-local startup phase.
+        // Without this, getNextRandomNumber() would keep generating PSEUDO
+        // values even while the UI already shows QUANTUM.
+        isForcedPseudo = false;
+
         if (currentMode == Mode.QUANTUM) return;
 
         currentMode = Mode.QUANTUM;
@@ -705,6 +734,8 @@ public class RNProvider {
             if (!dataNode.isArray()) {
                 throw new IOException("Invalid response format: 'data' is not an array.");
             }
+
+            removePseudoEntriesFromQueue();
 
             int loadedCount = 0;
             for (JsonNode element : dataNode) {
