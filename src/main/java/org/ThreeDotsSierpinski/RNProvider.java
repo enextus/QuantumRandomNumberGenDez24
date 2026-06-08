@@ -44,6 +44,12 @@ public class RNProvider {
         }
     }
 
+    /**
+     * Queue item with source metadata.
+     * Needed so we log only TRUE/QUANTUM numbers and never log fallback PSEUDO values.
+     */
+    private record RandomNumberEntry(int value, Mode sourceMode) { }
+
     // ========================================================================
     // Режим работы
     // ========================================================================
@@ -86,9 +92,10 @@ public class RNProvider {
 
     private final HttpClient httpClient;
     private final RandomGenerator fallbackRng;
-    private final BlockingQueue<Integer> randomNumbersQueue;
+    private final BlockingQueue<RandomNumberEntry> randomNumbersQueue;
     private final ObjectMapper objectMapper;
     private final RandomNumberProcessor numberProcessor;
+    private final RandomNumbersLog randomNumbersLog;
     private int apiRequestCount = 0;
     private final List<RNLoadListener> listeners = new CopyOnWriteArrayList<>();
 
@@ -234,6 +241,7 @@ public class RNProvider {
         randomNumbersQueue = new LinkedBlockingQueue<>();
         objectMapper = new ObjectMapper();
         numberProcessor = new RandomNumberProcessor();
+        randomNumbersLog = new RandomNumbersLog();
 
 // Проверка наличия API ключа
         if (apiKey == null || apiKey.isEmpty() || apiKey.startsWith("YOUR_")) {
@@ -356,16 +364,16 @@ public class RNProvider {
     public OptionalInt getNextRandomNumber() {
         if (isForcedPseudo) {
             int pseudoNum = fallbackRng.nextInt(65536);
-            addConsumedNumber(pseudoNum);
+            addConsumedNumber(pseudoNum, Mode.PSEUDO);
             return OptionalInt.of(pseudoNum);
         }
 
-        Integer nextNumber = randomNumbersQueue.poll();
-        if (nextNumber == null) {
+        RandomNumberEntry nextEntry = randomNumbersQueue.poll();
+        if (nextEntry == null) {
             if (currentMode == Mode.PSEUDO) {
                 fillQueueWithPseudo();
                 int pseudoNum = fallbackRng.nextInt(65536);
-                addConsumedNumber(pseudoNum);
+                addConsumedNumber(pseudoNum, Mode.PSEUDO);
                 return OptionalInt.of(pseudoNum);
             }
 
@@ -373,7 +381,7 @@ public class RNProvider {
                 if (apiRequestCount >= maxApiRequests) {
                     activatePseudoMode("API request limit reached (" + maxApiRequests + ")");
                     int pseudoNum = fallbackRng.nextInt(65536);
-                    addConsumedNumber(pseudoNum);
+                    addConsumedNumber(pseudoNum, Mode.PSEUDO);
                     return OptionalInt.of(pseudoNum);
                 }
             }
@@ -382,13 +390,13 @@ public class RNProvider {
             return OptionalInt.empty();
         }
 
-        addConsumedNumber(nextNumber);
+        addConsumedNumber(nextEntry.value(), nextEntry.sourceMode());
 
         if (randomNumbersQueue.size() < queueMinSize && apiRequestCount < maxApiRequests && !isLoading) {
             loadInitialDataAsync();
         }
 
-        return OptionalInt.of(nextNumber);
+        return OptionalInt.of(nextEntry.value());
     }
 
     /**
@@ -435,6 +443,8 @@ public class RNProvider {
 
     public void shutdown() {
         isReconnecting = false;
+        randomNumbersLog.finishBatch();
+        randomNumbersLog.close();
         LOGGER.info("RNProvider shutting down. Mode: " + currentMode
                 + ", API requests: " + apiRequestCount
                 + ", pseudo batches: " + pseudoBatchCount);
@@ -465,7 +475,7 @@ public class RNProvider {
      * Потокобезопасно: запись значения, сдвиг индекса и обновление размера
      * выполняются под одним lock.
      */
-    private void addConsumedNumber(long value) {
+    private void addConsumedNumber(long value, Mode sourceMode) {
         synchronized (consumedNumbersLock) {
             consumedNumbersRing[ringWriteIndex] = value;
             ringWriteIndex = (ringWriteIndex + 1) % HISTORY_MAX_SIZE;
@@ -473,6 +483,12 @@ public class RNProvider {
             if (totalConsumed < HISTORY_MAX_SIZE) {
                 totalConsumed++;
             }
+        }
+
+        if (sourceMode == Mode.QUANTUM) {
+            randomNumbersLog.writeTrueNumber(value);
+        } else {
+            randomNumbersLog.writePseudoNumber(value);
         }
     }
 
@@ -506,7 +522,7 @@ public class RNProvider {
 
     private void fillQueueWithPseudo() {
         for (int i = 0; i < PSEUDO_BATCH_SIZE; i++) {
-            randomNumbersQueue.add(fallbackRng.nextInt(65536));
+            randomNumbersQueue.add(new RandomNumberEntry(fallbackRng.nextInt(65536), Mode.PSEUDO));
         }
         pseudoBatchCount++;
         LOGGER.fine("Filled queue with " + PSEUDO_BATCH_SIZE + " pseudo-random numbers. "
@@ -693,9 +709,9 @@ public class RNProvider {
             int loadedCount = 0;
             for (JsonNode element : dataNode) {
                 if ("hex16".equals(dataType)) {
-                    randomNumbersQueue.add(Integer.parseInt(element.asText(), 16));
+                    randomNumbersQueue.add(new RandomNumberEntry(Integer.parseInt(element.asText(), 16), Mode.QUANTUM));
                 } else {
-                    randomNumbersQueue.add(element.asInt());
+                    randomNumbersQueue.add(new RandomNumberEntry(element.asInt(), Mode.QUANTUM));
                 }
                 loadedCount++;
             }
