@@ -45,6 +45,9 @@ public class App {
     private static final int SAVE_BUTTON_WIDTH = 100;
     private static final int FINISH_BUTTON_WIDTH = 78;
     private static final int STATUS_BUTTON_HEIGHT = 28;
+    private static final int VISUALIZATION_WINDOW_EXTRA_WIDTH = 100;
+    private static final double VISUALIZATION_WINDOW_ASPECT_WIDTH = 4.0;
+    private static final double VISUALIZATION_WINDOW_ASPECT_HEIGHT = 3.0;
     private static final int STATUS_SCROLL_UNIT_INCREMENT = 16;
     private static final int INITIAL_DATA_TIMEOUT_MS = 15_000;
 
@@ -98,12 +101,12 @@ public class App {
         frame.setLayout(new BorderLayout());
 
         int basePanelWidth = Config.getInt("panel.size.width");
-        int basePanelHeight = Config.getInt("panel.size.height");
         double scaleWidth = Config.getDouble("window.scale.width");
-        double scaleHeight = Config.getDouble("window.scale.height");
 
-        int finalWidth = (int) Math.round(basePanelWidth * scaleWidth);
-        int finalHeight = (int) Math.round(basePanelHeight * scaleHeight);
+        int finalWidth = (int) Math.round(basePanelWidth * scaleWidth) + VISUALIZATION_WINDOW_EXTRA_WIDTH;
+        int finalHeight = (int) Math.round(
+                finalWidth * VISUALIZATION_WINDOW_ASPECT_HEIGHT / VISUALIZATION_WINDOW_ASPECT_WIDTH
+        );
 
         var dotController = new DotController(randomNumberProvider, mode, statusLabel);
         frame.add(dotController, BorderLayout.CENTER);

@@ -39,6 +39,7 @@ public class SierpinskiMode implements VisualizationMode {
     private static final int DOTS_PER_STEP = Config.getInt("dots.per.update");
     private static final int CENTER_DIVISOR = 2;
     private static final int MIN_DOT_SIZE = 1;
+    private static final int EMPTY_RESERVED_AREA_COUNT = 0;
 
     private static final Color LIGHT_BACKGROUND_COLOR = Color.WHITE;
     private static final Color DARK_BACKGROUND_COLOR = new Color(5, 10, 18);
@@ -60,6 +61,7 @@ public class SierpinskiMode implements VisualizationMode {
     private boolean darkMode = DEFAULT_DARK_MODE_ENABLED;
     private VisualizationStyle visualizationStyle = VisualizationStyle.DEFAULT;
     private final List<Point> pointHistory = new ArrayList<>();
+    private final List<Rectangle> reservedDrawingAreas = new ArrayList<>();
 
     @Override
     public String getId() {
@@ -124,11 +126,13 @@ public class SierpinskiMode implements VisualizationMode {
                 currentPoint = algorithm.calculateNewDotPosition(currentPoint, randomValue);
 
                 Point drawnPoint = new Point(currentPoint);
-                pointHistory.add(drawnPoint);
+                if (!isInsideReservedDrawingArea(drawnPoint, safeDotSize)) {
+                    pointHistory.add(drawnPoint);
 
-                g2d.fillRect(drawnPoint.x, drawnPoint.y, safeDotSize, safeDotSize);
-                newPoints.add(drawnPoint);
-                pointCount++;
+                    g2d.fillRect(drawnPoint.x, drawnPoint.y, safeDotSize, safeDotSize);
+                    newPoints.add(drawnPoint);
+                    pointCount++;
+                }
             }
         } finally {
             g2d.dispose();
@@ -151,7 +155,9 @@ public class SierpinskiMode implements VisualizationMode {
             int safeDotSize = Math.max(MIN_DOT_SIZE, dotSize);
 
             for (Point point : pointHistory) {
-                g2d.fillRect(point.x, point.y, safeDotSize, safeDotSize);
+                if (!isInsideReservedDrawingArea(point, safeDotSize)) {
+                    g2d.fillRect(point.x, point.y, safeDotSize, safeDotSize);
+                }
             }
         } finally {
             g2d.dispose();
@@ -208,6 +214,21 @@ public class SierpinskiMode implements VisualizationMode {
     }
 
     @Override
+    public void setReservedDrawingAreas(List<Rectangle> reservedAreas) {
+        reservedDrawingAreas.clear();
+
+        if (reservedAreas == null || reservedAreas.isEmpty()) {
+            return;
+        }
+
+        for (Rectangle reservedArea : reservedAreas) {
+            if (reservedArea != null && reservedArea.width > 0 && reservedArea.height > 0) {
+                reservedDrawingAreas.add(new Rectangle(reservedArea));
+            }
+        }
+    }
+
+    @Override
     public boolean usesDarkBackground() {
         return visualizationStyle == VisualizationStyle.DEFAULT && darkMode;
     }
@@ -225,6 +246,27 @@ public class SierpinskiMode implements VisualizationMode {
     @Override
     public VisualizationStyle getVisualizationStyle() {
         return visualizationStyle;
+    }
+
+    private boolean isInsideReservedDrawingArea(Point point, int dotSize) {
+        if (point == null || reservedDrawingAreas.size() == EMPTY_RESERVED_AREA_COUNT) {
+            return false;
+        }
+
+        Rectangle dotBounds = new Rectangle(
+                point.x,
+                point.y,
+                Math.max(MIN_DOT_SIZE, dotSize),
+                Math.max(MIN_DOT_SIZE, dotSize)
+        );
+
+        for (Rectangle reservedArea : reservedDrawingAreas) {
+            if (reservedArea.intersects(dotBounds)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void ensureInitialized(BufferedImage canvas) {

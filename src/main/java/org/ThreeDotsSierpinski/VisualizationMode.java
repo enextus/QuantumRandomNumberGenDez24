@@ -72,6 +72,17 @@ public interface VisualizationMode {
         return List.of();
     }
 
+
+    /**
+     * Прямоугольные области внутри canvas, которые режим не должен
+     * использовать для рисования собственных точек/объектов.
+     * Координаты передаются в системе координат текущего canvas режима,
+     * а не всего JPanel. По умолчанию режимы игнорируют reserved areas.
+     */
+    default void setReservedDrawingAreas(List<Rectangle> reservedAreas) {
+        // Default no-op.
+    }
+
     /**
      * Обработка кликов мыши по области визуализации.
      * Режимы, которым нужны canvas-hit areas или help overlays, могут переопределить этот hook.
