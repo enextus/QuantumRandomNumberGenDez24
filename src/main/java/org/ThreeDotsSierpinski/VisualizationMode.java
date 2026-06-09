@@ -105,6 +105,22 @@ public interface VisualizationMode {
     default boolean usesRecolorAnimation() { return true; }
 
     /**
+     * Color used by DotController when RED/fresh points are converted
+     * into stable points after the recolor delay.
+     */
+    default Color getRecolorAnimationTargetColor() {
+        return Color.BLACK;
+    }
+
+    /**
+     * Whether DotController should draw the consumed random numbers stack.
+     * By default, it is visible only for light classic modes.
+     */
+    default boolean usesRandomNumbersStackOverlay() {
+        return !usesDarkBackground();
+    }
+
+    /**
      * Нужен ли чёрный фон? (DLA — да, Sierpinski — нет)
      */
     default boolean usesDarkBackground() { return false; }

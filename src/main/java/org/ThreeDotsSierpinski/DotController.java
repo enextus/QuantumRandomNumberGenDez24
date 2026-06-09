@@ -2,15 +2,15 @@ package org.ThreeDotsSierpinski;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.image.BufferedImage;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-import java.util.List;
-import java.util.logging.Logger;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.logging.Logger;
 
 /**
  * Универсальный контроллер визуализации случайных чисел.
@@ -28,10 +28,6 @@ public class DotController extends JPanel {
     private static final String CONFIG_PANEL_HEIGHT = "panel.size.height";
     private static final String CONFIG_DOT_SIZE = "dot.size";
     private static final String CONFIG_TIMER_DELAY = "timer.delay";
-    private static final String CONFIG_COLUMN_WIDTH = "column.width";
-    private static final String CONFIG_ROW_HEIGHT = "row.height";
-    private static final String CONFIG_COLUMN_SPACING = "column.spacing";
-    private static final String CONFIG_MAX_COLUMNS = "max.columns";
     private static final String CONFIG_WINDOW_SCALE_WIDTH = "window.scale.width";
     private static final String CONFIG_WINDOW_SCALE_HEIGHT = "window.scale.height";
 
@@ -43,24 +39,12 @@ public class DotController extends JPanel {
     private static final int MIN_DIGIT_GROUP = 1;
     private static final int MAX_DIGIT_GROUP = 5;
 
-    private static final int RANDOM_STACK_START_X = 10;
-    private static final int RANDOM_STACK_START_Y = 60;
-
     private static final int RANDOM_STACK_CELL_HORIZONTAL_PADDING = 4;
-
-    private static final Font RANDOM_STACK_HEADER_FONT = new Font("Monospaced", Font.PLAIN, 10);
-    private static final Font RANDOM_STACK_VALUE_FONT = new Font("Monospaced", Font.PLAIN, 11);
-
-    private static final Color RANDOM_STACK_HEADER_COLOR = new Color(130, 130, 130);
-    private static final Color RANDOM_STACK_VALUE_COLOR = Color.BLACK;
-    private static final Color RANDOM_STACK_ROW_BACKGROUND = new Color(245, 245, 245);
-
     private static final int RANDOM_STACK_TOP_MARGIN = 18;
     private static final int RANDOM_STACK_RIGHT_MARGIN = 12;
     private static final int RANDOM_STACK_COLUMN_GAP = 4;
     private static final int RANDOM_STACK_HEADER_HEIGHT = 18;
     private static final int RANDOM_STACK_CELL_HEIGHT = 18;
-
     private static final int RANDOM_STACK_BOTTOM_RESERVED_SPACE = 250;
 
     private static final int LIGHT_MODE_EXTRA_WIDTH = 300;
@@ -100,6 +84,9 @@ public class DotController extends JPanel {
     private static final Font RNG_LABEL_FONT = new Font(FONT_SANS_SERIF, Font.BOLD, RNG_LABEL_FONT_SIZE);
     private static final Font ERROR_FONT = new Font(FONT_SANS_SERIF, Font.PLAIN, ERROR_FONT_SIZE);
 
+    private static final Font RANDOM_STACK_HEADER_FONT = new Font(FONT_MONOSPACED, Font.PLAIN, 10);
+    private static final Font RANDOM_STACK_VALUE_FONT = new Font(FONT_MONOSPACED, Font.PLAIN, 11);
+
     private static final Color DARK_BACKGROUND_COLOR = Color.BLACK;
     private static final Color LIGHT_BACKGROUND_COLOR = Color.WHITE;
 
@@ -118,6 +105,16 @@ public class DotController extends JPanel {
     private static final Color DARK_ERROR_COLOR = new Color(255, 120, 120);
     private static final Color LIGHT_ERROR_COLOR = Color.RED;
 
+    private static final Color DARK_RECOLOR_TARGET_COLOR = new Color(215, 240, 255);
+
+    private static final Color RANDOM_STACK_HEADER_COLOR = new Color(130, 130, 130);
+    private static final Color RANDOM_STACK_VALUE_COLOR = Color.BLACK;
+    private static final Color RANDOM_STACK_ROW_BACKGROUND = new Color(245, 245, 245);
+
+    private static final Color DARK_RANDOM_STACK_HEADER_COLOR = new Color(142, 163, 188);
+    private static final Color DARK_RANDOM_STACK_VALUE_COLOR = new Color(230, 238, 248);
+    private static final Color DARK_RANDOM_STACK_ROW_BACKGROUND = new Color(14, 26, 42, 220);
+
     private static final String RNG_LABEL_QUANTUM_STATUS = "QUANTUM (API)";
     private static final String RNG_LABEL_PSEUDO_STATUS = "PSEUDO (Local)";
 
@@ -131,37 +128,6 @@ public class DotController extends JPanel {
     private static final String ERROR_LOG_PREFIX = "Error: ";
     private static final String ANIMATION_STARTED_LOG_PREFIX = "Animation started: ";
     private static final String ANIMATION_STOPPED_LOG = "Animation stopped.";
-
-    private static final int STACK_FONT_SIZE = 12;
-    private static final int STACK_HEADER_FONT_SIZE = 11;
-
-    private static final Font STACK_MONO_FONT = new Font(FONT_MONOSPACED, Font.PLAIN, STACK_FONT_SIZE);
-    private static final Font STACK_HEADER_FONT = new Font(FONT_SANS_SERIF, Font.PLAIN, STACK_HEADER_FONT_SIZE);
-
-    private static final Color STACK_ZEBRA_COLOR = new Color(245, 245, 242);
-    private static final Color STACK_HEADER_COLOR = new Color(140, 140, 140);
-    private static final Color STACK_SEPARATOR_COLOR = new Color(225, 225, 220);
-    private static final Color STACK_NUMBER_COLOR = new Color(50, 50, 50);
-
-    private static final int STACK_HEADER_HEIGHT = 20;
-    private static final int STACK_HEADER_BASELINE_OFFSET = 4;
-    private static final int STACK_VERTICAL_PADDING = 4;
-    private static final int STACK_RIGHT_MARGIN = 40;
-    private static final int STACK_MAX_CONSUMED_NUMBERS = 2_000;
-    private static final int STACK_MIN_VISIBLE_ROWS = 1;
-
-    private static final int MAX_VISIBLE_DIGITS = 5;
-    private static final int FIRST_DIGIT_BUCKET_INDEX = 0;
-    private static final int DIGIT_INDEX_OFFSET = 1;
-
-    private static final String DIGIT_HEADER_SUFFIX = "-digit";
-
-    private static final int STACK_ROW_BASELINE_OFFSET = 4;
-    private static final int STACK_ZEBRA_Y_OFFSET = 4;
-    private static final int STACK_NUMBER_RIGHT_PADDING = 2;
-
-    private static final int EVEN_ROW_DIVISOR = 2;
-    private static final int EVEN_ROW_REMAINDER = 0;
 
     private static final String TRANSPARENT_FILE_SUFFIX = "_transparent.png";
     private static final String WHITE_FILE_SUFFIX = ".png";
@@ -211,24 +177,28 @@ public class DotController extends JPanel {
 
         recolorTimer = new Timer(RECOLOR_DELAY_MS, e -> {
             synchronized (pendingRecolorPoints) {
-                if (!pendingRecolorPoints.isEmpty()) {
-                    var g2d = offscreenImage.createGraphics();
-                    g2d.setColor(DARK_BACKGROUND_COLOR);
-
-                    for (var p : pendingRecolorPoints) {
-                        g2d.fillRect(p.x, p.y, DOT_SIZE, DOT_SIZE);
-                    }
-
-                    g2d.dispose();
-                    pendingRecolorPoints.clear();
-                    repaint();
+                if (pendingRecolorPoints.isEmpty() || offscreenImage == null) {
+                    return;
                 }
+
+                var g2d = offscreenImage.createGraphics();
+                try {
+                    g2d.setColor(getRecolorAnimationTargetColor());
+
+                    for (var point : pendingRecolorPoints) {
+                        g2d.fillRect(point.x, point.y, DOT_SIZE, DOT_SIZE);
+                    }
+                } finally {
+                    g2d.dispose();
+                }
+
+                pendingRecolorPoints.clear();
+                repaint();
             }
         });
 
         recolorTimer.setRepeats(RECOLOR_TIMER_REPEATS);
     }
-
 
     private void initModeMouseForwarding() {
         addMouseListener(new MouseAdapter() {
@@ -307,11 +277,11 @@ public class DotController extends JPanel {
                 || offscreenImage.getWidth() != getWidth()
                 || offscreenImage.getHeight() != getHeight()) {
 
-            int w = Math.max(MIN_CANVAS_SIZE, getWidth());
-            int h = Math.max(MIN_CANVAS_SIZE, getHeight());
+            int width = Math.max(MIN_CANVAS_SIZE, getWidth());
+            int height = Math.max(MIN_CANVAS_SIZE, getHeight());
 
-            offscreenImage = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
-            mode.initialize(offscreenImage, w, h);
+            offscreenImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+            mode.initialize(offscreenImage, width, height);
             canvasInitialized = true;
         }
 
@@ -329,8 +299,8 @@ public class DotController extends JPanel {
         drawRngModeIndicator(g2d, dark);
         drawErrorMessage(g2d, dark);
 
-        if (!dark) {
-            drawRandomNumbersStack(g);
+        if (shouldDrawRandomNumbersStackOverlay()) {
+            drawRandomNumbersStack(g, dark);
         }
     }
 
@@ -364,6 +334,14 @@ public class DotController extends JPanel {
         g2d.drawString(pointCounterText, pointCounterX, POINT_COUNTER_Y);
     }
 
+    private int calculatePointCounterX(Graphics2D g2d, String pointCounterText) {
+        return switch (mode.getPointCounterOverlayPlacement()) {
+            case LEFT -> POINT_COUNTER_LEFT_MARGIN;
+            case TOP_CENTER -> calculateTopCenterPointCounterX(g2d, pointCounterText);
+            case RIGHT -> calculateRightAlignedPointCounterX(g2d, pointCounterText);
+        };
+    }
+
     private int calculateRightAlignedPointCounterX(Graphics2D g2d, String pointCounterText) {
         FontMetrics fontMetrics = g2d.getFontMetrics();
         int pointCounterWidth = fontMetrics.stringWidth(pointCounterText);
@@ -372,14 +350,6 @@ public class DotController extends JPanel {
                 POINT_COUNTER_RIGHT_MARGIN,
                 getWidth() - POINT_COUNTER_RIGHT_MARGIN - pointCounterWidth
         );
-    }
-
-    private int calculatePointCounterX(Graphics2D g2d, String pointCounterText) {
-        return switch (mode.getPointCounterOverlayPlacement()) {
-            case LEFT -> POINT_COUNTER_LEFT_MARGIN;
-            case TOP_CENTER -> calculateTopCenterPointCounterX(g2d, pointCounterText);
-            case RIGHT -> calculateRightAlignedPointCounterX(g2d, pointCounterText);
-        };
     }
 
     private int calculateTopCenterPointCounterX(Graphics2D g2d, String pointCounterText) {
@@ -421,7 +391,17 @@ public class DotController extends JPanel {
         g2d.drawString(errorMessage, ERROR_TEXT_X, ERROR_TEXT_Y);
     }
 
-    private void drawRandomNumbersStack(Graphics g) {
+    private boolean shouldDrawRandomNumbersStackOverlay() {
+        return !mode.usesDarkBackground() || mode instanceof SierpinskiMode;
+    }
+
+    private Color getRecolorAnimationTargetColor() {
+        return mode.usesDarkBackground()
+                ? DARK_RECOLOR_TARGET_COLOR
+                : DARK_BACKGROUND_COLOR;
+    }
+
+    private void drawRandomNumbersStack(Graphics g, boolean dark) {
         List<Long> numbers = randomNumberProvider.getConsumedNumbers();
         if (numbers.isEmpty()) {
             return;
@@ -449,7 +429,7 @@ public class DotController extends JPanel {
                 List<Long> columnNumbers = numbersByDigits.getOrDefault(digitCount, List.of());
 
                 int columnWidth = calculateDigitColumnWidth(g2d, digitCount);
-                drawDigitColumn(g2d, columnNumbers, digitCount, currentX, startY, columnWidth);
+                drawDigitColumn(g2d, columnNumbers, digitCount, currentX, startY, columnWidth, dark);
 
                 currentX += columnWidth + RANDOM_STACK_COLUMN_GAP;
             }
@@ -523,9 +503,10 @@ public class DotController extends JPanel {
             int digitCount,
             int x,
             int y,
-            int columnWidth
+            int columnWidth,
+            boolean dark
     ) {
-        drawDigitColumnHeader(g2d, digitCount, x, y, columnWidth);
+        drawDigitColumnHeader(g2d, digitCount, x, y, columnWidth, dark);
 
         int visibleRows = calculateVisibleRandomStackRows(y);
         int fromIndex = Math.max(0, numbers.size() - visibleRows);
@@ -534,7 +515,7 @@ public class DotController extends JPanel {
         int rowY = y + RANDOM_STACK_HEADER_HEIGHT;
 
         for (Long number : visibleNumbers) {
-            drawDigitColumnValue(g2d, number, digitCount, x, rowY, columnWidth);
+            drawDigitColumnValue(g2d, number, digitCount, x, rowY, columnWidth, dark);
             rowY += RANDOM_STACK_CELL_HEIGHT;
         }
     }
@@ -544,12 +525,13 @@ public class DotController extends JPanel {
             int digitCount,
             int x,
             int y,
-            int columnWidth
+            int columnWidth,
+            boolean dark
     ) {
         String header = digitCount + "d";
 
         g2d.setFont(RANDOM_STACK_HEADER_FONT);
-        g2d.setColor(RANDOM_STACK_HEADER_COLOR);
+        g2d.setColor(dark ? DARK_RANDOM_STACK_HEADER_COLOR : RANDOM_STACK_HEADER_COLOR);
 
         FontMetrics metrics = g2d.getFontMetrics();
         int textX = x + Math.max(0, (columnWidth - metrics.stringWidth(header)) / 2);
@@ -564,15 +546,16 @@ public class DotController extends JPanel {
             int digitCount,
             int x,
             int y,
-            int columnWidth
+            int columnWidth,
+            boolean dark
     ) {
         String text = formatNumberForDigitColumn(number, digitCount);
 
-        g2d.setColor(RANDOM_STACK_ROW_BACKGROUND);
+        g2d.setColor(dark ? DARK_RANDOM_STACK_ROW_BACKGROUND : RANDOM_STACK_ROW_BACKGROUND);
         g2d.fillRect(x, y, columnWidth, RANDOM_STACK_CELL_HEIGHT - 1);
 
         g2d.setFont(RANDOM_STACK_VALUE_FONT);
-        g2d.setColor(RANDOM_STACK_VALUE_COLOR);
+        g2d.setColor(dark ? DARK_RANDOM_STACK_VALUE_COLOR : RANDOM_STACK_VALUE_COLOR);
 
         FontMetrics metrics = g2d.getFontMetrics();
 

@@ -1,5 +1,6 @@
 package org.ThreeDotsSierpinski;
 
+import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
@@ -18,6 +19,25 @@ import java.util.OptionalInt;
  */
 public class SierpinskiMode implements VisualizationMode {
 
+    private static final boolean DEFAULT_DARK_MODE_ENABLED = true;
+
+    private static final String DARK_MODE_TEXT = "Dark Mode";
+    private static final String DARK_MODE_TOOLTIP =
+            "Switch Sierpinski Triangle between light and dark palette";
+
+    private static final Color LIGHT_BACKGROUND_COLOR = Color.WHITE;
+    private static final Color DARK_BACKGROUND_COLOR = new Color(5, 10, 18);
+
+    private static final Color LIGHT_NEW_POINT_COLOR = Color.RED;
+    private static final Color DARK_NEW_POINT_COLOR = new Color(255, 92, 122);
+
+    private static final Color LIGHT_STABLE_POINT_COLOR = Color.BLACK;
+    private static final Color DARK_STABLE_POINT_COLOR = new Color(215, 240, 255);
+
+    private boolean darkMode = DEFAULT_DARK_MODE_ENABLED;
+
+    private final List<Point> pointHistory = new ArrayList<>();
+
     private static final String CONFIG_DOTS_PER_UPDATE = "dots.per.update";
 
     private static final String ID = "Sierpinski";
@@ -31,11 +51,8 @@ public class SierpinskiMode implements VisualizationMode {
     private static final String ERROR_PROVIDER_NULL = "Provider cannot be null";
     private static final String ERROR_INVALID_CANVAS_SIZE = "Canvas size must be positive";
 
-    private static final int CENTER_DIVISOR = 2;
     private static final int MIN_DOT_SIZE = 1;
     private static final int MIN_DOTS_PER_STEP = 1;
-
-    private static final Color NEW_POINT_COLOR = Color.RED;
 
     private static final int DOTS_PER_STEP = Math.max(
             MIN_DOTS_PER_STEP,
@@ -76,9 +93,12 @@ public class SierpinskiMode implements VisualizationMode {
         }
 
         algorithm = new SierpinskiAlgorithm(width, height);
-        currentPoint = new Point(width / CENTER_DIVISOR, height / CENTER_DIVISOR);
+        currentPoint = new Point(width / 2, height / 2);
         pointCount = 0;
         randomNumbersUsed = 0;
+        pointHistory.clear();
+
+        clearCanvas(canvas);
     }
 
     @Override
@@ -94,7 +114,7 @@ public class SierpinskiMode implements VisualizationMode {
         Graphics2D g2d = canvas.createGraphics();
 
         try {
-            g2d.setColor(NEW_POINT_COLOR);
+            g2d.setColor(newPointColor());
 
             for (int i = 0; i < DOTS_PER_STEP; i++) {
                 OptionalInt randomOpt = provider.getNextRandomNumber();
@@ -108,14 +128,12 @@ public class SierpinskiMode implements VisualizationMode {
 
                 currentPoint = algorithm.calculateNewDotPosition(currentPoint, randomValue);
 
-                g2d.fillRect(
-                        currentPoint.x,
-                        currentPoint.y,
-                        safeDotSize,
-                        safeDotSize
-                );
+                Point drawnPoint = new Point(currentPoint);
+                pointHistory.add(drawnPoint);
 
-                newPoints.add(new Point(currentPoint));
+                g2d.fillRect(drawnPoint.x, drawnPoint.y, safeDotSize, safeDotSize);
+                newPoints.add(drawnPoint);
+
                 pointCount++;
             }
         } finally {
@@ -123,6 +141,27 @@ public class SierpinskiMode implements VisualizationMode {
         }
 
         return newPoints;
+    }
+
+    @Override
+    public void redraw(BufferedImage canvas, int width, int height, int dotSize) {
+        if (canvas == null) {
+            return;
+        }
+
+        clearCanvas(canvas);
+
+        Graphics2D g2d = canvas.createGraphics();
+        try {
+            g2d.setColor(stablePointColor());
+
+            int safeDotSize = Math.max(MIN_DOT_SIZE, dotSize);
+            for (Point point : pointHistory) {
+                g2d.fillRect(point.x, point.y, safeDotSize, safeDotSize);
+            }
+        } finally {
+            g2d.dispose();
+        }
     }
 
     private void ensureInitialized(BufferedImage canvas) {
@@ -145,4 +184,56 @@ public class SierpinskiMode implements VisualizationMode {
     public boolean usesLeftPointCounterOverlay() {
         return true;
     }
+
+    @Override
+    public List<JComponent> createModeControls(DotController controller) {
+        JCheckBox darkModeToggle = new JCheckBox(DARK_MODE_TEXT, darkMode);
+        darkModeToggle.setToolTipText(DARK_MODE_TOOLTIP);
+
+        darkModeToggle.addActionListener(ignored -> {
+            darkMode = darkModeToggle.isSelected();
+            controller.setBackground(backgroundColor());
+            controller.refreshVisualization();
+        });
+
+        return List.of(darkModeToggle);
+    }
+
+    @Override
+    public boolean usesDarkBackground() {
+        return darkMode;
+    }
+
+    @Override
+    public boolean usesRandomNumbersStackOverlay() {
+        return true;
+    }
+
+    @Override
+    public Color getRecolorAnimationTargetColor() {
+        return stablePointColor();
+    }
+
+    private void clearCanvas(BufferedImage canvas) {
+        Graphics2D g2d = canvas.createGraphics();
+        try {
+            g2d.setColor(backgroundColor());
+            g2d.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
+        } finally {
+            g2d.dispose();
+        }
+    }
+
+    private Color backgroundColor() {
+        return darkMode ? DARK_BACKGROUND_COLOR : LIGHT_BACKGROUND_COLOR;
+    }
+
+    private Color newPointColor() {
+        return darkMode ? DARK_NEW_POINT_COLOR : LIGHT_NEW_POINT_COLOR;
+    }
+
+    private Color stablePointColor() {
+        return darkMode ? DARK_STABLE_POINT_COLOR : LIGHT_STABLE_POINT_COLOR;
+    }
+
 }
