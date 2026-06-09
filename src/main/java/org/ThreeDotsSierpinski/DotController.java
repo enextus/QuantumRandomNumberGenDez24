@@ -14,13 +14,9 @@ import java.util.logging.Logger;
 
 /**
  * Универсальный контроллер визуализации случайных чисел.
- * <p>
+ *
  * Принимает любой {@link VisualizationMode} и управляет анимацией,
  * рендерингом, статусом и сохранением изображений.
- * <p>
- * Thread safety:
- * - Все операции с offscreenImage — только на EDT
- * - usedRandomNumbers итерируется под synchronized
  */
 public class DotController extends JPanel {
 
@@ -45,7 +41,7 @@ public class DotController extends JPanel {
     private static final int RANDOM_STACK_COLUMN_GAP = 4;
     private static final int RANDOM_STACK_HEADER_HEIGHT = 18;
     private static final int RANDOM_STACK_CELL_HEIGHT = 18;
-    private static final int RANDOM_STACK_BOTTOM_RESERVED_SPACE = 250;
+    private static final int RANDOM_STACK_BOTTOM_RESERVED_SPACE = 600;
 
     private static final int LIGHT_MODE_EXTRA_WIDTH = 300;
 
@@ -62,7 +58,6 @@ public class DotController extends JPanel {
     private static final int POINT_COUNTER_LEFT_MARGIN = 10;
     private static final int POINT_COUNTER_RIGHT_MARGIN = 10;
     private static final int POINT_COUNTER_Y = 80;
-
     private static final double POINT_COUNTER_TOP_CENTER_X_RATIO = 0.66;
 
     private static final int RNG_LABEL_X = 10;
@@ -76,6 +71,10 @@ public class DotController extends JPanel {
     private static final int RNG_LABEL_FONT_SIZE = 12;
     private static final int ERROR_FONT_SIZE = 12;
 
+    private static final int APPLE_MAC_POINT_COUNTER_FONT_SIZE = 54;
+    private static final int APPLE_MAC_INSET = 6;
+    private static final int APPLE_MAC_INFO_SEPARATOR_Y = 28;
+
     private static final String FONT_SANS_SERIF = "SansSerif";
     private static final String FONT_MONOSPACED = "Monospaced";
 
@@ -83,6 +82,11 @@ public class DotController extends JPanel {
     private static final Font POINT_COUNTER_FONT = new Font(FONT_SANS_SERIF, Font.BOLD, POINT_COUNTER_FONT_SIZE);
     private static final Font RNG_LABEL_FONT = new Font(FONT_SANS_SERIF, Font.BOLD, RNG_LABEL_FONT_SIZE);
     private static final Font ERROR_FONT = new Font(FONT_SANS_SERIF, Font.PLAIN, ERROR_FONT_SIZE);
+
+    private static final Font APPLE_MAC_INFO_FONT = new Font(FONT_MONOSPACED, Font.BOLD, INFO_FONT_SIZE);
+    private static final Font APPLE_MAC_POINT_COUNTER_FONT =
+            new Font(FONT_MONOSPACED, Font.BOLD, APPLE_MAC_POINT_COUNTER_FONT_SIZE);
+    private static final Font APPLE_MAC_RNG_LABEL_FONT = new Font(FONT_MONOSPACED, Font.BOLD, RNG_LABEL_FONT_SIZE);
 
     private static final Font RANDOM_STACK_HEADER_FONT = new Font(FONT_MONOSPACED, Font.PLAIN, 10);
     private static final Font RANDOM_STACK_VALUE_FONT = new Font(FONT_MONOSPACED, Font.PLAIN, 11);
@@ -105,21 +109,25 @@ public class DotController extends JPanel {
     private static final Color DARK_ERROR_COLOR = new Color(255, 120, 120);
     private static final Color LIGHT_ERROR_COLOR = Color.RED;
 
-    private static final Color DARK_RECOLOR_TARGET_COLOR = new Color(215, 240, 255);
+    private static final Color DARK_RANDOM_STACK_HEADER_COLOR = new Color(142, 163, 188);
+    private static final Color DARK_RANDOM_STACK_VALUE_COLOR = new Color(230, 238, 248);
+    private static final Color DARK_RANDOM_STACK_ROW_BACKGROUND = new Color(14, 26, 42, 220);
 
     private static final Color RANDOM_STACK_HEADER_COLOR = new Color(130, 130, 130);
     private static final Color RANDOM_STACK_VALUE_COLOR = Color.BLACK;
     private static final Color RANDOM_STACK_ROW_BACKGROUND = new Color(245, 245, 245);
 
-    private static final Color DARK_RANDOM_STACK_HEADER_COLOR = new Color(142, 163, 188);
-    private static final Color DARK_RANDOM_STACK_VALUE_COLOR = new Color(230, 238, 248);
-    private static final Color DARK_RANDOM_STACK_ROW_BACKGROUND = new Color(14, 26, 42, 220);
+    private static final Color APPLE_MAC_BACKGROUND_COLOR = new Color(238, 238, 236);
+    private static final Color APPLE_MAC_TEXT_COLOR = Color.BLACK;
+    private static final Color APPLE_MAC_BORDER_COLOR = Color.BLACK;
+    private static final Color APPLE_MAC_STACK_ROW_BACKGROUND = new Color(248, 248, 248);
+    private static final Color APPLE_MAC_STACK_HEADER_BACKGROUND = new Color(230, 230, 230);
 
     private static final String RNG_LABEL_QUANTUM_STATUS = "QUANTUM (API)";
     private static final String RNG_LABEL_PSEUDO_STATUS = "PSEUDO (Local)";
 
-    private static final String RNG_MODE_LABEL_QUANTUM = "● QUANTUM";
-    private static final String RNG_MODE_LABEL_PSEUDO = "● PSEUDO (L128X256MixRandom)";
+    private static final String RNG_MODE_LABEL_QUANTUM = "■ QUANTUM";
+    private static final String RNG_MODE_LABEL_PSEUDO = "■ PSEUDO (L128X256MixRandom)";
 
     private static final String INFO_SEPARATOR = "  |  ";
     private static final String POINTS_LABEL = "Points: ";
@@ -167,7 +175,7 @@ public class DotController extends JPanel {
                 : SIZE_HEIGHT;
 
         setPreferredSize(new Dimension(prefWidth, prefHeight));
-        setBackground(mode.usesDarkBackground() ? DARK_BACKGROUND_COLOR : LIGHT_BACKGROUND_COLOR);
+        setBackground(resolvePanelBackgroundColor());
 
         initModeMouseForwarding();
 
@@ -183,7 +191,7 @@ public class DotController extends JPanel {
 
                 var g2d = offscreenImage.createGraphics();
                 try {
-                    g2d.setColor(getRecolorAnimationTargetColor());
+                    g2d.setColor(mode.getRecolorAnimationTargetColor());
 
                     for (var point : pendingRecolorPoints) {
                         g2d.fillRect(point.x, point.y, DOT_SIZE, DOT_SIZE);
@@ -269,6 +277,7 @@ public class DotController extends JPanel {
 
     @Override
     protected void paintComponent(Graphics g) {
+        setBackground(resolvePanelBackgroundColor());
         super.paintComponent(g);
 
         Graphics2D g2d = (Graphics2D) g;
@@ -287,26 +296,37 @@ public class DotController extends JPanel {
 
         g.drawImage(offscreenImage, CANVAS_ORIGIN_X, CANVAS_ORIGIN_Y, null);
 
-        g2d.setRenderingHint(
-                RenderingHints.KEY_TEXT_ANTIALIASING,
-                RenderingHints.VALUE_TEXT_ANTIALIAS_ON
-        );
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
         boolean dark = mode.usesDarkBackground();
+        VisualizationStyle style = mode.getVisualizationStyle();
 
-        drawInfoText(g2d, dark);
-        drawPointCounter(g2d, dark);
-        drawRngModeIndicator(g2d, dark);
-        drawErrorMessage(g2d, dark);
+        if (style == VisualizationStyle.APPLE_MAC) {
+            drawAppleMacFrame(g2d);
+        }
 
-        if (shouldDrawRandomNumbersStackOverlay()) {
-            drawRandomNumbersStack(g, dark);
+        drawInfoText(g2d, dark, style);
+        drawPointCounter(g2d, dark, style);
+        drawRngModeIndicator(g2d, dark, style);
+        drawErrorMessage(g2d, dark, style);
+
+        if (mode.usesRandomNumbersStackOverlay()) {
+            drawRandomNumbersStack(g, dark, style);
         }
     }
 
-    private void drawInfoText(Graphics2D g2d, boolean dark) {
-        g2d.setFont(INFO_FONT);
-        g2d.setColor(dark ? DARK_INFO_COLOR : LIGHT_INFO_COLOR);
+    private void drawAppleMacFrame(Graphics2D g2d) {
+        g2d.setColor(APPLE_MAC_BORDER_COLOR);
+        g2d.drawRect(APPLE_MAC_INSET, APPLE_MAC_INSET,
+                getWidth() - APPLE_MAC_INSET * 2 - 1,
+                getHeight() - APPLE_MAC_INSET * 2 - 1);
+        g2d.drawLine(APPLE_MAC_INSET, APPLE_MAC_INFO_SEPARATOR_Y,
+                getWidth() - APPLE_MAC_INSET - 1, APPLE_MAC_INFO_SEPARATOR_Y);
+    }
+
+    private void drawInfoText(Graphics2D g2d, boolean dark, VisualizationStyle style) {
+        g2d.setFont(style == VisualizationStyle.APPLE_MAC ? APPLE_MAC_INFO_FONT : INFO_FONT);
+        g2d.setColor(resolveInfoColor(dark, style));
 
         String rngName = randomNumberProvider.getMode() == RNProvider.Mode.QUANTUM
                 ? RNG_LABEL_QUANTUM_STATUS
@@ -323,11 +343,11 @@ public class DotController extends JPanel {
         g2d.drawString(infoText, INFO_TEXT_X, INFO_TEXT_Y);
     }
 
-    private void drawPointCounter(Graphics2D g2d, boolean dark) {
+    private void drawPointCounter(Graphics2D g2d, boolean dark, VisualizationStyle style) {
         String pointCounterText = String.valueOf(mode.getPointCount());
 
-        g2d.setFont(POINT_COUNTER_FONT);
-        g2d.setColor(dark ? DARK_COUNTER_COLOR : LIGHT_COUNTER_COLOR);
+        g2d.setFont(style == VisualizationStyle.APPLE_MAC ? APPLE_MAC_POINT_COUNTER_FONT : POINT_COUNTER_FONT);
+        g2d.setColor(resolveCounterColor(dark, style));
 
         int pointCounterX = calculatePointCounterX(g2d, pointCounterText);
 
@@ -368,40 +388,28 @@ public class DotController extends JPanel {
         );
     }
 
-    private void drawRngModeIndicator(Graphics2D g2d, boolean dark) {
+    private void drawRngModeIndicator(Graphics2D g2d, boolean dark, VisualizationStyle style) {
         var rngMode = randomNumberProvider.getMode();
         boolean isQuantum = rngMode == RNProvider.Mode.QUANTUM;
 
-        g2d.setFont(RNG_LABEL_FONT);
-        g2d.setColor(isQuantum
-                ? (dark ? DARK_QUANTUM_COLOR : LIGHT_QUANTUM_COLOR)
-                : (dark ? DARK_PSEUDO_COLOR : LIGHT_PSEUDO_COLOR));
+        g2d.setFont(style == VisualizationStyle.APPLE_MAC ? APPLE_MAC_RNG_LABEL_FONT : RNG_LABEL_FONT);
+        g2d.setColor(resolveRngColor(isQuantum, dark, style));
 
         String modeLabel = isQuantum ? RNG_MODE_LABEL_QUANTUM : RNG_MODE_LABEL_PSEUDO;
         g2d.drawString(modeLabel, RNG_LABEL_X, RNG_LABEL_Y);
     }
 
-    private void drawErrorMessage(Graphics2D g2d, boolean dark) {
+    private void drawErrorMessage(Graphics2D g2d, boolean dark, VisualizationStyle style) {
         if (errorMessage == null) {
             return;
         }
 
-        g2d.setColor(dark ? DARK_ERROR_COLOR : LIGHT_ERROR_COLOR);
+        g2d.setColor(resolveErrorColor(dark, style));
         g2d.setFont(ERROR_FONT);
         g2d.drawString(errorMessage, ERROR_TEXT_X, ERROR_TEXT_Y);
     }
 
-    private boolean shouldDrawRandomNumbersStackOverlay() {
-        return !mode.usesDarkBackground() || mode instanceof SierpinskiMode;
-    }
-
-    private Color getRecolorAnimationTargetColor() {
-        return mode.usesDarkBackground()
-                ? DARK_RECOLOR_TARGET_COLOR
-                : DARK_BACKGROUND_COLOR;
-    }
-
-    private void drawRandomNumbersStack(Graphics g, boolean dark) {
+    private void drawRandomNumbersStack(Graphics g, boolean dark, VisualizationStyle style) {
         List<Long> numbers = randomNumberProvider.getConsumedNumbers();
         if (numbers.isEmpty()) {
             return;
@@ -409,29 +417,31 @@ public class DotController extends JPanel {
 
         Graphics2D g2d = (Graphics2D) g.create();
         try {
-            g2d.setRenderingHint(
-                    RenderingHints.KEY_TEXT_ANTIALIASING,
-                    RenderingHints.VALUE_TEXT_ANTIALIAS_ON
-            );
+            g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
             Map<Integer, List<Long>> numbersByDigits = groupNumbersByDigitCount(numbers);
 
             int stackWidth = calculateRandomStackWidth(g2d);
-
             int currentX = Math.max(
                     RANDOM_STACK_RIGHT_MARGIN,
                     getWidth() - RANDOM_STACK_RIGHT_MARGIN - stackWidth
             );
-
+            int startX = currentX;
             int startY = RANDOM_STACK_TOP_MARGIN;
+            int visibleRows = calculateVisibleRandomStackRows(startY);
+            int stackHeight = RANDOM_STACK_HEADER_HEIGHT + visibleRows * RANDOM_STACK_CELL_HEIGHT;
 
             for (int digitCount = MIN_DIGIT_GROUP; digitCount <= MAX_DIGIT_GROUP; digitCount++) {
                 List<Long> columnNumbers = numbersByDigits.getOrDefault(digitCount, List.of());
 
                 int columnWidth = calculateDigitColumnWidth(g2d, digitCount);
-                drawDigitColumn(g2d, columnNumbers, digitCount, currentX, startY, columnWidth, dark);
+                drawDigitColumn(g2d, columnNumbers, digitCount, currentX, startY, columnWidth, dark, style);
 
                 currentX += columnWidth + RANDOM_STACK_COLUMN_GAP;
+            }
+
+            if (style == VisualizationStyle.APPLE_MAC) {
+                drawRandomNumbersStackOuterBorder(g2d, startX, startY, stackWidth, stackHeight);
             }
         } finally {
             g2d.dispose();
@@ -504,9 +514,10 @@ public class DotController extends JPanel {
             int x,
             int y,
             int columnWidth,
-            boolean dark
+            boolean dark,
+            VisualizationStyle style
     ) {
-        drawDigitColumnHeader(g2d, digitCount, x, y, columnWidth, dark);
+        drawDigitColumnHeader(g2d, digitCount, x, y, columnWidth, dark, style);
 
         int visibleRows = calculateVisibleRandomStackRows(y);
         int fromIndex = Math.max(0, numbers.size() - visibleRows);
@@ -515,7 +526,7 @@ public class DotController extends JPanel {
         int rowY = y + RANDOM_STACK_HEADER_HEIGHT;
 
         for (Long number : visibleNumbers) {
-            drawDigitColumnValue(g2d, number, digitCount, x, rowY, columnWidth, dark);
+            drawDigitColumnValue(g2d, number, digitCount, x, rowY, columnWidth, dark, style);
             rowY += RANDOM_STACK_CELL_HEIGHT;
         }
     }
@@ -526,18 +537,29 @@ public class DotController extends JPanel {
             int x,
             int y,
             int columnWidth,
-            boolean dark
+            boolean dark,
+            VisualizationStyle style
     ) {
         String header = digitCount + "d";
 
+        if (style == VisualizationStyle.APPLE_MAC) {
+            g2d.setColor(APPLE_MAC_STACK_HEADER_BACKGROUND);
+            g2d.fillRect(x, y, columnWidth, RANDOM_STACK_HEADER_HEIGHT - 1);
+        }
+
         g2d.setFont(RANDOM_STACK_HEADER_FONT);
-        g2d.setColor(dark ? DARK_RANDOM_STACK_HEADER_COLOR : RANDOM_STACK_HEADER_COLOR);
+        g2d.setColor(resolveRandomStackHeaderColor(dark, style));
 
         FontMetrics metrics = g2d.getFontMetrics();
         int textX = x + Math.max(0, (columnWidth - metrics.stringWidth(header)) / 2);
         int textY = y + metrics.getAscent();
 
         g2d.drawString(header, textX, textY);
+
+        if (style == VisualizationStyle.APPLE_MAC) {
+            g2d.setColor(APPLE_MAC_BORDER_COLOR);
+            g2d.drawRect(x, y, columnWidth, RANDOM_STACK_HEADER_HEIGHT - 1);
+        }
     }
 
     private static void drawDigitColumnValue(
@@ -547,15 +569,16 @@ public class DotController extends JPanel {
             int x,
             int y,
             int columnWidth,
-            boolean dark
+            boolean dark,
+            VisualizationStyle style
     ) {
         String text = formatNumberForDigitColumn(number, digitCount);
 
-        g2d.setColor(dark ? DARK_RANDOM_STACK_ROW_BACKGROUND : RANDOM_STACK_ROW_BACKGROUND);
+        g2d.setColor(resolveRandomStackRowBackground(dark, style));
         g2d.fillRect(x, y, columnWidth, RANDOM_STACK_CELL_HEIGHT - 1);
 
         g2d.setFont(RANDOM_STACK_VALUE_FONT);
-        g2d.setColor(dark ? DARK_RANDOM_STACK_VALUE_COLOR : RANDOM_STACK_VALUE_COLOR);
+        g2d.setColor(resolveRandomStackValueColor(dark, style));
 
         FontMetrics metrics = g2d.getFontMetrics();
 
@@ -563,6 +586,11 @@ public class DotController extends JPanel {
         int textY = y + metrics.getAscent();
 
         g2d.drawString(text, textX, textY);
+
+        if (style == VisualizationStyle.APPLE_MAC) {
+            g2d.setColor(APPLE_MAC_BORDER_COLOR);
+            g2d.drawRect(x, y, columnWidth, RANDOM_STACK_CELL_HEIGHT - 1);
+        }
     }
 
     private static String formatNumberForDigitColumn(long number, int digitCount) {
@@ -581,6 +609,85 @@ public class DotController extends JPanel {
         return Math.max(1, availableHeight / RANDOM_STACK_CELL_HEIGHT);
     }
 
+    private static void drawRandomNumbersStackOuterBorder(
+            Graphics2D g2d,
+            int x,
+            int y,
+            int width,
+            int height
+    ) {
+        g2d.setColor(APPLE_MAC_BORDER_COLOR);
+        g2d.drawRect(x - 2, y - 2, width + 4, height + 4);
+    }
+
+    private Color resolvePanelBackgroundColor() {
+        if (mode.getVisualizationStyle() == VisualizationStyle.APPLE_MAC) {
+            return APPLE_MAC_BACKGROUND_COLOR;
+        }
+
+        return mode.usesDarkBackground() ? DARK_BACKGROUND_COLOR : LIGHT_BACKGROUND_COLOR;
+    }
+
+    private static Color resolveInfoColor(boolean dark, VisualizationStyle style) {
+        if (style == VisualizationStyle.APPLE_MAC) {
+            return APPLE_MAC_TEXT_COLOR;
+        }
+
+        return dark ? DARK_INFO_COLOR : LIGHT_INFO_COLOR;
+    }
+
+    private static Color resolveCounterColor(boolean dark, VisualizationStyle style) {
+        if (style == VisualizationStyle.APPLE_MAC) {
+            return APPLE_MAC_TEXT_COLOR;
+        }
+
+        return dark ? DARK_COUNTER_COLOR : LIGHT_COUNTER_COLOR;
+    }
+
+    private static Color resolveRngColor(boolean quantum, boolean dark, VisualizationStyle style) {
+        if (style == VisualizationStyle.APPLE_MAC) {
+            return APPLE_MAC_TEXT_COLOR;
+        }
+
+        if (quantum) {
+            return dark ? DARK_QUANTUM_COLOR : LIGHT_QUANTUM_COLOR;
+        }
+
+        return dark ? DARK_PSEUDO_COLOR : LIGHT_PSEUDO_COLOR;
+    }
+
+    private static Color resolveErrorColor(boolean dark, VisualizationStyle style) {
+        if (style == VisualizationStyle.APPLE_MAC) {
+            return APPLE_MAC_TEXT_COLOR;
+        }
+
+        return dark ? DARK_ERROR_COLOR : LIGHT_ERROR_COLOR;
+    }
+
+    private static Color resolveRandomStackHeaderColor(boolean dark, VisualizationStyle style) {
+        if (style == VisualizationStyle.APPLE_MAC) {
+            return APPLE_MAC_TEXT_COLOR;
+        }
+
+        return dark ? DARK_RANDOM_STACK_HEADER_COLOR : RANDOM_STACK_HEADER_COLOR;
+    }
+
+    private static Color resolveRandomStackValueColor(boolean dark, VisualizationStyle style) {
+        if (style == VisualizationStyle.APPLE_MAC) {
+            return APPLE_MAC_TEXT_COLOR;
+        }
+
+        return dark ? DARK_RANDOM_STACK_VALUE_COLOR : RANDOM_STACK_VALUE_COLOR;
+    }
+
+    private static Color resolveRandomStackRowBackground(boolean dark, VisualizationStyle style) {
+        if (style == VisualizationStyle.APPLE_MAC) {
+            return APPLE_MAC_STACK_ROW_BACKGROUND;
+        }
+
+        return dark ? DARK_RANDOM_STACK_ROW_BACKGROUND : RANDOM_STACK_ROW_BACKGROUND;
+    }
+
     public void updateStatusLabel(String message) {
         SwingUtilities.invokeLater(() -> statusLabel.setText(message));
     }
@@ -591,6 +698,18 @@ public class DotController extends JPanel {
 
     public RNProvider getRandomNumberProvider() {
         return randomNumberProvider;
+    }
+
+    /**
+     * Применяет смену стиля режима и полностью перерисовывает canvas.
+     */
+    public void applyModeStyle() {
+        SwingUtilities.invokeLater(() -> {
+            setBackground(resolvePanelBackgroundColor());
+            refreshVisualization();
+            revalidate();
+            repaint();
+        });
     }
 
     /**

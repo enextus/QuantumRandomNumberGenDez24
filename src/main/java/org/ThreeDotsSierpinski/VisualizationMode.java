@@ -45,7 +45,7 @@ public interface VisualizationMode {
      * @param provider источник случайных чисел
      * @param canvas   изображение для рисования
      * @param dotSize  размер точки (из конфига)
-     * @return список точек, нарисованных красным (для последующей перекраски в чёрный)
+     * @return список точек, нарисованных свежим цветом
      */
     List<Point> step(RNProvider provider, BufferedImage canvas, int dotSize);
 
@@ -72,7 +72,6 @@ public interface VisualizationMode {
         return List.of();
     }
 
-
     /**
      * Обработка кликов мыши по области визуализации.
      * Режимы, которым нужны canvas-hit areas или help overlays, могут переопределить этот hook.
@@ -98,32 +97,36 @@ public interface VisualizationMode {
     }
 
     /**
-     * Нужна ли анимация RED→BLACK для новых точек?
-     * True = Sierpinski-style (точки сначала красные, через 1с чёрные).
-     * False = режим сам управляет цветами (DLA, Percolation и т.д.).
+     * Текущий визуальный стиль режима. DEFAULT сохраняет существующий UI.
+     */
+    default VisualizationStyle getVisualizationStyle() {
+        return VisualizationStyle.DEFAULT;
+    }
+
+    /**
+     * Нужна ли анимация свежих точек в stable-color.
+     * True = Sierpinski-style; False = режим сам управляет цветами.
      */
     default boolean usesRecolorAnimation() { return true; }
 
     /**
-     * Color used by DotController when RED/fresh points are converted
-     * into stable points after the recolor delay.
+     * Цвет, в который DotController перекрашивает свежие точки.
      */
     default Color getRecolorAnimationTargetColor() {
-        return Color.BLACK;
+        return usesDarkBackground() ? Color.WHITE : Color.BLACK;
     }
 
     /**
-     * Whether DotController should draw the consumed random numbers stack.
-     * By default, it is visible only for light classic modes.
+     * Нужен ли чёрный/тёмный фон.
+     */
+    default boolean usesDarkBackground() { return false; }
+
+    /**
+     * Нужно ли показывать overlay таблицы потреблённых random numbers.
      */
     default boolean usesRandomNumbersStackOverlay() {
         return !usesDarkBackground();
     }
-
-    /**
-     * Нужен ли чёрный фон? (DLA — да, Sierpinski — нет)
-     */
-    default boolean usesDarkBackground() { return false; }
 
     /**
      * Реестр всех доступных режимов.
@@ -145,7 +148,6 @@ public interface VisualizationMode {
                 new SpectralPlotMode(),
                 new ChaosGameRepresentationMode(),
                 new DLAMode(),
-        }; 
+        };
     }
-
 }

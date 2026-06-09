@@ -10,59 +10,56 @@ import java.util.OptionalInt;
 
 /**
  * Режим визуализации: треугольник Серпинского (Chaos Game).
- * Классический алгоритм:
- * 1. Начинаем с центра треугольника
- * 2. Случайное число определяет одну из трёх вершин
- * 3. Перемещаемся на половину расстояния к вершине
- * 4. Ставим точку
- * Из чистого хаоса рождается фрактальная структура.
+ *
+ * Дополнительно поддерживает переключаемые визуальные стили:
+ * - Default: текущий рабочий стиль проекта;
+ * - AppleMac: ретро grayscale-style в духе ранних GUI-компьютеров.
  */
 public class SierpinskiMode implements VisualizationMode {
-
-    private static final boolean DEFAULT_DARK_MODE_ENABLED = true;
-
-    private static final String DARK_MODE_TEXT = "Dark Mode";
-    private static final String DARK_MODE_TOOLTIP =
-            "Switch Sierpinski Triangle between light and dark palette";
-
-    private static final Color LIGHT_BACKGROUND_COLOR = Color.WHITE;
-    private static final Color DARK_BACKGROUND_COLOR = new Color(5, 10, 18);
-
-    private static final Color LIGHT_NEW_POINT_COLOR = Color.RED;
-    private static final Color DARK_NEW_POINT_COLOR = new Color(255, 92, 122);
-
-    private static final Color LIGHT_STABLE_POINT_COLOR = Color.BLACK;
-    private static final Color DARK_STABLE_POINT_COLOR = new Color(215, 240, 255);
-
-    private boolean darkMode = DEFAULT_DARK_MODE_ENABLED;
-
-    private final List<Point> pointHistory = new ArrayList<>();
-
-    private static final String CONFIG_DOTS_PER_UPDATE = "dots.per.update";
 
     private static final String ID = "Sierpinski";
     private static final String NAME = "Sierpinski Triangle";
     private static final String DESCRIPTION =
             "Фрактал из хаоса: случайные числа определяют вершину,\n"
-                    + "точка прыгает на полпути — и возникает треугольник Серпинского.";
+          + "точка прыгает на полпути — и возникает треугольник Серпинского.";
     private static final String ICON = "△";
 
     private static final String ERROR_CANVAS_NULL = "Canvas cannot be null";
     private static final String ERROR_PROVIDER_NULL = "Provider cannot be null";
     private static final String ERROR_INVALID_CANVAS_SIZE = "Canvas size must be positive";
 
-    private static final int MIN_DOT_SIZE = 1;
-    private static final int MIN_DOTS_PER_STEP = 1;
+    private static final String DARK_MODE_TEXT = "Dark Mode";
+    private static final String DARK_MODE_TOOLTIP =
+            "Switch Sierpinski Triangle between light and dark palette";
 
-    private static final int DOTS_PER_STEP = Math.max(
-            MIN_DOTS_PER_STEP,
-            Config.getInt(CONFIG_DOTS_PER_UPDATE)
-    );
+    private static final String STYLE_LABEL_TEXT = "Style:";
+    private static final String STYLE_TOOLTIP = "Choose visual style for Sierpinski UI";
+
+    private static final boolean DEFAULT_DARK_MODE_ENABLED = true;
+    private static final int DOTS_PER_STEP = Config.getInt("dots.per.update");
+    private static final int CENTER_DIVISOR = 2;
+    private static final int MIN_DOT_SIZE = 1;
+
+    private static final Color LIGHT_BACKGROUND_COLOR = Color.WHITE;
+    private static final Color DARK_BACKGROUND_COLOR = new Color(5, 10, 18);
+    private static final Color APPLE_MAC_BACKGROUND_COLOR = new Color(238, 238, 236);
+
+    private static final Color LIGHT_NEW_POINT_COLOR = Color.RED;
+    private static final Color DARK_NEW_POINT_COLOR = new Color(255, 92, 122);
+    private static final Color APPLE_MAC_NEW_POINT_COLOR = Color.BLACK;
+
+    private static final Color LIGHT_STABLE_POINT_COLOR = Color.BLACK;
+    private static final Color DARK_STABLE_POINT_COLOR = new Color(215, 240, 255);
+    private static final Color APPLE_MAC_STABLE_POINT_COLOR = Color.BLACK;
 
     private SierpinskiAlgorithm algorithm;
     private Point currentPoint;
     private int pointCount = 0;
     private int randomNumbersUsed = 0;
+
+    private boolean darkMode = DEFAULT_DARK_MODE_ENABLED;
+    private VisualizationStyle visualizationStyle = VisualizationStyle.DEFAULT;
+    private final List<Point> pointHistory = new ArrayList<>();
 
     @Override
     public String getId() {
@@ -93,7 +90,7 @@ public class SierpinskiMode implements VisualizationMode {
         }
 
         algorithm = new SierpinskiAlgorithm(width, height);
-        currentPoint = new Point(width / 2, height / 2);
+        currentPoint = new Point(width / CENTER_DIVISOR, height / CENTER_DIVISOR);
         pointCount = 0;
         randomNumbersUsed = 0;
         pointHistory.clear();
@@ -112,13 +109,11 @@ public class SierpinskiMode implements VisualizationMode {
         var newPoints = new ArrayList<Point>(DOTS_PER_STEP);
 
         Graphics2D g2d = canvas.createGraphics();
-
         try {
             g2d.setColor(newPointColor());
 
             for (int i = 0; i < DOTS_PER_STEP; i++) {
                 OptionalInt randomOpt = provider.getNextRandomNumber();
-
                 if (randomOpt.isEmpty()) {
                     break;
                 }
@@ -133,7 +128,6 @@ public class SierpinskiMode implements VisualizationMode {
 
                 g2d.fillRect(drawnPoint.x, drawnPoint.y, safeDotSize, safeDotSize);
                 newPoints.add(drawnPoint);
-
                 pointCount++;
             }
         } finally {
@@ -154,19 +148,13 @@ public class SierpinskiMode implements VisualizationMode {
         Graphics2D g2d = canvas.createGraphics();
         try {
             g2d.setColor(stablePointColor());
-
             int safeDotSize = Math.max(MIN_DOT_SIZE, dotSize);
+
             for (Point point : pointHistory) {
                 g2d.fillRect(point.x, point.y, safeDotSize, safeDotSize);
             }
         } finally {
             g2d.dispose();
-        }
-    }
-
-    private void ensureInitialized(BufferedImage canvas) {
-        if (algorithm == null || currentPoint == null) {
-            initialize(canvas, canvas.getWidth(), canvas.getHeight());
         }
     }
 
@@ -187,21 +175,41 @@ public class SierpinskiMode implements VisualizationMode {
 
     @Override
     public List<JComponent> createModeControls(DotController controller) {
+        JLabel styleLabel = new JLabel(STYLE_LABEL_TEXT);
+
+        JComboBox<VisualizationStyle> styleComboBox = new JComboBox<>(new VisualizationStyle[] {
+                VisualizationStyle.DEFAULT,
+                VisualizationStyle.APPLE_MAC
+        });
+        styleComboBox.setSelectedItem(visualizationStyle);
+        styleComboBox.setToolTipText(STYLE_TOOLTIP);
+        styleComboBox.setFocusable(false);
+
         JCheckBox darkModeToggle = new JCheckBox(DARK_MODE_TEXT, darkMode);
         darkModeToggle.setToolTipText(DARK_MODE_TOOLTIP);
+        darkModeToggle.setEnabled(!isAppleMacStyle());
+
+        styleComboBox.addActionListener(ignored -> {
+            Object selected = styleComboBox.getSelectedItem();
+            if (selected instanceof VisualizationStyle selectedStyle) {
+                visualizationStyle = selectedStyle;
+            }
+
+            darkModeToggle.setEnabled(!isAppleMacStyle());
+            controller.applyModeStyle();
+        });
 
         darkModeToggle.addActionListener(ignored -> {
             darkMode = darkModeToggle.isSelected();
-            controller.setBackground(backgroundColor());
-            controller.refreshVisualization();
+            controller.applyModeStyle();
         });
 
-        return List.of(darkModeToggle);
+        return List.of(styleLabel, styleComboBox, darkModeToggle);
     }
 
     @Override
     public boolean usesDarkBackground() {
-        return darkMode;
+        return visualizationStyle == VisualizationStyle.DEFAULT && darkMode;
     }
 
     @Override
@@ -214,6 +222,17 @@ public class SierpinskiMode implements VisualizationMode {
         return stablePointColor();
     }
 
+    @Override
+    public VisualizationStyle getVisualizationStyle() {
+        return visualizationStyle;
+    }
+
+    private void ensureInitialized(BufferedImage canvas) {
+        if (algorithm == null || currentPoint == null) {
+            initialize(canvas, canvas.getWidth(), canvas.getHeight());
+        }
+    }
+
     private void clearCanvas(BufferedImage canvas) {
         Graphics2D g2d = canvas.createGraphics();
         try {
@@ -224,16 +243,31 @@ public class SierpinskiMode implements VisualizationMode {
         }
     }
 
+    private boolean isAppleMacStyle() {
+        return visualizationStyle == VisualizationStyle.APPLE_MAC;
+    }
+
     private Color backgroundColor() {
+        if (isAppleMacStyle()) {
+            return APPLE_MAC_BACKGROUND_COLOR;
+        }
+
         return darkMode ? DARK_BACKGROUND_COLOR : LIGHT_BACKGROUND_COLOR;
     }
 
     private Color newPointColor() {
+        if (isAppleMacStyle()) {
+            return APPLE_MAC_NEW_POINT_COLOR;
+        }
+
         return darkMode ? DARK_NEW_POINT_COLOR : LIGHT_NEW_POINT_COLOR;
     }
 
     private Color stablePointColor() {
+        if (isAppleMacStyle()) {
+            return APPLE_MAC_STABLE_POINT_COLOR;
+        }
+
         return darkMode ? DARK_STABLE_POINT_COLOR : LIGHT_STABLE_POINT_COLOR;
     }
-
 }
