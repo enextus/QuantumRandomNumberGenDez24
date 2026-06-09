@@ -82,6 +82,11 @@ public class BarnsleyFernMode implements VisualizationMode {
     }
 
     @Override
+    public boolean usesLeftPointCounterOverlay() {
+        return true;
+    }
+
+    @Override
     public boolean usesRecolorAnimation() {
         return false;
     }
@@ -90,7 +95,6 @@ public class BarnsleyFernMode implements VisualizationMode {
     public boolean usesDarkBackground() {
         return true;
     }
-
     @Override
     public void initialize(BufferedImage canvas, int width, int height) {
         this.width = width;

@@ -81,6 +81,22 @@ public interface VisualizationMode {
         // Default no-op.
     }
 
+    enum PointCounterOverlayPlacement {
+        LEFT,
+        RIGHT,
+        TOP_CENTER
+    }
+
+    default boolean usesLeftPointCounterOverlay() {
+        return false;
+    }
+
+    default PointCounterOverlayPlacement getPointCounterOverlayPlacement() {
+        return usesLeftPointCounterOverlay()
+                ? PointCounterOverlayPlacement.LEFT
+                : PointCounterOverlayPlacement.RIGHT;
+    }
+
     /**
      * Нужна ли анимация RED→BLACK для новых точек?
      * True = Sierpinski-style (точки сначала красные, через 1с чёрные).

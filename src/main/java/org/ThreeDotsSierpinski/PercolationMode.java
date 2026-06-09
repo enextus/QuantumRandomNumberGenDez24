@@ -75,6 +75,11 @@ public class PercolationMode implements VisualizationMode {
     private boolean[] connectedToTop;
 
     @Override
+    public boolean usesLeftPointCounterOverlay() {
+        return true;
+    }
+
+    @Override
     public String getId() {
         return ID;
     }

@@ -82,6 +82,11 @@ public class GaltonBoardMode implements VisualizationMode {
     ) {}
 
     @Override
+    public boolean usesLeftPointCounterOverlay() {
+        return true;
+    }
+
+    @Override
     public String getId() {
         return ID;
     }

@@ -8,7 +8,6 @@ import java.util.List;
  * Проверяет баланс нулей и единиц в битовом представлении чисел.
  */
 public class FrequencyBitTest implements RandomnessTest {
-
     @Override
     public TestResult testWithDetails(List<Long> numbers, double alpha) {
         if (numbers == null || numbers.size() < 10) {

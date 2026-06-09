@@ -62,6 +62,11 @@ public class VoronoiMode implements VisualizationMode {
     public boolean usesDarkBackground() { return true; }
 
     @Override
+    public boolean usesLeftPointCounterOverlay() {
+        return true;
+    }
+
+    @Override
     public List<JComponent> createModeControls(DotController controller) {
         var label = new JLabel(MARKERS_LABEL_TEXT);
         var toggle = new JToggleButton();

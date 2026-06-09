@@ -89,6 +89,11 @@ public class RandomWalkHeatmapMode implements VisualizationMode {
     }
 
     @Override
+    public boolean usesLeftPointCounterOverlay() {
+        return true;
+    }
+
+    @Override
     public void initialize(BufferedImage canvas, int width, int height) {
         this.width = Math.max(MIN_CANVAS_SIZE, width);
         this.height = Math.max(MIN_CANVAS_SIZE, height);

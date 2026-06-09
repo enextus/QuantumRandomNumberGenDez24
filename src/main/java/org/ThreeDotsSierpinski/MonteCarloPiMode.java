@@ -352,6 +352,11 @@ public class MonteCarloPiMode implements VisualizationMode {
     }
 
     @Override
+    public PointCounterOverlayPlacement getPointCounterOverlayPlacement() {
+        return PointCounterOverlayPlacement.TOP_CENTER;
+    }
+
+    @Override
     public boolean usesRecolorAnimation() {
         return false;
     }

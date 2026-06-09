@@ -140,4 +140,9 @@ public class SierpinskiMode implements VisualizationMode {
     public int getRandomNumbersUsed() {
         return randomNumbersUsed;
     }
+
+    @Override
+    public boolean usesLeftPointCounterOverlay() {
+        return true;
+    }
 }

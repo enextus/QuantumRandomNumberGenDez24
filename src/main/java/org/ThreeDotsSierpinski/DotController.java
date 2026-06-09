@@ -8,6 +8,9 @@ import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * Универсальный контроллер визуализации случайных чисел.
@@ -37,10 +40,28 @@ public class DotController extends JPanel {
     private static final int DOT_SIZE = Config.getInt(CONFIG_DOT_SIZE);
     private static final int TIMER_DELAY = Config.getInt(CONFIG_TIMER_DELAY);
 
-    private static final int COLUMN_WIDTH = Config.getInt(CONFIG_COLUMN_WIDTH);
-    private static final int ROW_HEIGHT = Config.getInt(CONFIG_ROW_HEIGHT);
-    private static final int COLUMN_SPACING = Config.getInt(CONFIG_COLUMN_SPACING);
-    private static final int MAX_COLUMNS = Config.getInt(CONFIG_MAX_COLUMNS);
+    private static final int MIN_DIGIT_GROUP = 1;
+    private static final int MAX_DIGIT_GROUP = 5;
+
+    private static final int RANDOM_STACK_START_X = 10;
+    private static final int RANDOM_STACK_START_Y = 60;
+
+    private static final int RANDOM_STACK_CELL_HORIZONTAL_PADDING = 4;
+
+    private static final Font RANDOM_STACK_HEADER_FONT = new Font("Monospaced", Font.PLAIN, 10);
+    private static final Font RANDOM_STACK_VALUE_FONT = new Font("Monospaced", Font.PLAIN, 11);
+
+    private static final Color RANDOM_STACK_HEADER_COLOR = new Color(130, 130, 130);
+    private static final Color RANDOM_STACK_VALUE_COLOR = Color.BLACK;
+    private static final Color RANDOM_STACK_ROW_BACKGROUND = new Color(245, 245, 245);
+
+    private static final int RANDOM_STACK_TOP_MARGIN = 18;
+    private static final int RANDOM_STACK_RIGHT_MARGIN = 12;
+    private static final int RANDOM_STACK_COLUMN_GAP = 4;
+    private static final int RANDOM_STACK_HEADER_HEIGHT = 18;
+    private static final int RANDOM_STACK_CELL_HEIGHT = 18;
+
+    private static final int RANDOM_STACK_BOTTOM_RESERVED_SPACE = 250;
 
     private static final int LIGHT_MODE_EXTRA_WIDTH = 300;
 
@@ -54,8 +75,11 @@ public class DotController extends JPanel {
     private static final int INFO_TEXT_X = 10;
     private static final int INFO_TEXT_Y = 20;
 
-    private static final int POINT_COUNTER_X = 10;
+    private static final int POINT_COUNTER_LEFT_MARGIN = 10;
+    private static final int POINT_COUNTER_RIGHT_MARGIN = 10;
     private static final int POINT_COUNTER_Y = 80;
+
+    private static final double POINT_COUNTER_TOP_CENTER_X_RATIO = 0.66;
 
     private static final int RNG_LABEL_X = 10;
     private static final int RNG_LABEL_Y = 100;
@@ -277,6 +301,8 @@ public class DotController extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
 
+        Graphics2D g2d = (Graphics2D) g;
+
         if (!canvasInitialized || offscreenImage == null
                 || offscreenImage.getWidth() != getWidth()
                 || offscreenImage.getHeight() != getHeight()) {
@@ -291,7 +317,6 @@ public class DotController extends JPanel {
 
         g.drawImage(offscreenImage, CANVAS_ORIGIN_X, CANVAS_ORIGIN_Y, null);
 
-        Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(
                 RenderingHints.KEY_TEXT_ANTIALIASING,
                 RenderingHints.VALUE_TEXT_ANTIALIAS_ON
@@ -329,9 +354,48 @@ public class DotController extends JPanel {
     }
 
     private void drawPointCounter(Graphics2D g2d, boolean dark) {
+        String pointCounterText = String.valueOf(mode.getPointCount());
+
         g2d.setFont(POINT_COUNTER_FONT);
         g2d.setColor(dark ? DARK_COUNTER_COLOR : LIGHT_COUNTER_COLOR);
-        g2d.drawString(String.valueOf(mode.getPointCount()), POINT_COUNTER_X, POINT_COUNTER_Y);
+
+        int pointCounterX = calculatePointCounterX(g2d, pointCounterText);
+
+        g2d.drawString(pointCounterText, pointCounterX, POINT_COUNTER_Y);
+    }
+
+    private int calculateRightAlignedPointCounterX(Graphics2D g2d, String pointCounterText) {
+        FontMetrics fontMetrics = g2d.getFontMetrics();
+        int pointCounterWidth = fontMetrics.stringWidth(pointCounterText);
+
+        return Math.max(
+                POINT_COUNTER_RIGHT_MARGIN,
+                getWidth() - POINT_COUNTER_RIGHT_MARGIN - pointCounterWidth
+        );
+    }
+
+    private int calculatePointCounterX(Graphics2D g2d, String pointCounterText) {
+        return switch (mode.getPointCounterOverlayPlacement()) {
+            case LEFT -> POINT_COUNTER_LEFT_MARGIN;
+            case TOP_CENTER -> calculateTopCenterPointCounterX(g2d, pointCounterText);
+            case RIGHT -> calculateRightAlignedPointCounterX(g2d, pointCounterText);
+        };
+    }
+
+    private int calculateTopCenterPointCounterX(Graphics2D g2d, String pointCounterText) {
+        FontMetrics fontMetrics = g2d.getFontMetrics();
+        int pointCounterWidth = fontMetrics.stringWidth(pointCounterText);
+
+        int preferredCenterX = (int) Math.round(getWidth() * POINT_COUNTER_TOP_CENTER_X_RATIO);
+        int preferredX = preferredCenterX - pointCounterWidth / 2;
+
+        int maxX = getWidth() - POINT_COUNTER_RIGHT_MARGIN - pointCounterWidth;
+
+        return Math.clamp(
+                preferredX,
+                POINT_COUNTER_LEFT_MARGIN,
+                Math.max(POINT_COUNTER_LEFT_MARGIN, maxX)
+        );
     }
 
     private void drawRngModeIndicator(Graphics2D g2d, boolean dark) {
@@ -358,130 +422,180 @@ public class DotController extends JPanel {
     }
 
     private void drawRandomNumbersStack(Graphics g) {
-        Graphics2D g2d = (Graphics2D) g;
-        g2d.setRenderingHint(
-                RenderingHints.KEY_TEXT_ANTIALIASING,
-                RenderingHints.VALUE_TEXT_ANTIALIAS_ON
-        );
-
-        int stackHeight = Math.max(MIN_CANVAS_SIZE, getHeight());
-        int maxRows = Math.max(
-                STACK_MIN_VISIBLE_ROWS,
-                (stackHeight - STACK_HEADER_HEIGHT - STACK_VERTICAL_PADDING) / ROW_HEIGHT
-        );
-        int requestedNumbers = Math.max(
-                STACK_MAX_CONSUMED_NUMBERS,
-                maxRows * MAX_COLUMNS
-        );
-
-        List<List<Long>> digitBuckets = new ArrayList<>();
-        String[] headers = new String[MAX_COLUMNS];
-
-        for (int i = 0; i < MAX_COLUMNS; i++) {
-            digitBuckets.add(new ArrayList<>());
-            headers[i] = (i + DIGIT_INDEX_OFFSET) + DIGIT_HEADER_SUFFIX;
-        }
-
-        for (Long randomValue : randomNumberProvider.getLastConsumedNumbers(requestedNumbers)) {
-            int numDigits = String.valueOf(Math.abs(randomValue)).length();
-
-            if (numDigits <= MAX_VISIBLE_DIGITS) {
-                digitBuckets.get(numDigits - DIGIT_INDEX_OFFSET).add(randomValue);
-            }
-        }
-
-        List<Integer> visibleColumns = new ArrayList<>();
-
-        for (int i = FIRST_DIGIT_BUCKET_INDEX; i < MAX_COLUMNS; i++) {
-            if (!digitBuckets.get(i).isEmpty()) {
-                visibleColumns.add(i);
-            }
-        }
-
-        if (visibleColumns.isEmpty()) {
+        List<Long> numbers = randomNumberProvider.getConsumedNumbers();
+        if (numbers.isEmpty()) {
             return;
         }
 
-        int totalWidth = visibleColumns.size() * (COLUMN_WIDTH + COLUMN_SPACING) - COLUMN_SPACING;
-        int startX = getWidth() - totalWidth - STACK_RIGHT_MARGIN;
-
-        for (int visIdx = 0; visIdx < visibleColumns.size(); visIdx++) {
-            int bucketIdx = visibleColumns.get(visIdx);
-            List<Long> columnNumbers = digitBuckets.get(bucketIdx);
-            int colX = startX + visIdx * (COLUMN_WIDTH + COLUMN_SPACING);
-
-            drawStackHeader(g2d, headers[bucketIdx], colX);
-            drawStackSeparator(g2d, colX);
-
-            if (visIdx > 0) {
-                drawColumnSeparator(g2d, colX, stackHeight);
-            }
-
-            drawStackNumbers(g2d, columnNumbers, colX, maxRows, stackHeight);
-        }
-    }
-
-    private void drawStackHeader(Graphics2D g2d, String header, int colX) {
-        g2d.setFont(STACK_HEADER_FONT);
-        g2d.setColor(STACK_HEADER_COLOR);
-
-        FontMetrics hfm = g2d.getFontMetrics();
-        int headerTextWidth = hfm.stringWidth(header);
-
-        g2d.drawString(
-                header,
-                colX + (COLUMN_WIDTH - headerTextWidth) / 2,
-                STACK_HEADER_HEIGHT - STACK_HEADER_BASELINE_OFFSET
-        );
-    }
-
-    private void drawStackSeparator(Graphics2D g2d, int colX) {
-        g2d.setColor(STACK_SEPARATOR_COLOR);
-        g2d.drawLine(colX, STACK_HEADER_HEIGHT, colX + COLUMN_WIDTH, STACK_HEADER_HEIGHT);
-    }
-
-    private void drawColumnSeparator(Graphics2D g2d, int colX, int stackHeight) {
-        int sepX = colX - COLUMN_SPACING / 2;
-
-        g2d.setColor(STACK_SEPARATOR_COLOR);
-        g2d.drawLine(sepX, CANVAS_ORIGIN_Y, sepX, stackHeight);
-    }
-
-    private void drawStackNumbers(
-            Graphics2D g2d,
-            List<Long> columnNumbers,
-            int colX,
-            int maxRows,
-            int stackHeight
-    ) {
-        g2d.setFont(STACK_MONO_FONT);
-
-        FontMetrics fm = g2d.getFontMetrics();
-        int row = 0;
-
-        for (int i = columnNumbers.size() - 1; i >= 0 && row < maxRows; i--, row++) {
-            int y = stackHeight - (row * ROW_HEIGHT) - STACK_ROW_BASELINE_OFFSET;
-
-            if (row % EVEN_ROW_DIVISOR == EVEN_ROW_REMAINDER) {
-                g2d.setColor(STACK_ZEBRA_COLOR);
-                g2d.fillRect(
-                        colX,
-                        y - ROW_HEIGHT + STACK_ZEBRA_Y_OFFSET,
-                        COLUMN_WIDTH,
-                        ROW_HEIGHT
-                );
-            }
-
-            String text = columnNumbers.get(i).toString();
-            int textWidth = fm.stringWidth(text);
-
-            g2d.setColor(STACK_NUMBER_COLOR);
-            g2d.drawString(
-                    text,
-                    colX + COLUMN_WIDTH - textWidth - STACK_NUMBER_RIGHT_PADDING,
-                    y
+        Graphics2D g2d = (Graphics2D) g.create();
+        try {
+            g2d.setRenderingHint(
+                    RenderingHints.KEY_TEXT_ANTIALIASING,
+                    RenderingHints.VALUE_TEXT_ANTIALIAS_ON
             );
+
+            Map<Integer, List<Long>> numbersByDigits = groupNumbersByDigitCount(numbers);
+
+            int stackWidth = calculateRandomStackWidth(g2d);
+
+            int currentX = Math.max(
+                    RANDOM_STACK_RIGHT_MARGIN,
+                    getWidth() - RANDOM_STACK_RIGHT_MARGIN - stackWidth
+            );
+
+            int startY = RANDOM_STACK_TOP_MARGIN;
+
+            for (int digitCount = MIN_DIGIT_GROUP; digitCount <= MAX_DIGIT_GROUP; digitCount++) {
+                List<Long> columnNumbers = numbersByDigits.getOrDefault(digitCount, List.of());
+
+                int columnWidth = calculateDigitColumnWidth(g2d, digitCount);
+                drawDigitColumn(g2d, columnNumbers, digitCount, currentX, startY, columnWidth);
+
+                currentX += columnWidth + RANDOM_STACK_COLUMN_GAP;
+            }
+        } finally {
+            g2d.dispose();
         }
+    }
+
+    private static Map<Integer, List<Long>> groupNumbersByDigitCount(List<Long> numbers) {
+        Map<Integer, List<Long>> groupedNumbers = new LinkedHashMap<>();
+
+        for (int digitCount = MIN_DIGIT_GROUP; digitCount <= MAX_DIGIT_GROUP; digitCount++) {
+            groupedNumbers.put(digitCount, new ArrayList<>());
+        }
+
+        for (long number : numbers) {
+            int digitCount = calculateDigitCount(number);
+            if (digitCount >= MIN_DIGIT_GROUP && digitCount <= MAX_DIGIT_GROUP) {
+                groupedNumbers.get(digitCount).add(number);
+            }
+        }
+
+        return groupedNumbers;
+    }
+
+    private static int calculateDigitCount(long number) {
+        long absNumber = Math.abs(number);
+
+        if (absNumber < 10) {
+            return 1;
+        }
+        if (absNumber < 100) {
+            return 2;
+        }
+        if (absNumber < 1_000) {
+            return 3;
+        }
+        if (absNumber < 10_000) {
+            return 4;
+        }
+
+        return 5;
+    }
+
+    private static int calculateRandomStackWidth(Graphics2D g2d) {
+        int totalWidth = 0;
+
+        for (int digitCount = MIN_DIGIT_GROUP; digitCount <= MAX_DIGIT_GROUP; digitCount++) {
+            if (digitCount > MIN_DIGIT_GROUP) {
+                totalWidth += RANDOM_STACK_COLUMN_GAP;
+            }
+
+            totalWidth += calculateDigitColumnWidth(g2d, digitCount);
+        }
+
+        return totalWidth;
+    }
+
+    private static int calculateDigitColumnWidth(Graphics2D g2d, int digitCount) {
+        FontMetrics valueMetrics = g2d.getFontMetrics(RANDOM_STACK_VALUE_FONT);
+
+        int digitWidth = valueMetrics.charWidth('0');
+        int valueWidth = digitWidth * digitCount;
+
+        return valueWidth + RANDOM_STACK_CELL_HORIZONTAL_PADDING * 2;
+    }
+
+    private void drawDigitColumn(
+            Graphics2D g2d,
+            List<Long> numbers,
+            int digitCount,
+            int x,
+            int y,
+            int columnWidth
+    ) {
+        drawDigitColumnHeader(g2d, digitCount, x, y, columnWidth);
+
+        int visibleRows = calculateVisibleRandomStackRows(y);
+        int fromIndex = Math.max(0, numbers.size() - visibleRows);
+        List<Long> visibleNumbers = numbers.subList(fromIndex, numbers.size());
+
+        int rowY = y + RANDOM_STACK_HEADER_HEIGHT;
+
+        for (Long number : visibleNumbers) {
+            drawDigitColumnValue(g2d, number, digitCount, x, rowY, columnWidth);
+            rowY += RANDOM_STACK_CELL_HEIGHT;
+        }
+    }
+
+    private static void drawDigitColumnHeader(
+            Graphics2D g2d,
+            int digitCount,
+            int x,
+            int y,
+            int columnWidth
+    ) {
+        String header = digitCount + "d";
+
+        g2d.setFont(RANDOM_STACK_HEADER_FONT);
+        g2d.setColor(RANDOM_STACK_HEADER_COLOR);
+
+        FontMetrics metrics = g2d.getFontMetrics();
+        int textX = x + Math.max(0, (columnWidth - metrics.stringWidth(header)) / 2);
+        int textY = y + metrics.getAscent();
+
+        g2d.drawString(header, textX, textY);
+    }
+
+    private static void drawDigitColumnValue(
+            Graphics2D g2d,
+            long number,
+            int digitCount,
+            int x,
+            int y,
+            int columnWidth
+    ) {
+        String text = formatNumberForDigitColumn(number, digitCount);
+
+        g2d.setColor(RANDOM_STACK_ROW_BACKGROUND);
+        g2d.fillRect(x, y, columnWidth, RANDOM_STACK_CELL_HEIGHT - 1);
+
+        g2d.setFont(RANDOM_STACK_VALUE_FONT);
+        g2d.setColor(RANDOM_STACK_VALUE_COLOR);
+
+        FontMetrics metrics = g2d.getFontMetrics();
+
+        int textX = x + columnWidth - RANDOM_STACK_CELL_HORIZONTAL_PADDING - metrics.stringWidth(text);
+        int textY = y + metrics.getAscent();
+
+        g2d.drawString(text, textX, textY);
+    }
+
+    private static String formatNumberForDigitColumn(long number, int digitCount) {
+        return String.format(Locale.US, "%" + digitCount + "d", number);
+    }
+
+    private int calculateVisibleRandomStackRows(int startY) {
+        int availableHeight = Math.max(
+                0,
+                getHeight()
+                        - startY
+                        - RANDOM_STACK_HEADER_HEIGHT
+                        - RANDOM_STACK_BOTTOM_RESERVED_SPACE
+        );
+
+        return Math.max(1, availableHeight / RANDOM_STACK_CELL_HEIGHT);
     }
 
     public void updateStatusLabel(String message) {
