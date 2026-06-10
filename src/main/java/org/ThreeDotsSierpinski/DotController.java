@@ -15,7 +15,6 @@ import java.util.logging.Logger;
 
 /**
  * Универсальный контроллер визуализации случайных чисел.
- *
  * Принимает любой {@link VisualizationMode} и управляет анимацией,
  * рендерингом, статусом и сохранением изображений.
  */
@@ -86,8 +85,11 @@ public class DotController extends JPanel {
     private static final int APPLE_MAC_TABLE_MAX_ROWS = 32;
     private static final int APPLE_MAC_RANDOM_STACK_CELL_HEIGHT = 16;
     private static final int APPLE_MAC_RANDOM_STACK_HEADER_HEIGHT = 22;
+    private static final int APPLE_MAC_RANDOM_STACK_HEADER_Y_OFFSET = 6;
+    private static final int APPLE_MAC_RANDOM_STACK_VALUES_Y_OFFSET = 6;
     private static final int APPLE_MAC_RANDOM_STACK_COLUMN_GAP = 0;
     private static final int APPLE_MAC_RANDOM_STACK_CELL_HORIZONTAL_PADDING = 6;
+    private static final int APPLE_MAC_RANDOM_STACK_RIGHT_TRIM = 2;
     private static final int APPLE_MAC_CANVAS_BOTTOM_MARGIN = 8;
     private static final int APPLE_MAC_CANVAS_TOP = APPLE_MAC_INFO_SEPARATOR_Y + 4;
 
@@ -636,10 +638,8 @@ public class DotController extends JPanel {
         );
 
         int width = Math.min(preferredWidth, maxWidth);
-        int height = Math.min(
-                APPLE_MAC_COUNTER_BLOCK_HEIGHT,
-                Math.max(MIN_CANVAS_SIZE, plotArea.height - APPLE_MAC_COUNTER_BLOCK_MARGIN * 2)
-        );
+        int height = Math.clamp(plotArea.height - APPLE_MAC_COUNTER_BLOCK_MARGIN * 2, MIN_CANVAS_SIZE,
+                APPLE_MAC_COUNTER_BLOCK_HEIGHT);
 
         return new Rectangle(
                 plotArea.x + APPLE_MAC_COUNTER_BLOCK_MARGIN,
@@ -737,7 +737,8 @@ public class DotController extends JPanel {
             int startX = currentX;
             int startY = getRandomStackTopMargin(style);
             int visibleRows = calculateVisibleRandomStackRows(startY, style);
-            int stackHeight = getRandomStackHeaderHeight(style) + visibleRows * getRandomStackCellHeight(style);
+            int stackFrameY = startY + getRandomStackFrameTopOffset(style);
+            int stackHeight = getRandomStackFrameHeight(style, visibleRows);
 
             for (int digitCount = MIN_DIGIT_GROUP; digitCount <= MAX_DIGIT_GROUP; digitCount++) {
                 List<Long> columnNumbers = numbersByDigits.getOrDefault(digitCount, List.of());
@@ -749,7 +750,7 @@ public class DotController extends JPanel {
             }
 
             if (style == VisualizationStyle.APPLE_MAC) {
-                drawRandomNumbersStackOuterBorder(g2d, startX, startY, stackWidth, stackHeight);
+                drawRandomNumbersStackOuterBorder(g2d, startX, stackFrameY, stackWidth, stackHeight);
             }
         } finally {
             g2d.dispose();
@@ -815,7 +816,13 @@ public class DotController extends JPanel {
         int digitWidth = valueMetrics.charWidth('0');
         int valueWidth = digitWidth * digitCount;
 
-        return valueWidth + getRandomStackCellHorizontalPadding(style) * 2;
+        int width = valueWidth + getRandomStackCellHorizontalPadding(style) * 2;
+
+        if (style == VisualizationStyle.APPLE_MAC && digitCount == MAX_DIGIT_GROUP) {
+            width -= APPLE_MAC_RANDOM_STACK_RIGHT_TRIM;
+        }
+
+        return Math.max(MIN_CANVAS_SIZE, width);
     }
 
     private void drawDigitColumn(
@@ -828,15 +835,17 @@ public class DotController extends JPanel {
             boolean dark,
             VisualizationStyle style
     ) {
-        drawDigitColumnHeader(g2d, digitCount, x, y, columnWidth, dark, style);
+        int headerY = y + getRandomStackHeaderYOffset(style);
+        drawDigitColumnHeader(g2d, digitCount, x, headerY, columnWidth, dark, style);
 
         int visibleRows = calculateVisibleRandomStackRows(y, style);
         int fromIndex = Math.max(0, numbers.size() - visibleRows);
         List<Long> visibleNumbers = numbers.subList(fromIndex, numbers.size());
 
-        int rowY = y + getRandomStackHeaderHeight(style);
+        int rowY = y + getRandomStackRowsTopOffset(style);
 
-        for (Long number : visibleNumbers) {
+        for (int rowIndex = 0; rowIndex < visibleRows; rowIndex++) {
+            Long number = rowIndex < visibleNumbers.size() ? visibleNumbers.get(rowIndex) : null;
             drawDigitColumnValue(g2d, number, digitCount, x, rowY, columnWidth, dark, style);
             rowY += getRandomStackCellHeight(style);
         }
@@ -869,13 +878,18 @@ public class DotController extends JPanel {
 
         if (style == VisualizationStyle.APPLE_MAC) {
             g2d.setColor(APPLE_MAC_BORDER_COLOR);
-            g2d.drawRect(x, y, columnWidth, getRandomStackHeaderHeight(style) - 1);
+            g2d.drawRect(
+                    x,
+                    y,
+                    Math.max(0, columnWidth - 1),
+                    getRandomStackHeaderHeight(style) - 1
+            );
         }
     }
 
     private static void drawDigitColumnValue(
             Graphics2D g2d,
-            long number,
+            Long number,
             int digitCount,
             int x,
             int y,
@@ -883,24 +897,31 @@ public class DotController extends JPanel {
             boolean dark,
             VisualizationStyle style
     ) {
-        String text = formatNumberForDigitColumn(number, digitCount);
+        String text = number == null ? null : formatNumberForDigitColumn(number, digitCount);
 
         g2d.setColor(resolveRandomStackRowBackground(dark, style));
         g2d.fillRect(x, y, columnWidth, getRandomStackCellHeight(style) - 1);
 
-        g2d.setFont(style == VisualizationStyle.APPLE_MAC ? APPLE_MAC_RANDOM_STACK_FONT : RANDOM_STACK_VALUE_FONT);
-        g2d.setColor(resolveRandomStackValueColor(dark, style));
+        if (text != null) {
+            g2d.setFont(style == VisualizationStyle.APPLE_MAC ? APPLE_MAC_RANDOM_STACK_FONT : RANDOM_STACK_VALUE_FONT);
+            g2d.setColor(resolveRandomStackValueColor(dark, style));
 
-        FontMetrics metrics = g2d.getFontMetrics();
+            FontMetrics metrics = g2d.getFontMetrics();
 
-        int textX = x + columnWidth - getRandomStackCellHorizontalPadding(style) - metrics.stringWidth(text);
-        int textY = y + metrics.getAscent();
+            int textX = x + columnWidth - getRandomStackCellHorizontalPadding(style) - metrics.stringWidth(text);
+            int textY = y + metrics.getAscent();
 
-        g2d.drawString(text, textX, textY);
+            g2d.drawString(text, textX, textY);
+        }
 
         if (style == VisualizationStyle.APPLE_MAC) {
             g2d.setColor(APPLE_MAC_BORDER_COLOR);
-            g2d.drawRect(x, y, columnWidth, getRandomStackCellHeight(style) - 1);
+            g2d.drawRect(
+                    x,
+                    y,
+                    Math.max(0, columnWidth - 1),
+                    getRandomStackCellHeight(style) - 1
+            );
         }
     }
 
@@ -913,7 +934,7 @@ public class DotController extends JPanel {
                 0,
                 getHeight()
                         - startY
-                        - getRandomStackHeaderHeight(style)
+                        - getRandomStackRowsTopOffset(style)
                         - getRandomStackBottomReservedSpace(style)
         );
 
@@ -941,6 +962,12 @@ public class DotController extends JPanel {
         return style == VisualizationStyle.APPLE_MAC
                 ? APPLE_MAC_RANDOM_STACK_COLUMN_GAP
                 : RANDOM_STACK_COLUMN_GAP;
+    }
+
+    private static int getRandomStackValuesYOffset(VisualizationStyle style) {
+        return style == VisualizationStyle.APPLE_MAC
+                ? APPLE_MAC_RANDOM_STACK_VALUES_Y_OFFSET
+                : 0;
     }
 
     private static int getRandomStackHeaderHeight(VisualizationStyle style) {
@@ -974,7 +1001,13 @@ public class DotController extends JPanel {
             int width,
             int height
     ) {
-        drawAppleMacDoubleFrame(g2d, x - 2, y - 2, width + 4, height + 4);
+        g2d.setColor(APPLE_MAC_BORDER_COLOR);
+        g2d.drawRect(
+                x,
+                y,
+                Math.max(0, width - 1),
+                Math.max(0, height - 1)
+        );
     }
 
     private Color resolvePanelBackgroundColor() {
@@ -1210,5 +1243,37 @@ public class DotController extends JPanel {
         }
 
         return saved;
+    }
+
+    private static int getRandomStackHeaderYOffset(VisualizationStyle style) {
+        return style == VisualizationStyle.APPLE_MAC
+                ? APPLE_MAC_RANDOM_STACK_HEADER_Y_OFFSET
+                : 0;
+    }
+
+    private static int getRandomStackValuesTopOffset(VisualizationStyle style) {
+        return getRandomStackValuesYOffset(style) + getRandomStackHeaderHeight(style);
+    }
+
+    private static int getRandomStackRowsTopOffset(VisualizationStyle style) {
+        return Math.max(
+                getRandomStackHeaderYOffset(style) + getRandomStackHeaderHeight(style),
+                getRandomStackValuesTopOffset(style)
+        );
+    }
+
+    private static int getRandomStackFrameTopOffset(VisualizationStyle style) {
+        return Math.min(
+                getRandomStackHeaderYOffset(style),
+                getRandomStackValuesTopOffset(style)
+        );
+    }
+
+    private static int getRandomStackFrameHeight(VisualizationStyle style, int visibleRows) {
+        int frameTopOffset = getRandomStackFrameTopOffset(style);
+        int frameBottomOffset = getRandomStackRowsTopOffset(style)
+                + visibleRows * getRandomStackCellHeight(style);
+
+        return Math.max(0, frameBottomOffset - frameTopOffset);
     }
 }

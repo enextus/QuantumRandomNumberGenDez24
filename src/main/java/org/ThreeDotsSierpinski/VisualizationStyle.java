@@ -1,8 +1,7 @@
 package org.ThreeDotsSierpinski;
 
 /**
- * Visual skin selected by a visualization mode.
- *
+ * Visual skin (Mod) selected by a visualization mode.
  * DEFAULT keeps the current application look. APPLE_MAC is a retro grayscale
  * early-personal-computer skin for the classic Sierpinski UI.
  */

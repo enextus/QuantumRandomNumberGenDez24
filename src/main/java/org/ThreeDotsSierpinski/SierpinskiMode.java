@@ -28,11 +28,11 @@ public class SierpinskiMode implements VisualizationMode {
     private static final String ERROR_PROVIDER_NULL = "Provider cannot be null";
     private static final String ERROR_INVALID_CANVAS_SIZE = "Canvas size must be positive";
 
-    private static final String DARK_MODE_TEXT = "Dark Mode";
+    private static final String DARK_MODE_TEXT = "Dark";
     private static final String DARK_MODE_TOOLTIP =
             "Switch Sierpinski Triangle between light and dark palette";
 
-    private static final String STYLE_LABEL_TEXT = "Style:";
+    private static final String STYLE_LABEL_TEXT = "Mod:";
     private static final String STYLE_TOOLTIP = "Choose visual style for Sierpinski UI";
 
     private static final boolean DEFAULT_DARK_MODE_ENABLED = true;
@@ -59,7 +59,7 @@ public class SierpinskiMode implements VisualizationMode {
     private int randomNumbersUsed = 0;
 
     private boolean darkMode = DEFAULT_DARK_MODE_ENABLED;
-    private VisualizationStyle visualizationStyle = VisualizationStyle.DEFAULT;
+    private VisualizationStyle visualizationStyle = VisualizationStyle.APPLE_MAC;
     private final List<Point> pointHistory = new ArrayList<>();
     private final List<Rectangle> reservedDrawingAreas = new ArrayList<>();
 
