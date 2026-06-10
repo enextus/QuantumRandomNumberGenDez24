@@ -24,14 +24,14 @@ public class ModeSelectionDialog {
     private static final int DIALOG_LAYOUT_H_GAP = 0;
     private static final int DIALOG_LAYOUT_V_GAP = 0;
 
-    private static final int DIALOG_WIDTH = 980;
+    private static final int DIALOG_WIDTH = 1350;
     private static final int DIALOG_BASE_HEIGHT = 180;
     private static final int DIALOG_ROW_HEIGHT = 120;
     private static final int DIALOG_MAX_HEIGHT = 900;
     private static final int DIALOG_MIN_WIDTH = 700;
     private static final int DIALOG_MIN_HEIGHT = 300;
 
-    private static final int MODE_GRID_COLUMNS = 2;
+    private static final int MODE_GRID_COLUMNS = 3;
     private static final int MODE_GRID_H_GAP = 12;
     private static final int MODE_GRID_V_GAP = 12;
 

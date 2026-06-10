@@ -159,6 +159,7 @@ public interface VisualizationMode {
                 new SpectralPlotMode(),
                 new ChaosGameRepresentationMode(),
                 new DLAMode(),
+                new BifurcationDiagramMode(),
         };
     }
 }
