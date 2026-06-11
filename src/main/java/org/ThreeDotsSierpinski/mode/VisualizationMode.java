@@ -164,6 +164,11 @@ public interface VisualizationMode {
                 new MonteCarloMandelbrotAreaMode(),
                 new MonteCarloMandelbrot3DAreaMode(),
                 new LorenzAttractor3DMode(),
+                new AizawaAttractorMode(),
+                new ThomasAttractorMode(),
+                new RosslerAttractorMode(),
+                new HalvorsenAttractorMode(),
+                new DadrasAttractorMode(),
                 new MonteCarloPiMode(),
                 new GaltonBoardMode(),
                 new PercolationMode(),
@@ -172,6 +177,12 @@ public interface VisualizationMode {
                 new ChaosGameRepresentationMode(),
                 new DLAMode(),
                 new BifurcationDiagramMode(),
+                new LissajousFrequencyMode(),
+                new LissajousOscilloscopeMode(),
+                new LissajousQuantumVsPseudoMode(),
+                new Lissajous3DMode(),
+                new LissajousSpectralAnalyzerMode(),
+                new ChaosLissajousMode(),
         };
     }
 }

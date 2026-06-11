@@ -1,19 +1,9 @@
 package org.ThreeDotsSierpinski.config;
 
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
-
 import java.io.IOException;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.logging.*;
 
 /**
@@ -32,7 +22,7 @@ public class LoggerConfig {
 
     /**
      * Инициализирует конфигурацию логгера.
-     * Создаёт директорию для логов, удаляет существующий лог-файл 
+     * Создаёт директорию для логов, удаляет существующий лог-файл
      * и настраивает новый FileHandler.
      */
     public static void initializeLogger() {
@@ -40,15 +30,15 @@ public class LoggerConfig {
         if (initializationAttempted) {
             return;
         }
-        
+
         synchronized (LOCK) {
             if (initializationAttempted) {
                 return;
             }
-            
+
             // Отмечаем попытку инициализации сразу, чтобы избежать повторных попыток
             initializationAttempted = true;
-            
+
             try {
                 // Получение имени файла лога из конфигурации
                 String logFileName = Config.getString("log.file.name");
@@ -58,7 +48,7 @@ public class LoggerConfig {
 
                 // Определение пути к файлу лога
                 Path logFilePath = Paths.get(logFileName);
-                
+
                 // Создание директорию, если не существует
                 Path parentDir = logFilePath.getParent();
                 if (parentDir != null) {
@@ -84,7 +74,7 @@ public class LoggerConfig {
 
                 // Получение корневого логгера
                 Logger rootLogger = Logger.getLogger("");
-                
+
                 // Удаление стандартных консольных обработчиков для предотвращения дублирования логов
                 Handler[] handlers = rootLogger.getHandlers();
                 for (Handler handler : handlers) {
@@ -95,27 +85,27 @@ public class LoggerConfig {
 
                 // Добавление FileHandler к корневому логгеру
                 rootLogger.addHandler(fileHandler);
-                
+
                 // Добавляем консольный handler для важных сообщений
                 ConsoleHandler consoleHandler = new ConsoleHandler();
                 consoleHandler.setLevel(Level.INFO);
                 consoleHandler.setFormatter(new SimpleFormatter());
                 rootLogger.addHandler(consoleHandler);
-                
+
                 rootLogger.setLevel(Config.getLogLevel());
 
                 isInitialized = true;
                 LOGGER.info("Logger initialized successfully. Log file: " + logFilePath.toAbsolutePath());
-                
+
             } catch (IOException e) {
                 // Если не удалось создать FileHandler, работаем только с консолью
                 System.err.println("Warning: Could not initialize file logging: " + e.getMessage());
                 System.err.println("Logging to console only.");
-                
+
                 // Настраиваем консольный логгер как fallback
                 Logger rootLogger = Logger.getLogger("");
                 rootLogger.setLevel(Level.INFO);
-                
+
                 // Убеждаемся что есть консольный handler
                 boolean hasConsoleHandler = false;
                 for (Handler handler : rootLogger.getHandlers()) {
@@ -129,7 +119,7 @@ public class LoggerConfig {
                     consoleHandler.setLevel(Level.INFO);
                     rootLogger.addHandler(consoleHandler);
                 }
-                
+
                 isInitialized = true; // Считаем инициализированным с fallback
             }
         }

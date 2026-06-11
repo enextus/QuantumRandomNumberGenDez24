@@ -1,18 +1,13 @@
 package org.ThreeDotsSierpinski.app;
 
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
-
 import com.formdev.flatlaf.FlatLightLaf;
+import org.ThreeDotsSierpinski.config.Config;
+import org.ThreeDotsSierpinski.config.LoggerConfig;
+import org.ThreeDotsSierpinski.mode.VisualizationMode;
+import org.ThreeDotsSierpinski.rng.RNLoadListenerImpl;
+import org.ThreeDotsSierpinski.rng.RNProvider;
+import org.ThreeDotsSierpinski.stats.RandomnessTestSuite;
+import org.ThreeDotsSierpinski.stats.TestResult;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;

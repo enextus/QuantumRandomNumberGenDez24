@@ -16,9 +16,9 @@
 
         <junit-jupiter.version>5.13.4</junit-jupiter.version>
         <mockito.version>5.23.0</mockito.version>
-        <jacoco.version>0.8.13</jacoco.version>
-        <jackson.version>2.17.0</jackson.version>
-        <jetbrains.version>25.0.0</jetbrains.version>
+        <jacoco.version>0.8.15</jacoco.version>
+        <jackson.version>2.22.0</jackson.version>
+        <jetbrains.version>26.1.0</jetbrains.version>
     </properties>
 
     <dependencyManagement>

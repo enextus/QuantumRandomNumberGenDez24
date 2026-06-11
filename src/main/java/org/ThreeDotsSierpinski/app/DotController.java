@@ -1,28 +1,20 @@
 package org.ThreeDotsSierpinski.app;
 
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
+import org.ThreeDotsSierpinski.config.Config;
+import org.ThreeDotsSierpinski.config.LoggerConfig;
+import org.ThreeDotsSierpinski.mode.VisualizationMode;
+import org.ThreeDotsSierpinski.mode.VisualizationStyle;
+import org.ThreeDotsSierpinski.rng.RNProvider;
 
 import javax.swing.*;
+import javax.swing.Timer;
 import javax.swing.border.BevelBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 import java.util.logging.Logger;
 
 /**
@@ -743,9 +735,9 @@ public class DotController extends JPanel {
             int currentX = style == VisualizationStyle.APPLE_MAC
                     ? calculateAppleMacStackX(g2d, getWidth())
                     : Math.max(
-                            getRandomStackRightMargin(style),
-                            getWidth() - getRandomStackRightMargin(style) - stackWidth
-                    );
+                    getRandomStackRightMargin(style),
+                    getWidth() - getRandomStackRightMargin(style) - stackWidth
+            );
             int startX = currentX;
             int startY = getRandomStackTopMargin(style);
             int visibleRows = calculateVisibleRandomStackRows(startY, style);

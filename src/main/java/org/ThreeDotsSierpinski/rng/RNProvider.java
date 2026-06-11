@@ -1,19 +1,9 @@
 package org.ThreeDotsSierpinski.rng;
 
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.ThreeDotsSierpinski.config.Config;
+import org.ThreeDotsSierpinski.config.LoggerConfig;
 
 import java.io.IOException;
 import java.net.URI;
@@ -60,7 +50,8 @@ public class RNProvider {
      * Queue item with source metadata.
      * Needed so we log only TRUE/QUANTUM numbers and never log fallback PSEUDO values.
      */
-    private record RandomNumberEntry(int value, Mode sourceMode) { }
+    private record RandomNumberEntry(int value, Mode sourceMode) {
+    }
 
     // ========================================================================
     // Режим работы
@@ -548,7 +539,7 @@ public class RNProvider {
 
     /**
      * Removes stale fallback values from the queue before adding fresh API data.
-     *
+     * <p>
      * The application starts in a local PSEUDO mode while the API request runs
      * in the background. When the API succeeds, the queue may still contain
      * fallback numbers. Keeping them would make the UI show QUANTUM while the

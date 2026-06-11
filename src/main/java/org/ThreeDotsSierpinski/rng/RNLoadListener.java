@@ -1,43 +1,43 @@
 package org.ThreeDotsSierpinski.rng;
 
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
-
 /**
  * Interface for listening to data loading events from RNProvider.
  */
 public interface RNLoadListener {
 
-    /** Called when data loading starts. */
+    /**
+     * Called when data loading starts.
+     */
     void onLoadingStarted();
 
-    /** Called when data loading completes successfully. */
+    /**
+     * Called when data loading completes successfully.
+     */
     void onLoadingCompleted();
 
-    /** Called when an error occurs during data loading. */
+    /**
+     * Called when an error occurs during data loading.
+     */
     void onError(String errorMessage);
 
-    /** Called when raw data is received from API. */
+    /**
+     * Called when raw data is received from API.
+     */
     void onRawDataReceived(String rawData);
 
     /**
      * Called when the random number source mode changes.
+     *
      * @param mode current mode (QUANTUM or PSEUDO)
      */
-    default void onModeChanged(RNProvider.Mode mode) {}
+    default void onModeChanged(RNProvider.Mode mode) {
+    }
 
     /**
      * Called when API availability status changes.
+     *
      * @param isAvailable true if API is reachable
      */
-    default void onApiAvailabilityChanged(boolean isAvailable) {}
+    default void onApiAvailabilityChanged(boolean isAvailable) {
+    }
 }

@@ -1,17 +1,5 @@
 package org.ThreeDotsSierpinski.rng;
 
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -55,8 +43,8 @@ public class RandomNumberProcessor {
      * на основе его величины (uint8 или uint16).
      *
      * @param number Случайное число от API (0-255 или 0-65535).
-     * @param min Минимальное значение диапазона.
-     * @param max Максимальное значение диапазона.
+     * @param min    Минимальное значение диапазона.
+     * @param max    Максимальное значение диапазона.
      * @return Число в диапазоне [min, max].
      */
     public long generateNumberInRange(int number, long min, long max) {
@@ -69,9 +57,9 @@ public class RandomNumberProcessor {
      * включая граничные значения. Каждое выходное значение получает одинаковое количество
      * входных значений (в пределах ±1).
      *
-     * @param number Случайное число от API.
-     * @param min Минимальное значение диапазона.
-     * @param max Максимальное значение диапазона.
+     * @param number    Случайное число от API.
+     * @param min       Минимальное значение диапазона.
+     * @param max       Максимальное значение диапазона.
      * @param sourceMax Максимальное значение источника (255 для uint8, 65535 для uint16).
      * @return Число в диапазоне [min, max].
      */
