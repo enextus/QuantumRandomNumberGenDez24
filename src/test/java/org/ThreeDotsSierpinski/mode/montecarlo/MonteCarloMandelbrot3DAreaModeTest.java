@@ -1,9 +1,13 @@
-package org.ThreeDotsSierpinski.mode;
+package org.ThreeDotsSierpinski.mode.montecarlo;
 
 import org.ThreeDotsSierpinski.app.*;
 import org.ThreeDotsSierpinski.config.*;
 import org.ThreeDotsSierpinski.math.*;
 import org.ThreeDotsSierpinski.mode.*;
+import org.ThreeDotsSierpinski.mode.chaos.*;
+import org.ThreeDotsSierpinski.mode.montecarlo.*;
+import org.ThreeDotsSierpinski.mode.physics.*;
+import org.ThreeDotsSierpinski.mode.stochastic.*;
 import org.ThreeDotsSierpinski.model.*;
 import org.ThreeDotsSierpinski.rng.*;
 import org.ThreeDotsSierpinski.stats.*;
@@ -21,23 +25,24 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@DisplayName("MonteCarloMandelbrotAreaMode")
+@DisplayName("MonteCarloMandelbrot3DAreaMode")
 @Tag("fast")
-class MonteCarloMandelbrotAreaModeTest {
+class MonteCarloMandelbrot3DAreaModeTest {
 
-    private static final int CANVAS_WIDTH = 360;
-    private static final int CANVAS_HEIGHT = 280;
+    private static final int CANVAS_WIDTH = 420;
+    private static final int CANVAS_HEIGHT = 320;
     private static final int DOT_SIZE = 2;
 
     @Test
     @DisplayName("Metadata and rendering flags are correct")
     void metadataAndFlagsAreCorrect() {
-        MonteCarloMandelbrotAreaMode mode = new MonteCarloMandelbrotAreaMode();
+        MonteCarloMandelbrot3DAreaMode mode = new MonteCarloMandelbrot3DAreaMode();
 
-        assertEquals("monte-carlo-mandelbrot-area", mode.getId());
-        assertEquals("Monte Carlo Mandelbrot Area", mode.getName());
+        assertEquals("monte-carlo-mandelbrot-3d-area", mode.getId());
+        assertEquals("Monte Carlo Mandelbrot 3D Area", mode.getName());
         assertFalse(mode.getDescription().isBlank());
         assertFalse(mode.getIcon().isBlank());
+
         assertTrue(mode.usesDarkBackground());
         assertFalse(mode.usesRecolorAnimation());
     }
@@ -45,7 +50,7 @@ class MonteCarloMandelbrotAreaModeTest {
     @Test
     @DisplayName("Mode consumes random pairs and counts samples")
     void consumesRandomPairsAndCountsSamples() {
-        MonteCarloMandelbrotAreaMode mode = new MonteCarloMandelbrotAreaMode();
+        MonteCarloMandelbrot3DAreaMode mode = new MonteCarloMandelbrot3DAreaMode();
         BufferedImage canvas = newCanvas();
 
         mode.initialize(canvas, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -58,7 +63,7 @@ class MonteCarloMandelbrotAreaModeTest {
     @Test
     @DisplayName("Empty provider does not crash and consumes nothing")
     void emptyProviderDoesNotCrash() {
-        MonteCarloMandelbrotAreaMode mode = new MonteCarloMandelbrotAreaMode();
+        MonteCarloMandelbrot3DAreaMode mode = new MonteCarloMandelbrot3DAreaMode();
         BufferedImage canvas = newCanvas();
 
         mode.initialize(canvas, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -69,9 +74,9 @@ class MonteCarloMandelbrotAreaModeTest {
     }
 
     @Test
-    @DisplayName("Redraw does not consume new random numbers")
+    @DisplayName("Redraw does not consume random numbers")
     void redrawDoesNotConsumeRandomNumbers() {
-        MonteCarloMandelbrotAreaMode mode = new MonteCarloMandelbrotAreaMode();
+        MonteCarloMandelbrot3DAreaMode mode = new MonteCarloMandelbrot3DAreaMode();
         BufferedImage canvas = newCanvas();
 
         mode.initialize(canvas, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -87,42 +92,24 @@ class MonteCarloMandelbrotAreaModeTest {
     }
 
     @Test
-    @DisplayName("Mode exposes reset and iteration controls")
-    void exposesResetAndIterationControls() {
-        MonteCarloMandelbrotAreaMode mode = new MonteCarloMandelbrotAreaMode();
+    @DisplayName("Controls are available")
+    void controlsAreAvailable() {
+        MonteCarloMandelbrot3DAreaMode mode = new MonteCarloMandelbrot3DAreaMode();
+
         List<JComponent> controls = mode.createModeControls(null);
 
+        assertFalse(controls.isEmpty());
         assertTrue(controls.stream().anyMatch(JButton.class::isInstance));
         assertTrue(controls.stream().anyMatch(JComboBox.class::isInstance));
+        assertTrue(controls.stream().anyMatch(JCheckBox.class::isInstance));
+        assertTrue(controls.stream().anyMatch(JSlider.class::isInstance));
     }
 
     @Test
-    @DisplayName("Changing iteration preset resets accumulated samples")
-    void changingIterationPresetResetsSamples() {
-        MonteCarloMandelbrotAreaMode mode = new MonteCarloMandelbrotAreaMode();
-        BufferedImage canvas = newCanvas();
-
-        mode.initialize(canvas, CANVAS_WIDTH, CANVAS_HEIGHT);
-        mode.step(sequentialProvider(), canvas, DOT_SIZE);
-        assertTrue(mode.getPointCount() > 0);
-
-        JComboBox<?> comboBox = mode.createModeControls(null).stream()
-                .filter(JComboBox.class::isInstance)
-                .map(JComboBox.class::cast)
-                .findFirst()
-                .orElseThrow();
-
-        comboBox.setSelectedItem(256);
-
-        assertEquals(0, mode.getPointCount());
-        assertEquals(0, mode.getRandomNumbersUsed());
-    }
-
-    @Test
-    @DisplayName("Registry contains Monte Carlo Mandelbrot mode")
+    @DisplayName("Registry contains Monte Carlo Mandelbrot 3D mode")
     void registryContainsMode() {
         boolean found = Arrays.stream(VisualizationMode.allModes())
-                .anyMatch(mode -> "monte-carlo-mandelbrot-area".equals(mode.getId()));
+                .anyMatch(mode -> "monte-carlo-mandelbrot-3d-area".equals(mode.getId()));
 
         assertTrue(found);
     }

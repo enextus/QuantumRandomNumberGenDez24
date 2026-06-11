@@ -1,9 +1,13 @@
-package org.ThreeDotsSierpinski.mode;
+package org.ThreeDotsSierpinski.mode.physics;
 
 import org.ThreeDotsSierpinski.app.*;
 import org.ThreeDotsSierpinski.config.*;
 import org.ThreeDotsSierpinski.math.*;
 import org.ThreeDotsSierpinski.mode.*;
+import org.ThreeDotsSierpinski.mode.chaos.*;
+import org.ThreeDotsSierpinski.mode.montecarlo.*;
+import org.ThreeDotsSierpinski.mode.physics.*;
+import org.ThreeDotsSierpinski.mode.stochastic.*;
 import org.ThreeDotsSierpinski.model.*;
 import org.ThreeDotsSierpinski.rng.*;
 import org.ThreeDotsSierpinski.stats.*;
@@ -21,9 +25,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@DisplayName("MonteCarloMandelbrot3DAreaMode")
+@DisplayName("LorenzAttractor3DMode")
 @Tag("fast")
-class MonteCarloMandelbrot3DAreaModeTest {
+class LorenzAttractor3DModeTest {
 
     private static final int CANVAS_WIDTH = 420;
     private static final int CANVAS_HEIGHT = 320;
@@ -32,47 +36,46 @@ class MonteCarloMandelbrot3DAreaModeTest {
     @Test
     @DisplayName("Metadata and rendering flags are correct")
     void metadataAndFlagsAreCorrect() {
-        MonteCarloMandelbrot3DAreaMode mode = new MonteCarloMandelbrot3DAreaMode();
+        LorenzAttractor3DMode mode = new LorenzAttractor3DMode();
 
-        assertEquals("monte-carlo-mandelbrot-3d-area", mode.getId());
-        assertEquals("Monte Carlo Mandelbrot 3D Area", mode.getName());
+        assertEquals("lorenz-attractor-3d", mode.getId());
+        assertEquals("Lorenz Attractor 3D", mode.getName());
         assertFalse(mode.getDescription().isBlank());
         assertFalse(mode.getIcon().isBlank());
-
         assertTrue(mode.usesDarkBackground());
         assertFalse(mode.usesRecolorAnimation());
     }
 
     @Test
-    @DisplayName("Mode consumes random pairs and counts samples")
-    void consumesRandomPairsAndCountsSamples() {
-        MonteCarloMandelbrot3DAreaMode mode = new MonteCarloMandelbrot3DAreaMode();
+    @DisplayName("Mode consumes QRNG jitter values and advances trace points")
+    void consumesJitterValuesAndAdvancesTrace() {
+        LorenzAttractor3DMode mode = new LorenzAttractor3DMode();
         BufferedImage canvas = newCanvas();
 
         mode.initialize(canvas, CANVAS_WIDTH, CANVAS_HEIGHT);
         mode.step(sequentialProvider(), canvas, DOT_SIZE);
 
         assertTrue(mode.getPointCount() > 0);
-        assertEquals(mode.getPointCount() * 2, mode.getRandomNumbersUsed());
+        assertEquals(3, mode.getRandomNumbersUsed());
     }
 
     @Test
-    @DisplayName("Empty provider does not crash and consumes nothing")
+    @DisplayName("Empty provider does not crash and keeps random counter at zero")
     void emptyProviderDoesNotCrash() {
-        MonteCarloMandelbrot3DAreaMode mode = new MonteCarloMandelbrot3DAreaMode();
+        LorenzAttractor3DMode mode = new LorenzAttractor3DMode();
         BufferedImage canvas = newCanvas();
 
         mode.initialize(canvas, CANVAS_WIDTH, CANVAS_HEIGHT);
 
         assertDoesNotThrow(() -> mode.step(emptyProvider(), canvas, DOT_SIZE));
-        assertEquals(0, mode.getPointCount());
+        assertTrue(mode.getPointCount() > 0);
         assertEquals(0, mode.getRandomNumbersUsed());
     }
 
     @Test
-    @DisplayName("Redraw does not consume random numbers")
+    @DisplayName("Redraw does not consume new random numbers")
     void redrawDoesNotConsumeRandomNumbers() {
-        MonteCarloMandelbrot3DAreaMode mode = new MonteCarloMandelbrot3DAreaMode();
+        LorenzAttractor3DMode mode = new LorenzAttractor3DMode();
         BufferedImage canvas = newCanvas();
 
         mode.initialize(canvas, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -90,22 +93,21 @@ class MonteCarloMandelbrot3DAreaModeTest {
     @Test
     @DisplayName("Controls are available")
     void controlsAreAvailable() {
-        MonteCarloMandelbrot3DAreaMode mode = new MonteCarloMandelbrot3DAreaMode();
+        LorenzAttractor3DMode mode = new LorenzAttractor3DMode();
 
         List<JComponent> controls = mode.createModeControls(null);
 
         assertFalse(controls.isEmpty());
         assertTrue(controls.stream().anyMatch(JButton.class::isInstance));
-        assertTrue(controls.stream().anyMatch(JComboBox.class::isInstance));
         assertTrue(controls.stream().anyMatch(JCheckBox.class::isInstance));
         assertTrue(controls.stream().anyMatch(JSlider.class::isInstance));
     }
 
     @Test
-    @DisplayName("Registry contains Monte Carlo Mandelbrot 3D mode")
+    @DisplayName("Registry contains Lorenz 3D mode")
     void registryContainsMode() {
         boolean found = Arrays.stream(VisualizationMode.allModes())
-                .anyMatch(mode -> "monte-carlo-mandelbrot-3d-area".equals(mode.getId()));
+                .anyMatch(mode -> "lorenz-attractor-3d".equals(mode.getId()));
 
         assertTrue(found);
     }
