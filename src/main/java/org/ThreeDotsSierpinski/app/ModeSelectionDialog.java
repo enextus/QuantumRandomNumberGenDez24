@@ -287,10 +287,14 @@ public class ModeSelectionDialog {
         for (VisualizationCategory category : VisualizationCategory.values()) {
             List<VisualizationMode> categoryModes = modesByCategory.getOrDefault(category, List.of());
             if (!categoryModes.isEmpty()) {
+                boolean categoryVisited = containsVisitedMode(categoryModes);
+                boolean categoryLastVisited = containsLastVisitedMode(categoryModes);
                 cardsPanel.add(createCategoryCard(
                         category,
                         categoryModes,
                         category == highlightedCategory,
+                        categoryVisited,
+                        categoryLastVisited,
                         modesByCategory,
                         contentPanel,
                         dialog,
@@ -541,12 +545,14 @@ public class ModeSelectionDialog {
             VisualizationCategory category,
             List<VisualizationMode> modes,
             boolean highlighted,
+            boolean visited,
+            boolean lastVisited,
             Map<VisualizationCategory, List<VisualizationMode>> modesByCategory,
             JPanel contentPanel,
             JDialog dialog,
             JLabel subtitleLabel
     ) {
-        var card = createBaseCard(highlighted, false, false);
+        var card = createBaseCard(highlighted, visited, lastVisited);
 
 
         var icon = new JLabel(category.getIcon());
@@ -557,12 +563,12 @@ public class ModeSelectionDialog {
 
         card.add(createCategoryTextPanel(category, modes.size()), BorderLayout.CENTER);
 
-        var arrow = new JLabel(CARD_ARROW_TEXT);
+        var arrow = new JLabel(visited ? CARD_CHECKED_TEXT : CARD_ARROW_TEXT);
         arrow.setFont(ARROW_FONT);
-        arrow.setForeground(ARROW_COLOR);
+        arrow.setForeground(visited ? CARD_VISITED_BORDER_COLOR : ARROW_COLOR);
         card.add(arrow, BorderLayout.EAST);
 
-        attachCardHoverAndClick(card, highlighted, false, false, () -> {
+        attachCardHoverAndClick(card, highlighted, visited, lastVisited, () -> {
             highlightedCategory = category;
             showModeSelection(
                     category,
@@ -642,10 +648,10 @@ public class ModeSelectionDialog {
     }
 
     private static Color resolveCardBackground(boolean highlighted, boolean visited) {
-        if (highlighted) {
-            return CARD_SELECTED_BACKGROUND;
+        if (visited) {
+            return CARD_VISITED_BACKGROUND;
         }
-        return visited ? CARD_VISITED_BACKGROUND : CARD_BACKGROUND;
+        return highlighted ? CARD_SELECTED_BACKGROUND : CARD_BACKGROUND;
     }
 
     private static Color resolveCardBorderColor(boolean highlighted, boolean visited, boolean lastVisited) {
@@ -656,6 +662,28 @@ public class ModeSelectionDialog {
             return CARD_VISITED_BORDER_COLOR;
         }
         return highlighted ? CARD_SELECTED_BORDER_COLOR : CARD_BORDER_COLOR;
+    }
+
+    private boolean containsVisitedMode(List<VisualizationMode> modes) {
+        for (VisualizationMode mode : modes) {
+            if (visitedModeIds.contains(mode.getId())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean containsLastVisitedMode(List<VisualizationMode> modes) {
+        if (lastSelectedModeId == null) {
+            return false;
+        }
+
+        for (VisualizationMode mode : modes) {
+            if (mode.getId().equals(lastSelectedModeId)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static JPanel createCategoryTextPanel(VisualizationCategory category, int modeCount) {
