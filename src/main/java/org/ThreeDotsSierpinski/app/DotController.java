@@ -191,18 +191,16 @@ public class DotController extends JPanel {
     private final VisualizationMode mode;
     private final RNProvider randomNumberProvider;
     private final String errorMessage;
+    private final JLabel statusLabel;
+    private final List<Point> pendingRecolorPoints = new ArrayList<>();
+    private final Timer recolorTimer;
     private BufferedImage offscreenImage;
     private boolean canvasInitialized = false;
     private VisualizationStyle initializedStyle = null;
     private BufferedImage modeCanvas;
     private Rectangle modeCanvasBounds = new Rectangle();
-    private final JLabel statusLabel;
-
     private Timer animationTimer;
     private volatile boolean isRunning = false;
-
-    private final List<Point> pendingRecolorPoints = new ArrayList<>();
-    private final Timer recolorTimer;
 
     public DotController(RNProvider randomNumberProvider, VisualizationMode mode, JLabel statusLabel) {
         this.statusLabel = statusLabel;
@@ -254,6 +252,412 @@ public class DotController extends JPanel {
         });
 
         recolorTimer.setRepeats(RECOLOR_TIMER_REPEATS);
+    }
+
+    private static BufferedImage createModeCanvasView(BufferedImage image, Rectangle bounds) {
+        int safeX = Math.clamp(bounds.x, 0, Math.max(0, image.getWidth() - MIN_CANVAS_SIZE));
+        int safeY = Math.clamp(bounds.y, 0, Math.max(0, image.getHeight() - MIN_CANVAS_SIZE));
+        int safeWidth = Math.clamp(bounds.width, MIN_CANVAS_SIZE, image.getWidth() - safeX);
+        int safeHeight = Math.clamp(bounds.height, MIN_CANVAS_SIZE, image.getHeight() - safeY);
+
+        return image.getSubimage(safeX, safeY, safeWidth, safeHeight);
+    }
+
+    private static int calculateAppleMacSidebarX(Graphics2D g2d, int panelWidth) {
+        int stackX = calculateAppleMacStackX(g2d, panelWidth);
+        return Math.max(
+                APPLE_MAC_FRAME_INSET + MIN_CANVAS_SIZE + APPLE_MAC_TABLE_GAP,
+                stackX - APPLE_MAC_FRAME_INNER_INSET - 2
+        );
+    }
+
+    private static int calculateAppleMacStackX(Graphics2D g2d, int panelWidth) {
+        int stackWidth = calculateRandomStackWidth(g2d, VisualizationStyle.APPLE_MAC);
+        int rightMargin = getRandomStackRightMargin(VisualizationStyle.APPLE_MAC);
+
+        return Math.max(
+                rightMargin,
+                panelWidth - rightMargin - stackWidth
+        );
+    }
+
+    private static void drawAppleMacTitleStrip(Graphics2D g2d, int panelWidth) {
+        g2d.setColor(APPLE_MAC_PANEL_BACKGROUND_COLOR);
+        g2d.fillRect(
+                APPLE_MAC_INSET + 1,
+                APPLE_MAC_INSET + 1,
+                Math.max(0, panelWidth - APPLE_MAC_INSET * 2 - 2),
+                APPLE_MAC_INFO_SEPARATOR_Y - APPLE_MAC_INSET - 1
+        );
+
+        g2d.setColor(APPLE_MAC_BORDER_COLOR);
+        g2d.drawLine(APPLE_MAC_INSET, APPLE_MAC_INFO_SEPARATOR_Y,
+                panelWidth - APPLE_MAC_INSET - 1, APPLE_MAC_INFO_SEPARATOR_Y);
+    }
+
+    private static void drawAppleMacDoubleFrame(Graphics2D g2d, int x, int y, int width, int height) {
+        g2d.setColor(APPLE_MAC_BORDER_COLOR);
+        g2d.drawRect(x, y, width, height);
+        g2d.drawRect(
+                x + APPLE_MAC_FRAME_INNER_INSET,
+                y + APPLE_MAC_FRAME_INNER_INSET,
+                Math.max(0, width - APPLE_MAC_FRAME_INNER_INSET * 2),
+                Math.max(0, height - APPLE_MAC_FRAME_INNER_INSET * 2)
+        );
+    }
+
+    private static Map<Integer, List<Long>> groupNumbersByDigitCount(List<Long> numbers) {
+        Map<Integer, List<Long>> groupedNumbers = new LinkedHashMap<>();
+
+        for (int digitCount = MIN_DIGIT_GROUP; digitCount <= MAX_DIGIT_GROUP; digitCount++) {
+            groupedNumbers.put(digitCount, new ArrayList<>());
+        }
+
+        for (long number : numbers) {
+            int digitCount = calculateDigitCount(number);
+            if (digitCount >= MIN_DIGIT_GROUP && digitCount <= MAX_DIGIT_GROUP) {
+                groupedNumbers.get(digitCount).add(number);
+            }
+        }
+
+        return groupedNumbers;
+    }
+
+    private static int calculateDigitCount(long number) {
+        long absNumber = Math.abs(number);
+
+        if (absNumber < 10) {
+            return 1;
+        }
+        if (absNumber < 100) {
+            return 2;
+        }
+        if (absNumber < 1_000) {
+            return 3;
+        }
+        if (absNumber < 10_000) {
+            return 4;
+        }
+
+        return 5;
+    }
+
+    private static int calculateRandomStackWidth(Graphics2D g2d, VisualizationStyle style) {
+        int totalWidth = 0;
+
+        for (int digitCount = MIN_DIGIT_GROUP; digitCount <= MAX_DIGIT_GROUP; digitCount++) {
+            if (digitCount > MIN_DIGIT_GROUP) {
+                totalWidth += getRandomStackColumnGap(style);
+            }
+
+            totalWidth += calculateDigitColumnWidth(g2d, digitCount, style);
+        }
+
+        return totalWidth;
+    }
+
+    private static int calculateDigitColumnWidth(Graphics2D g2d, int digitCount, VisualizationStyle style) {
+        Font valueFont = style == VisualizationStyle.APPLE_MAC
+                ? APPLE_MAC_RANDOM_STACK_FONT
+                : RANDOM_STACK_VALUE_FONT;
+        FontMetrics valueMetrics = g2d.getFontMetrics(valueFont);
+
+        int digitWidth = valueMetrics.charWidth('0');
+        int valueWidth = digitWidth * digitCount;
+
+        int width = valueWidth + getRandomStackCellHorizontalPadding(style) * 2;
+
+        if (style == VisualizationStyle.APPLE_MAC && digitCount == MAX_DIGIT_GROUP) {
+            width -= APPLE_MAC_RANDOM_STACK_RIGHT_TRIM;
+        }
+
+        return Math.max(MIN_CANVAS_SIZE, width);
+    }
+
+    private static void drawDigitColumnHeader(
+            Graphics2D g2d,
+            int digitCount,
+            int x,
+            int y,
+            int columnWidth,
+            boolean dark,
+            VisualizationStyle style
+    ) {
+        String header = digitCount + "d";
+
+        if (style == VisualizationStyle.APPLE_MAC) {
+            g2d.setColor(APPLE_MAC_STACK_HEADER_BACKGROUND);
+            g2d.fillRect(x, y, columnWidth, getRandomStackHeaderHeight(style) - 1);
+        }
+
+        g2d.setFont(style == VisualizationStyle.APPLE_MAC ? APPLE_MAC_RANDOM_STACK_FONT : RANDOM_STACK_HEADER_FONT);
+        g2d.setColor(resolveRandomStackHeaderColor(dark, style));
+
+        FontMetrics metrics = g2d.getFontMetrics();
+        int textX = x + Math.max(0, (columnWidth - metrics.stringWidth(header)) / 2);
+        int textY = y + metrics.getAscent();
+
+        g2d.drawString(header, textX, textY);
+
+        if (style == VisualizationStyle.APPLE_MAC) {
+            g2d.setColor(APPLE_MAC_BORDER_COLOR);
+            g2d.drawRect(
+                    x,
+                    y,
+                    Math.max(0, columnWidth - 1),
+                    getRandomStackHeaderHeight(style) - 1
+            );
+        }
+    }
+
+    private static void drawDigitColumnValue(
+            Graphics2D g2d,
+            Long number,
+            int digitCount,
+            int x,
+            int y,
+            int columnWidth,
+            boolean dark,
+            VisualizationStyle style
+    ) {
+        String text = number == null ? null : formatNumberForDigitColumn(number, digitCount);
+
+        g2d.setColor(resolveRandomStackRowBackground(dark, style));
+        g2d.fillRect(x, y, columnWidth, getRandomStackCellHeight(style) - 1);
+
+        if (text != null) {
+            g2d.setFont(style == VisualizationStyle.APPLE_MAC ? APPLE_MAC_RANDOM_STACK_FONT : RANDOM_STACK_VALUE_FONT);
+            g2d.setColor(resolveRandomStackValueColor(dark, style));
+
+            FontMetrics metrics = g2d.getFontMetrics();
+
+            int textX = x + columnWidth - getRandomStackCellHorizontalPadding(style) - metrics.stringWidth(text);
+            int textY = y + metrics.getAscent();
+
+            g2d.drawString(text, textX, textY);
+        }
+
+        if (style == VisualizationStyle.APPLE_MAC) {
+            g2d.setColor(APPLE_MAC_BORDER_COLOR);
+            g2d.drawRect(
+                    x,
+                    y,
+                    Math.max(0, columnWidth - 1),
+                    getRandomStackCellHeight(style) - 1
+            );
+        }
+    }
+
+    private static String formatNumberForDigitColumn(long number, int digitCount) {
+        return String.format(Locale.US, "%" + digitCount + "d", number);
+    }
+
+    private static int getRandomStackTopMargin(VisualizationStyle style) {
+        return style == VisualizationStyle.APPLE_MAC
+                ? APPLE_MAC_TABLE_TOP_MARGIN
+                : RANDOM_STACK_TOP_MARGIN;
+    }
+
+    private static int getRandomStackRightMargin(VisualizationStyle style) {
+        return style == VisualizationStyle.APPLE_MAC
+                ? APPLE_MAC_FRAME_INSET + APPLE_MAC_FRAME_INNER_INSET
+                : RANDOM_STACK_RIGHT_MARGIN;
+    }
+
+    private static int getRandomStackColumnGap(VisualizationStyle style) {
+        return style == VisualizationStyle.APPLE_MAC
+                ? APPLE_MAC_RANDOM_STACK_COLUMN_GAP
+                : RANDOM_STACK_COLUMN_GAP;
+    }
+
+    private static int getRandomStackValuesYOffset(VisualizationStyle style) {
+        return style == VisualizationStyle.APPLE_MAC
+                ? APPLE_MAC_RANDOM_STACK_VALUES_Y_OFFSET
+                : 0;
+    }
+
+    private static int getRandomStackHeaderHeight(VisualizationStyle style) {
+        return style == VisualizationStyle.APPLE_MAC
+                ? APPLE_MAC_RANDOM_STACK_HEADER_HEIGHT
+                : RANDOM_STACK_HEADER_HEIGHT;
+    }
+
+    private static int getRandomStackCellHeight(VisualizationStyle style) {
+        return style == VisualizationStyle.APPLE_MAC
+                ? APPLE_MAC_RANDOM_STACK_CELL_HEIGHT
+                : RANDOM_STACK_CELL_HEIGHT;
+    }
+
+    private static int getRandomStackCellHorizontalPadding(VisualizationStyle style) {
+        return style == VisualizationStyle.APPLE_MAC
+                ? APPLE_MAC_RANDOM_STACK_CELL_HORIZONTAL_PADDING
+                : RANDOM_STACK_CELL_HORIZONTAL_PADDING;
+    }
+
+    private static int getRandomStackBottomReservedSpace(VisualizationStyle style) {
+        return style == VisualizationStyle.APPLE_MAC
+                ? Math.max(RANDOM_STACK_BOTTOM_RESERVED_SPACE, getRandomStackCellHeight(style) * 10)
+                : RANDOM_STACK_BOTTOM_RESERVED_SPACE;
+    }
+
+    private static void drawRandomNumbersStackOuterBorder(
+            Graphics2D g2d,
+            int x,
+            int y,
+            int width,
+            int height
+    ) {
+        g2d.setColor(APPLE_MAC_BORDER_COLOR);
+        g2d.drawRect(
+                x,
+                y,
+                Math.max(0, width - 1),
+                Math.max(0, height - 1)
+        );
+    }
+
+    private static Color resolveInfoColor(boolean dark, VisualizationStyle style) {
+        if (style == VisualizationStyle.APPLE_MAC) {
+            return APPLE_MAC_TEXT_COLOR;
+        }
+
+        return dark ? DARK_INFO_COLOR : LIGHT_INFO_COLOR;
+    }
+
+    private static Color resolveCounterColor(boolean dark, VisualizationStyle style) {
+        if (style == VisualizationStyle.APPLE_MAC) {
+            return APPLE_MAC_TEXT_COLOR;
+        }
+
+        return dark ? DARK_COUNTER_COLOR : LIGHT_COUNTER_COLOR;
+    }
+
+    private static Color resolveRngColor(boolean quantum, boolean dark, VisualizationStyle style) {
+        if (style == VisualizationStyle.APPLE_MAC) {
+            return APPLE_MAC_TEXT_COLOR;
+        }
+
+        if (quantum) {
+            return dark ? DARK_QUANTUM_COLOR : LIGHT_QUANTUM_COLOR;
+        }
+
+        return dark ? DARK_PSEUDO_COLOR : LIGHT_PSEUDO_COLOR;
+    }
+
+    private static Color resolveErrorColor(boolean dark, VisualizationStyle style) {
+        if (style == VisualizationStyle.APPLE_MAC) {
+            return APPLE_MAC_TEXT_COLOR;
+        }
+
+        return dark ? DARK_ERROR_COLOR : LIGHT_ERROR_COLOR;
+    }
+
+    private static Color resolveRandomStackHeaderColor(boolean dark, VisualizationStyle style) {
+        if (style == VisualizationStyle.APPLE_MAC) {
+            return APPLE_MAC_TEXT_COLOR;
+        }
+
+        return dark ? DARK_RANDOM_STACK_HEADER_COLOR : RANDOM_STACK_HEADER_COLOR;
+    }
+
+    private static Color resolveRandomStackValueColor(boolean dark, VisualizationStyle style) {
+        if (style == VisualizationStyle.APPLE_MAC) {
+            return APPLE_MAC_TEXT_COLOR;
+        }
+
+        return dark ? DARK_RANDOM_STACK_VALUE_COLOR : RANDOM_STACK_VALUE_COLOR;
+    }
+
+    private static Color resolveRandomStackRowBackground(boolean dark, VisualizationStyle style) {
+        if (style == VisualizationStyle.APPLE_MAC) {
+            return APPLE_MAC_STACK_ROW_BACKGROUND;
+        }
+
+        return dark ? DARK_RANDOM_STACK_ROW_BACKGROUND : RANDOM_STACK_ROW_BACKGROUND;
+    }
+
+    private static void applyAppleMacStyleRecursively(Component component) {
+        applyAppleMacStyle(component);
+
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                applyAppleMacStyleRecursively(child);
+            }
+        }
+    }
+
+    private static void applyAppleMacStyle(Component component) {
+        if (component instanceof JScrollPane scrollPane) {
+            scrollPane.setBorder(BorderFactory.createLineBorder(APPLE_MAC_BORDER_COLOR));
+            scrollPane.getViewport().setBackground(APPLE_MAC_PANEL_BACKGROUND_COLOR);
+        }
+
+        if (component instanceof JPanel panel && !(component instanceof DotController)) {
+            panel.setBackground(APPLE_MAC_PANEL_BACKGROUND_COLOR);
+        }
+
+        if (component instanceof JLabel label) {
+            label.setFont(APPLE_MAC_CONTROL_FONT);
+            label.setForeground(APPLE_MAC_TEXT_COLOR);
+            label.setBackground(APPLE_MAC_PANEL_BACKGROUND_COLOR);
+        }
+
+        if (component instanceof AbstractButton button) {
+            button.setFont(APPLE_MAC_CONTROL_FONT);
+            button.setForeground(APPLE_MAC_TEXT_COLOR);
+            button.setBackground(APPLE_MAC_PANEL_BACKGROUND_COLOR);
+            button.setFocusPainted(true);
+            button.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(APPLE_MAC_BORDER_COLOR),
+                    BorderFactory.createCompoundBorder(
+                            BorderFactory.createBevelBorder(
+                                    BevelBorder.RAISED,
+                                    APPLE_MAC_HIGHLIGHT_COLOR,
+                                    APPLE_MAC_SHADOW_COLOR
+                            ),
+                            BorderFactory.createEmptyBorder(2, 12, 2, 12)
+                    )
+            ));
+        }
+
+        if (component instanceof JComboBox<?> comboBox) {
+            comboBox.setFont(APPLE_MAC_CONTROL_FONT);
+            comboBox.setForeground(APPLE_MAC_TEXT_COLOR);
+            comboBox.setBackground(APPLE_MAC_BACKGROUND_COLOR);
+            comboBox.setBorder(BorderFactory.createLineBorder(APPLE_MAC_BORDER_COLOR));
+        }
+    }
+
+    private static int getRandomStackHeaderYOffset(VisualizationStyle style) {
+        return style == VisualizationStyle.APPLE_MAC
+                ? APPLE_MAC_RANDOM_STACK_HEADER_Y_OFFSET
+                : 0;
+    }
+
+    private static int getRandomStackValuesTopOffset(VisualizationStyle style) {
+        return getRandomStackValuesYOffset(style) + getRandomStackHeaderHeight(style);
+    }
+
+    private static int getRandomStackRowsTopOffset(VisualizationStyle style) {
+        return Math.max(
+                getRandomStackHeaderYOffset(style) + getRandomStackHeaderHeight(style),
+                getRandomStackValuesTopOffset(style)
+        );
+    }
+
+    private static int getRandomStackFrameTopOffset(VisualizationStyle style) {
+        return Math.min(
+                getRandomStackHeaderYOffset(style),
+                getRandomStackValuesTopOffset(style)
+        );
+    }
+
+    private static int getRandomStackFrameHeight(VisualizationStyle style, int visibleRows) {
+        int frameTopOffset = getRandomStackFrameTopOffset(style);
+        int frameBottomOffset = getRandomStackRowsTopOffset(style)
+                + visibleRows * getRandomStackCellHeight(style);
+
+        return Math.max(0, frameBottomOffset - frameTopOffset);
     }
 
     private void initModeMouseForwarding() {
@@ -449,15 +853,6 @@ public class DotController extends JPanel {
         }
     }
 
-    private static BufferedImage createModeCanvasView(BufferedImage image, Rectangle bounds) {
-        int safeX = Math.clamp(bounds.x, 0, Math.max(0, image.getWidth() - MIN_CANVAS_SIZE));
-        int safeY = Math.clamp(bounds.y, 0, Math.max(0, image.getHeight() - MIN_CANVAS_SIZE));
-        int safeWidth = Math.clamp(bounds.width, MIN_CANVAS_SIZE, image.getWidth() - safeX);
-        int safeHeight = Math.clamp(bounds.height, MIN_CANVAS_SIZE, image.getHeight() - safeY);
-
-        return image.getSubimage(safeX, safeY, safeWidth, safeHeight);
-    }
-
     private BufferedImage getModeCanvasForDrawing() {
         return modeCanvas != null ? modeCanvas : offscreenImage;
     }
@@ -487,7 +882,6 @@ public class DotController extends JPanel {
         return new Rectangle(plotX, plotY, plotWidth, plotHeight);
     }
 
-
     private Rectangle calculateAppleMacPlotContentArea(Graphics2D g2d, int panelWidth, int panelHeight) {
         Rectangle plotArea = calculateAppleMacPlotArea(g2d, panelWidth, panelHeight);
         int inset = APPLE_MAC_PLOT_CONTENT_INSET;
@@ -515,24 +909,6 @@ public class DotController extends JPanel {
         return new Rectangle(sidebarX, sidebarY, sidebarWidth, sidebarHeight);
     }
 
-    private static int calculateAppleMacSidebarX(Graphics2D g2d, int panelWidth) {
-        int stackX = calculateAppleMacStackX(g2d, panelWidth);
-        return Math.max(
-                APPLE_MAC_FRAME_INSET + MIN_CANVAS_SIZE + APPLE_MAC_TABLE_GAP,
-                stackX - APPLE_MAC_FRAME_INNER_INSET - 2
-        );
-    }
-
-    private static int calculateAppleMacStackX(Graphics2D g2d, int panelWidth) {
-        int stackWidth = calculateRandomStackWidth(g2d, VisualizationStyle.APPLE_MAC);
-        int rightMargin = getRandomStackRightMargin(VisualizationStyle.APPLE_MAC);
-
-        return Math.max(
-                rightMargin,
-                panelWidth - rightMargin - stackWidth
-        );
-    }
-
     private void drawAppleMacFrame(Graphics2D g2d) {
         drawAppleMacDoubleFrame(
                 g2d,
@@ -549,31 +925,6 @@ public class DotController extends JPanel {
 
         drawAppleMacDoubleFrame(g2d, plotArea.x, plotArea.y, plotArea.width, plotArea.height);
         drawAppleMacDoubleFrame(g2d, sidebarArea.x, sidebarArea.y, sidebarArea.width, sidebarArea.height);
-    }
-
-    private static void drawAppleMacTitleStrip(Graphics2D g2d, int panelWidth) {
-        g2d.setColor(APPLE_MAC_PANEL_BACKGROUND_COLOR);
-        g2d.fillRect(
-                APPLE_MAC_INSET + 1,
-                APPLE_MAC_INSET + 1,
-                Math.max(0, panelWidth - APPLE_MAC_INSET * 2 - 2),
-                APPLE_MAC_INFO_SEPARATOR_Y - APPLE_MAC_INSET - 1
-        );
-
-        g2d.setColor(APPLE_MAC_BORDER_COLOR);
-        g2d.drawLine(APPLE_MAC_INSET, APPLE_MAC_INFO_SEPARATOR_Y,
-                panelWidth - APPLE_MAC_INSET - 1, APPLE_MAC_INFO_SEPARATOR_Y);
-    }
-
-    private static void drawAppleMacDoubleFrame(Graphics2D g2d, int x, int y, int width, int height) {
-        g2d.setColor(APPLE_MAC_BORDER_COLOR);
-        g2d.drawRect(x, y, width, height);
-        g2d.drawRect(
-                x + APPLE_MAC_FRAME_INNER_INSET,
-                y + APPLE_MAC_FRAME_INNER_INSET,
-                Math.max(0, width - APPLE_MAC_FRAME_INNER_INSET * 2),
-                Math.max(0, height - APPLE_MAC_FRAME_INNER_INSET * 2)
-        );
     }
 
     private void drawInfoText(Graphics2D g2d, boolean dark, VisualizationStyle style) {
@@ -770,74 +1121,6 @@ public class DotController extends JPanel {
         }
     }
 
-    private static Map<Integer, List<Long>> groupNumbersByDigitCount(List<Long> numbers) {
-        Map<Integer, List<Long>> groupedNumbers = new LinkedHashMap<>();
-
-        for (int digitCount = MIN_DIGIT_GROUP; digitCount <= MAX_DIGIT_GROUP; digitCount++) {
-            groupedNumbers.put(digitCount, new ArrayList<>());
-        }
-
-        for (long number : numbers) {
-            int digitCount = calculateDigitCount(number);
-            if (digitCount >= MIN_DIGIT_GROUP && digitCount <= MAX_DIGIT_GROUP) {
-                groupedNumbers.get(digitCount).add(number);
-            }
-        }
-
-        return groupedNumbers;
-    }
-
-    private static int calculateDigitCount(long number) {
-        long absNumber = Math.abs(number);
-
-        if (absNumber < 10) {
-            return 1;
-        }
-        if (absNumber < 100) {
-            return 2;
-        }
-        if (absNumber < 1_000) {
-            return 3;
-        }
-        if (absNumber < 10_000) {
-            return 4;
-        }
-
-        return 5;
-    }
-
-    private static int calculateRandomStackWidth(Graphics2D g2d, VisualizationStyle style) {
-        int totalWidth = 0;
-
-        for (int digitCount = MIN_DIGIT_GROUP; digitCount <= MAX_DIGIT_GROUP; digitCount++) {
-            if (digitCount > MIN_DIGIT_GROUP) {
-                totalWidth += getRandomStackColumnGap(style);
-            }
-
-            totalWidth += calculateDigitColumnWidth(g2d, digitCount, style);
-        }
-
-        return totalWidth;
-    }
-
-    private static int calculateDigitColumnWidth(Graphics2D g2d, int digitCount, VisualizationStyle style) {
-        Font valueFont = style == VisualizationStyle.APPLE_MAC
-                ? APPLE_MAC_RANDOM_STACK_FONT
-                : RANDOM_STACK_VALUE_FONT;
-        FontMetrics valueMetrics = g2d.getFontMetrics(valueFont);
-
-        int digitWidth = valueMetrics.charWidth('0');
-        int valueWidth = digitWidth * digitCount;
-
-        int width = valueWidth + getRandomStackCellHorizontalPadding(style) * 2;
-
-        if (style == VisualizationStyle.APPLE_MAC && digitCount == MAX_DIGIT_GROUP) {
-            width -= APPLE_MAC_RANDOM_STACK_RIGHT_TRIM;
-        }
-
-        return Math.max(MIN_CANVAS_SIZE, width);
-    }
-
     private void drawDigitColumn(
             Graphics2D g2d,
             List<Long> numbers,
@@ -864,84 +1147,6 @@ public class DotController extends JPanel {
         }
     }
 
-    private static void drawDigitColumnHeader(
-            Graphics2D g2d,
-            int digitCount,
-            int x,
-            int y,
-            int columnWidth,
-            boolean dark,
-            VisualizationStyle style
-    ) {
-        String header = digitCount + "d";
-
-        if (style == VisualizationStyle.APPLE_MAC) {
-            g2d.setColor(APPLE_MAC_STACK_HEADER_BACKGROUND);
-            g2d.fillRect(x, y, columnWidth, getRandomStackHeaderHeight(style) - 1);
-        }
-
-        g2d.setFont(style == VisualizationStyle.APPLE_MAC ? APPLE_MAC_RANDOM_STACK_FONT : RANDOM_STACK_HEADER_FONT);
-        g2d.setColor(resolveRandomStackHeaderColor(dark, style));
-
-        FontMetrics metrics = g2d.getFontMetrics();
-        int textX = x + Math.max(0, (columnWidth - metrics.stringWidth(header)) / 2);
-        int textY = y + metrics.getAscent();
-
-        g2d.drawString(header, textX, textY);
-
-        if (style == VisualizationStyle.APPLE_MAC) {
-            g2d.setColor(APPLE_MAC_BORDER_COLOR);
-            g2d.drawRect(
-                    x,
-                    y,
-                    Math.max(0, columnWidth - 1),
-                    getRandomStackHeaderHeight(style) - 1
-            );
-        }
-    }
-
-    private static void drawDigitColumnValue(
-            Graphics2D g2d,
-            Long number,
-            int digitCount,
-            int x,
-            int y,
-            int columnWidth,
-            boolean dark,
-            VisualizationStyle style
-    ) {
-        String text = number == null ? null : formatNumberForDigitColumn(number, digitCount);
-
-        g2d.setColor(resolveRandomStackRowBackground(dark, style));
-        g2d.fillRect(x, y, columnWidth, getRandomStackCellHeight(style) - 1);
-
-        if (text != null) {
-            g2d.setFont(style == VisualizationStyle.APPLE_MAC ? APPLE_MAC_RANDOM_STACK_FONT : RANDOM_STACK_VALUE_FONT);
-            g2d.setColor(resolveRandomStackValueColor(dark, style));
-
-            FontMetrics metrics = g2d.getFontMetrics();
-
-            int textX = x + columnWidth - getRandomStackCellHorizontalPadding(style) - metrics.stringWidth(text);
-            int textY = y + metrics.getAscent();
-
-            g2d.drawString(text, textX, textY);
-        }
-
-        if (style == VisualizationStyle.APPLE_MAC) {
-            g2d.setColor(APPLE_MAC_BORDER_COLOR);
-            g2d.drawRect(
-                    x,
-                    y,
-                    Math.max(0, columnWidth - 1),
-                    getRandomStackCellHeight(style) - 1
-            );
-        }
-    }
-
-    private static String formatNumberForDigitColumn(long number, int digitCount) {
-        return String.format(Locale.US, "%" + digitCount + "d", number);
-    }
-
     private int calculateVisibleRandomStackRows(int startY, VisualizationStyle style) {
         int availableHeight = Math.max(
                 0,
@@ -959,136 +1164,12 @@ public class DotController extends JPanel {
         return visibleRows;
     }
 
-    private static int getRandomStackTopMargin(VisualizationStyle style) {
-        return style == VisualizationStyle.APPLE_MAC
-                ? APPLE_MAC_TABLE_TOP_MARGIN
-                : RANDOM_STACK_TOP_MARGIN;
-    }
-
-    private static int getRandomStackRightMargin(VisualizationStyle style) {
-        return style == VisualizationStyle.APPLE_MAC
-                ? APPLE_MAC_FRAME_INSET + APPLE_MAC_FRAME_INNER_INSET
-                : RANDOM_STACK_RIGHT_MARGIN;
-    }
-
-    private static int getRandomStackColumnGap(VisualizationStyle style) {
-        return style == VisualizationStyle.APPLE_MAC
-                ? APPLE_MAC_RANDOM_STACK_COLUMN_GAP
-                : RANDOM_STACK_COLUMN_GAP;
-    }
-
-    private static int getRandomStackValuesYOffset(VisualizationStyle style) {
-        return style == VisualizationStyle.APPLE_MAC
-                ? APPLE_MAC_RANDOM_STACK_VALUES_Y_OFFSET
-                : 0;
-    }
-
-    private static int getRandomStackHeaderHeight(VisualizationStyle style) {
-        return style == VisualizationStyle.APPLE_MAC
-                ? APPLE_MAC_RANDOM_STACK_HEADER_HEIGHT
-                : RANDOM_STACK_HEADER_HEIGHT;
-    }
-
-    private static int getRandomStackCellHeight(VisualizationStyle style) {
-        return style == VisualizationStyle.APPLE_MAC
-                ? APPLE_MAC_RANDOM_STACK_CELL_HEIGHT
-                : RANDOM_STACK_CELL_HEIGHT;
-    }
-
-    private static int getRandomStackCellHorizontalPadding(VisualizationStyle style) {
-        return style == VisualizationStyle.APPLE_MAC
-                ? APPLE_MAC_RANDOM_STACK_CELL_HORIZONTAL_PADDING
-                : RANDOM_STACK_CELL_HORIZONTAL_PADDING;
-    }
-
-    private static int getRandomStackBottomReservedSpace(VisualizationStyle style) {
-        return style == VisualizationStyle.APPLE_MAC
-                ? Math.max(RANDOM_STACK_BOTTOM_RESERVED_SPACE, getRandomStackCellHeight(style) * 10)
-                : RANDOM_STACK_BOTTOM_RESERVED_SPACE;
-    }
-
-    private static void drawRandomNumbersStackOuterBorder(
-            Graphics2D g2d,
-            int x,
-            int y,
-            int width,
-            int height
-    ) {
-        g2d.setColor(APPLE_MAC_BORDER_COLOR);
-        g2d.drawRect(
-                x,
-                y,
-                Math.max(0, width - 1),
-                Math.max(0, height - 1)
-        );
-    }
-
     private Color resolvePanelBackgroundColor() {
         if (mode.getVisualizationStyle() == VisualizationStyle.APPLE_MAC) {
             return APPLE_MAC_BACKGROUND_COLOR;
         }
 
         return mode.usesDarkBackground() ? DARK_BACKGROUND_COLOR : LIGHT_BACKGROUND_COLOR;
-    }
-
-    private static Color resolveInfoColor(boolean dark, VisualizationStyle style) {
-        if (style == VisualizationStyle.APPLE_MAC) {
-            return APPLE_MAC_TEXT_COLOR;
-        }
-
-        return dark ? DARK_INFO_COLOR : LIGHT_INFO_COLOR;
-    }
-
-    private static Color resolveCounterColor(boolean dark, VisualizationStyle style) {
-        if (style == VisualizationStyle.APPLE_MAC) {
-            return APPLE_MAC_TEXT_COLOR;
-        }
-
-        return dark ? DARK_COUNTER_COLOR : LIGHT_COUNTER_COLOR;
-    }
-
-    private static Color resolveRngColor(boolean quantum, boolean dark, VisualizationStyle style) {
-        if (style == VisualizationStyle.APPLE_MAC) {
-            return APPLE_MAC_TEXT_COLOR;
-        }
-
-        if (quantum) {
-            return dark ? DARK_QUANTUM_COLOR : LIGHT_QUANTUM_COLOR;
-        }
-
-        return dark ? DARK_PSEUDO_COLOR : LIGHT_PSEUDO_COLOR;
-    }
-
-    private static Color resolveErrorColor(boolean dark, VisualizationStyle style) {
-        if (style == VisualizationStyle.APPLE_MAC) {
-            return APPLE_MAC_TEXT_COLOR;
-        }
-
-        return dark ? DARK_ERROR_COLOR : LIGHT_ERROR_COLOR;
-    }
-
-    private static Color resolveRandomStackHeaderColor(boolean dark, VisualizationStyle style) {
-        if (style == VisualizationStyle.APPLE_MAC) {
-            return APPLE_MAC_TEXT_COLOR;
-        }
-
-        return dark ? DARK_RANDOM_STACK_HEADER_COLOR : RANDOM_STACK_HEADER_COLOR;
-    }
-
-    private static Color resolveRandomStackValueColor(boolean dark, VisualizationStyle style) {
-        if (style == VisualizationStyle.APPLE_MAC) {
-            return APPLE_MAC_TEXT_COLOR;
-        }
-
-        return dark ? DARK_RANDOM_STACK_VALUE_COLOR : RANDOM_STACK_VALUE_COLOR;
-    }
-
-    private static Color resolveRandomStackRowBackground(boolean dark, VisualizationStyle style) {
-        if (style == VisualizationStyle.APPLE_MAC) {
-            return APPLE_MAC_STACK_ROW_BACKGROUND;
-        }
-
-        return dark ? DARK_RANDOM_STACK_ROW_BACKGROUND : RANDOM_STACK_ROW_BACKGROUND;
     }
 
     public void updateStatusLabel(String message) {
@@ -1130,58 +1211,6 @@ public class DotController extends JPanel {
         window.invalidate();
         window.validate();
         window.repaint();
-    }
-
-    private static void applyAppleMacStyleRecursively(Component component) {
-        applyAppleMacStyle(component);
-
-        if (component instanceof Container container) {
-            for (Component child : container.getComponents()) {
-                applyAppleMacStyleRecursively(child);
-            }
-        }
-    }
-
-    private static void applyAppleMacStyle(Component component) {
-        if (component instanceof JScrollPane scrollPane) {
-            scrollPane.setBorder(BorderFactory.createLineBorder(APPLE_MAC_BORDER_COLOR));
-            scrollPane.getViewport().setBackground(APPLE_MAC_PANEL_BACKGROUND_COLOR);
-        }
-
-        if (component instanceof JPanel panel && !(component instanceof DotController)) {
-            panel.setBackground(APPLE_MAC_PANEL_BACKGROUND_COLOR);
-        }
-
-        if (component instanceof JLabel label) {
-            label.setFont(APPLE_MAC_CONTROL_FONT);
-            label.setForeground(APPLE_MAC_TEXT_COLOR);
-            label.setBackground(APPLE_MAC_PANEL_BACKGROUND_COLOR);
-        }
-
-        if (component instanceof AbstractButton button) {
-            button.setFont(APPLE_MAC_CONTROL_FONT);
-            button.setForeground(APPLE_MAC_TEXT_COLOR);
-            button.setBackground(APPLE_MAC_PANEL_BACKGROUND_COLOR);
-            button.setFocusPainted(true);
-            button.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(APPLE_MAC_BORDER_COLOR),
-                    BorderFactory.createCompoundBorder(
-                            BorderFactory.createBevelBorder(
-                                    BevelBorder.RAISED,
-                                    APPLE_MAC_HIGHLIGHT_COLOR,
-                                    APPLE_MAC_SHADOW_COLOR
-                            ),
-                            BorderFactory.createEmptyBorder(2, 12, 2, 12)
-                    )
-            ));
-        }
-
-        if (component instanceof JComboBox<?> comboBox) {
-            comboBox.setFont(APPLE_MAC_CONTROL_FONT);
-            comboBox.setForeground(APPLE_MAC_TEXT_COLOR);
-            comboBox.setBackground(APPLE_MAC_BACKGROUND_COLOR);
-            comboBox.setBorder(BorderFactory.createLineBorder(APPLE_MAC_BORDER_COLOR));
-        }
     }
 
     /**
@@ -1256,37 +1285,5 @@ public class DotController extends JPanel {
         }
 
         return saved;
-    }
-
-    private static int getRandomStackHeaderYOffset(VisualizationStyle style) {
-        return style == VisualizationStyle.APPLE_MAC
-                ? APPLE_MAC_RANDOM_STACK_HEADER_Y_OFFSET
-                : 0;
-    }
-
-    private static int getRandomStackValuesTopOffset(VisualizationStyle style) {
-        return getRandomStackValuesYOffset(style) + getRandomStackHeaderHeight(style);
-    }
-
-    private static int getRandomStackRowsTopOffset(VisualizationStyle style) {
-        return Math.max(
-                getRandomStackHeaderYOffset(style) + getRandomStackHeaderHeight(style),
-                getRandomStackValuesTopOffset(style)
-        );
-    }
-
-    private static int getRandomStackFrameTopOffset(VisualizationStyle style) {
-        return Math.min(
-                getRandomStackHeaderYOffset(style),
-                getRandomStackValuesTopOffset(style)
-        );
-    }
-
-    private static int getRandomStackFrameHeight(VisualizationStyle style, int visibleRows) {
-        int frameTopOffset = getRandomStackFrameTopOffset(style);
-        int frameBottomOffset = getRandomStackRowsTopOffset(style)
-                + visibleRows * getRandomStackCellHeight(style);
-
-        return Math.max(0, frameBottomOffset - frameTopOffset);
     }
 }

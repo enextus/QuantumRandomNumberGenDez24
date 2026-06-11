@@ -23,6 +23,12 @@ public class LissajousFrequencyMode extends AbstractLissajousMode {
     private static final int SAMPLE_COUNT = 720;
     private static final int CURVES_PER_STEP = 1;
 
+    private static void drawStatus(Graphics2D g2d, int a, int b, double phase) {
+        g2d.setFont(new Font("SansSerif", Font.BOLD, 12));
+        g2d.setColor(TEXT);
+        g2d.drawString("a:b = " + a + ":" + b + "   δ = " + Math.round(Math.toDegrees(phase)) + "°", 16, 60);
+    }
+
     @Override
     public String getId() {
         return ID;
@@ -86,11 +92,5 @@ public class LissajousFrequencyMode extends AbstractLissajousMode {
 
         frame++;
         return List.of();
-    }
-
-    private static void drawStatus(Graphics2D g2d, int a, int b, double phase) {
-        g2d.setFont(new Font("SansSerif", Font.BOLD, 12));
-        g2d.setColor(TEXT);
-        g2d.drawString("a:b = " + a + ":" + b + "   δ = " + Math.round(Math.toDegrees(phase)) + "°", 16, 60);
     }
 }

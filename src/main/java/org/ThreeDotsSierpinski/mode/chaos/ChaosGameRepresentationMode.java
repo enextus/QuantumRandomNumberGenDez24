@@ -1,17 +1,7 @@
 package org.ThreeDotsSierpinski.mode.chaos;
 
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
+import org.ThreeDotsSierpinski.mode.VisualizationMode;
+import org.ThreeDotsSierpinski.rng.RNProvider;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -75,6 +65,11 @@ public class ChaosGameRepresentationMode implements VisualizationMode {
 
     private int pointCount = 0;
     private int randomNumbersUsed = 0;
+
+    private static void drawCornerLabel(Graphics2D g2d, String label, int x, int y, Color color) {
+        g2d.setColor(color);
+        g2d.drawString(label, x, y);
+    }
 
     @Override
     public boolean usesLeftPointCounterOverlay() {
@@ -219,11 +214,6 @@ public class ChaosGameRepresentationMode implements VisualizationMode {
         drawCornerLabel(g2d, "01", plotRight - CORNER_LABEL_OFFSET, plotTop - CORNER_LABEL_OFFSET, SYMBOL_COLORS[1]);
         drawCornerLabel(g2d, "10", plotLeft, plotBottom + CORNER_LABEL_OFFSET + 4, SYMBOL_COLORS[2]);
         drawCornerLabel(g2d, "11", plotRight - CORNER_LABEL_OFFSET, plotBottom + CORNER_LABEL_OFFSET + 4, SYMBOL_COLORS[3]);
-    }
-
-    private static void drawCornerLabel(Graphics2D g2d, String label, int x, int y, Color color) {
-        g2d.setColor(color);
-        g2d.drawString(label, x, y);
     }
 
     @Override

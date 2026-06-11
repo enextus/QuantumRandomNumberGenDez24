@@ -3,14 +3,13 @@ package org.ThreeDotsSierpinski.app;
 import com.formdev.flatlaf.FlatLightLaf;
 import org.ThreeDotsSierpinski.config.Config;
 import org.ThreeDotsSierpinski.config.LoggerConfig;
+import org.ThreeDotsSierpinski.mode.VisualizationCategory;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNLoadListenerImpl;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 import org.ThreeDotsSierpinski.stats.RandomnessTestSuite;
 import org.ThreeDotsSierpinski.stats.TestResult;
 import org.jetbrains.annotations.NotNull;
-
-import org.ThreeDotsSierpinski.mode.VisualizationCategory;
 
 import javax.swing.*;
 import java.awt.*;
@@ -27,9 +26,7 @@ import java.util.logging.Logger;
  * Запуск: диалог выбора режима → основное окно визуализации.
  */
 public class App {
-    private static VisualizationCategory lastSelectedCategory = null;
     private static final Set<String> visitedModeIds = new HashSet<>();
-    private static String lastSelectedModeId = null;
     private static final String LOG_APP_STARTED = "Application started.";
     private static final String LOG_GUI_STARTED = "GUI successfully launched.";
     private static final String LOG_APP_SHUTTING_DOWN = "Shutting down application.";
@@ -42,13 +39,11 @@ public class App {
     private static final String LOG_TARGET_SCREEN_BOUNDS_PREFIX = "Target screen bounds: ";
     private static final String LOG_RETURN_SCREEN_BOUNDS_PREFIX = "Return screen bounds: ";
     private static final String LOG_SELECTION_SCREEN_BOUNDS_PREFIX = "Mode selection screen bounds: ";
-
     private static final String BUTTON_PLAY = "► Play";
     private static final String BUTTON_STOP = "Stop";
     private static final String BUTTON_TEST_VALUES_QUALITY = "Test RNG";
     private static final String BUTTON_TEST_VALUES_QUALITY_TOOLTIP = "Test values quality";
     private static final String BUTTON_FINISH_VISUALIZATION = "Выйти";
-
     private static final int STATUS_PANEL_HORIZONTAL_GAP = 10;
     private static final int STATUS_PANEL_VERTICAL_GAP = 5;
     private static final int STATUS_LABEL_WIDTH = 250;
@@ -64,10 +59,11 @@ public class App {
     private static final double VISUALIZATION_WINDOW_ASPECT_HEIGHT = 3.0;
     private static final int STATUS_SCROLL_UNIT_INCREMENT = 16;
     private static final int INITIAL_DATA_TIMEOUT_MS = 15_000;
-
     private static final Logger LOGGER = LoggerConfig.getLogger();
+    private static VisualizationCategory lastSelectedCategory = null;
+    private static String lastSelectedModeId = null;
 
-    public static void main(String[] args) {
+    static void main(String[] args) {
         FlatLightLaf.setup();
 
         LoggerConfig.initializeLogger();

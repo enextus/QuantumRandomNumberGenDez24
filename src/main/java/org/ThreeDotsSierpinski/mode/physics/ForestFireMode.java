@@ -1,17 +1,8 @@
 package org.ThreeDotsSierpinski.mode.physics;
 
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
+import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.mode.VisualizationMode;
+import org.ThreeDotsSierpinski.rng.RNProvider;
 
 import javax.swing.*;
 import java.awt.*;
@@ -119,6 +110,14 @@ public class ForestFireMode implements VisualizationMode {
 
     private boolean lightningEnabled = true;
     private boolean manualSparkRequested = false;
+
+    private static Color blend(Color from, Color to, double t) {
+        double clamped = Math.max(0.0, Math.min(1.0, t));
+        int r = (int) Math.round(from.getRed() + (to.getRed() - from.getRed()) * clamped);
+        int g = (int) Math.round(from.getGreen() + (to.getGreen() - from.getGreen()) * clamped);
+        int b = (int) Math.round(from.getBlue() + (to.getBlue() - from.getBlue()) * clamped);
+        return new Color(r, g, b);
+    }
 
     @Override
     public boolean usesLeftPointCounterOverlay() {
@@ -499,14 +498,6 @@ public class ForestFireMode implements VisualizationMode {
 
     private boolean isInsideGrid(int x, int y) {
         return x >= 0 && x < gridWidth && y >= 0 && y < gridHeight;
-    }
-
-    private static Color blend(Color from, Color to, double t) {
-        double clamped = Math.max(0.0, Math.min(1.0, t));
-        int r = (int) Math.round(from.getRed() + (to.getRed() - from.getRed()) * clamped);
-        int g = (int) Math.round(from.getGreen() + (to.getGreen() - from.getGreen()) * clamped);
-        int b = (int) Math.round(from.getBlue() + (to.getBlue() - from.getBlue()) * clamped);
-        return new Color(r, g, b);
     }
 
     @Override

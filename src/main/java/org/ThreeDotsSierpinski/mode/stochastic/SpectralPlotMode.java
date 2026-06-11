@@ -1,17 +1,7 @@
 package org.ThreeDotsSierpinski.mode.stochastic;
 
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
+import org.ThreeDotsSierpinski.mode.VisualizationMode;
+import org.ThreeDotsSierpinski.rng.RNProvider;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -70,6 +60,19 @@ public class SpectralPlotMode implements VisualizationMode {
     private int height;
     private int pointCount = 0;
     private int randomNumbersUsed = 0;
+
+    private static float normalize(int value) {
+        return Math.floorMod(value, RANDOM_RANGE) / RANDOM_MAX;
+    }
+
+    private static Color colorForDepth(float z) {
+        float hue = 0.66f - 0.56f * z;
+        float saturation = 0.85f;
+        float brightness = 0.55f + 0.45f * z;
+
+        Color base = Color.getHSBColor(hue, saturation, brightness);
+        return new Color(base.getRed(), base.getGreen(), base.getBlue(), POINT_ALPHA);
+    }
 
     @Override
     public boolean usesLeftPointCounterOverlay() {
@@ -187,19 +190,6 @@ public class SpectralPlotMode implements VisualizationMode {
         );
 
         return new Point(screenX, screenY);
-    }
-
-    private static float normalize(int value) {
-        return Math.floorMod(value, RANDOM_RANGE) / RANDOM_MAX;
-    }
-
-    private static Color colorForDepth(float z) {
-        float hue = 0.66f - 0.56f * z;
-        float saturation = 0.85f;
-        float brightness = 0.55f + 0.45f * z;
-
-        Color base = Color.getHSBColor(hue, saturation, brightness);
-        return new Color(base.getRed(), base.getGreen(), base.getBlue(), POINT_ALPHA);
     }
 
     private void drawBackground(BufferedImage canvas) {

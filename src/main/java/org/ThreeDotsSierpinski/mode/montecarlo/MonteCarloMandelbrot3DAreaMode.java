@@ -1,17 +1,8 @@
 package org.ThreeDotsSierpinski.mode.montecarlo;
 
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
+import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.mode.VisualizationMode;
+import org.ThreeDotsSierpinski.rng.RNProvider;
 
 import javax.swing.*;
 import java.awt.*;
@@ -143,17 +134,15 @@ public class MonteCarloMandelbrot3DAreaMode implements VisualizationMode {
     private static final Font SMALL_FONT = new Font("SansSerif", Font.PLAIN, 11);
 
     private static final int INSIDE_COLOR = packRgb(120, 255, 205);
-
+    private final Rectangle[] statCards = new Rectangle[STAT_CARD_COUNT];
     // --- Изменяемое состояние -------------------------------------------------
     private int width;
     private int height;
-
     private int pointCount;
     private int randomNumbersUsed;
     private int insideCount;
     private int escapedCount;
     private int maxIterations = DEFAULT_MAX_ITERATIONS;
-
     // Кольцевой буфер точек (модельные координаты + предрассчитанный цвет).
     private float[] pointRe;
     private float[] pointIm;
@@ -161,17 +150,14 @@ public class MonteCarloMandelbrot3DAreaMode implements VisualizationMode {
     private int[] pointColor;
     private int storedCount;
     private int writePos;
-
     // Камера.
     private boolean spinning = true;
     private double yaw;
     private double pitch = Math.toRadians(DEFAULT_PITCH_DEG);
     private long lastNanos;
-
     // Цветовая палитра высоты (escape → rgb) и тон-маппинг.
     private int[] heightColorLut;
     private int[] toneLut;
-
     // Рендер-буферы плоскости графика.
     private BufferedImage plotImage;
     private int[] plotPixels;
@@ -180,15 +166,87 @@ public class MonteCarloMandelbrot3DAreaMode implements VisualizationMode {
     private int[] accumB;
     private int plotW;
     private int plotH;
-
     // Запечённая статичная обвязка.
     private BufferedImage chromeLayer;
-
     private Rectangle plotBounds = new Rectangle();
     private Rectangle panelBounds = new Rectangle();
-    private final Rectangle[] statCards = new Rectangle[STAT_CARD_COUNT];
-
     private DotController controller;
+
+    /**
+     * Возвращает нормализованную высоту рельефа в [0, 1].
+     * Значение {@code 1.0} означает внутреннюю точку (плато); значения < 1.0 —
+     * сглаженное число итераций до выхода (выше = медленнее убегает).
+     */
+    private static double escapeHeight(double cx, double cy, int iterationLimit) {
+        // Главная кардиоида.
+        double xMinusQuarter = cx - 0.25;
+        double cy2 = cy * cy;
+        double q = xMinusQuarter * xMinusQuarter + cy2;
+        if (q * (q + xMinusQuarter) <= 0.25 * cy2) {
+            return 1.0;
+        }
+        // Бутон периода-2.
+        double xPlusOne = cx + 1.0;
+        if (xPlusOne * xPlusOne + cy2 <= 0.0625) {
+            return 1.0;
+        }
+
+        double zx = 0.0;
+        double zy = 0.0;
+        double zx2 = 0.0;
+        double zy2 = 0.0;
+
+        for (int iteration = 0; iteration < iterationLimit; iteration++) {
+            zy = 2.0 * zx * zy + cy;
+            zx = zx2 - zy2 + cx;
+            zx2 = zx * zx;
+            zy2 = zy * zy;
+
+            double magnitudeSquared = zx2 + zy2;
+            if (magnitudeSquared > ESCAPE_RADIUS_SQUARED) {
+                double logZn = Math.log(magnitudeSquared) * 0.5;
+                double nu = Math.log(logZn / LOG2) / LOG2;
+                double smooth = (iteration + 1) - nu;
+                double normalized = smooth / iterationLimit;
+                if (normalized < 0.0) {
+                    return 0.0;
+                }
+                if (normalized > 0.999) {
+                    return 0.999;
+                }
+                return normalized;
+            }
+        }
+
+        return 1.0;
+    }
+
+    private static double normalize(int value) {
+        return Math.floorMod(value, RANDOM_RANGE) / RANDOM_MAX;
+    }
+
+    private static String formatPercent(double value) {
+        return String.format(java.util.Locale.US, "%.4f%%", value * 100.0);
+    }
+
+    private static String formatArea(double value) {
+        if (value == 0.0) {
+            return "—";
+        }
+        return String.format(java.util.Locale.US, "%.6f", value);
+    }
+
+    private static int packRgb(int r, int g, int b) {
+        return (r << 16) | (g << 8) | b;
+    }
+
+    private static int clampInt(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private static int clampByte(int value) {
+        return Math.max(0, Math.min(255, value));
+    }
 
     @Override
     public String getId() {
@@ -790,59 +848,6 @@ public class MonteCarloMandelbrot3DAreaMode implements VisualizationMode {
         g.drawRoundRect(bounds.x, bounds.y, bounds.width, bounds.height, PANEL_RADIUS, PANEL_RADIUS);
     }
 
-    /**
-     * Возвращает нормализованную высоту рельефа в [0, 1].
-     * Значение {@code 1.0} означает внутреннюю точку (плато); значения < 1.0 —
-     * сглаженное число итераций до выхода (выше = медленнее убегает).
-     */
-    private static double escapeHeight(double cx, double cy, int iterationLimit) {
-        // Главная кардиоида.
-        double xMinusQuarter = cx - 0.25;
-        double cy2 = cy * cy;
-        double q = xMinusQuarter * xMinusQuarter + cy2;
-        if (q * (q + xMinusQuarter) <= 0.25 * cy2) {
-            return 1.0;
-        }
-        // Бутон периода-2.
-        double xPlusOne = cx + 1.0;
-        if (xPlusOne * xPlusOne + cy2 <= 0.0625) {
-            return 1.0;
-        }
-
-        double zx = 0.0;
-        double zy = 0.0;
-        double zx2 = 0.0;
-        double zy2 = 0.0;
-
-        for (int iteration = 0; iteration < iterationLimit; iteration++) {
-            zy = 2.0 * zx * zy + cy;
-            zx = zx2 - zy2 + cx;
-            zx2 = zx * zx;
-            zy2 = zy * zy;
-
-            double magnitudeSquared = zx2 + zy2;
-            if (magnitudeSquared > ESCAPE_RADIUS_SQUARED) {
-                double logZn = Math.log(magnitudeSquared) * 0.5;
-                double nu = Math.log(logZn / LOG2) / LOG2;
-                double smooth = (iteration + 1) - nu;
-                double normalized = smooth / iterationLimit;
-                if (normalized < 0.0) {
-                    return 0.0;
-                }
-                if (normalized > 0.999) {
-                    return 0.999;
-                }
-                return normalized;
-            }
-        }
-
-        return 1.0;
-    }
-
-    private static double normalize(int value) {
-        return Math.floorMod(value, RANDOM_RANGE) / RANDOM_MAX;
-    }
-
     private double insideRatio() {
         return pointCount == 0 ? 0.0 : (double) insideCount / pointCount;
     }
@@ -853,28 +858,5 @@ public class MonteCarloMandelbrot3DAreaMode implements VisualizationMode {
 
     private double areaEstimate() {
         return pointCount == 0 ? 0.0 : PLANE_AREA * insideRatio();
-    }
-
-    private static String formatPercent(double value) {
-        return String.format(java.util.Locale.US, "%.4f%%", value * 100.0);
-    }
-
-    private static String formatArea(double value) {
-        if (value == 0.0) {
-            return "—";
-        }
-        return String.format(java.util.Locale.US, "%.6f", value);
-    }
-
-    private static int packRgb(int r, int g, int b) {
-        return (r << 16) | (g << 8) | b;
-    }
-
-    private static int clampInt(int value, int min, int max) {
-        return Math.max(min, Math.min(max, value));
-    }
-
-    private static int clampByte(int value) {
-        return Math.max(0, Math.min(255, value));
     }
 }

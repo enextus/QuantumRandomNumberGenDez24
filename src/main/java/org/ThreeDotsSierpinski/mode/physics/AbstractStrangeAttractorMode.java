@@ -10,7 +10,7 @@ import java.util.OptionalInt;
 
 /**
  * Shared 3D renderer and RK4 integrator for continuous strange-attractor modes.
- *
+ * <p>
  * The attractor itself is deterministic; QRNG/PSEUDO numbers add very small
  * parameter jitter per animation frame so the external random stream remains
  * part of the visual dynamics without destroying the attractor shape.
@@ -54,6 +54,29 @@ abstract class AbstractStrangeAttractorMode implements VisualizationMode {
     private double z;
     private double spin;
     private double tilt;
+
+    private static double distanceSquared(double oldX, double oldY, double oldZ, double newX, double newY, double newZ) {
+        double dx = newX - oldX;
+        double dy = newY - oldY;
+        double dz = newZ - oldZ;
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    private static String format(double value) {
+        return String.format(java.util.Locale.US, "%.3f", value);
+    }
+
+    private static String formatParameters(double[] parameters) {
+        StringBuilder builder = new StringBuilder();
+        int limit = Math.min(3, parameters.length);
+        for (int i = 0; i < limit; i++) {
+            if (i > 0) {
+                builder.append(',');
+            }
+            builder.append(String.format(java.util.Locale.US, "%.2f", parameters[i]));
+        }
+        return builder.toString();
+    }
 
     @Override
     public boolean usesDarkBackground() {
@@ -306,13 +329,6 @@ abstract class AbstractStrangeAttractorMode implements VisualizationMode {
                 && Math.abs(currentZ) <= max;
     }
 
-    private static double distanceSquared(double oldX, double oldY, double oldZ, double newX, double newY, double newZ) {
-        double dx = newX - oldX;
-        double dy = newY - oldY;
-        double dz = newZ - oldZ;
-        return dx * dx + dy * dy + dz * dz;
-    }
-
     private boolean isLineDrawable(int x1, int y1, int x2, int y2) {
         Rectangle expandedCanvas = new Rectangle(-width, -height, width * 3, height * 3);
         return expandedCanvas.contains(x1, y1) || expandedCanvas.contains(x2, y2);
@@ -414,21 +430,5 @@ abstract class AbstractStrangeAttractorMode implements VisualizationMode {
         g2d.drawString("random: " + randomNumbersUsed, DASHBOARD_X, DASHBOARD_Y + DASHBOARD_LINE_HEIGHT);
         g2d.drawString("spin: " + format(spin), DASHBOARD_X, DASHBOARD_Y + DASHBOARD_LINE_HEIGHT * 2);
         g2d.drawString("params: " + formatParameters(parameters), DASHBOARD_X, DASHBOARD_Y + DASHBOARD_LINE_HEIGHT * 3);
-    }
-
-    private static String format(double value) {
-        return String.format(java.util.Locale.US, "%.3f", value);
-    }
-
-    private static String formatParameters(double[] parameters) {
-        StringBuilder builder = new StringBuilder();
-        int limit = Math.min(3, parameters.length);
-        for (int i = 0; i < limit; i++) {
-            if (i > 0) {
-                builder.append(',');
-            }
-            builder.append(String.format(java.util.Locale.US, "%.2f", parameters[i]));
-        }
-        return builder.toString();
     }
 }

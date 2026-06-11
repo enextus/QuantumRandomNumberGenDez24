@@ -16,16 +16,6 @@ abstract class AbstractLissajousMode implements VisualizationMode {
     protected static final double TWO_PI = Math.PI * 2.0;
     protected static final double RANDOM_MAX = 65_535.0;
     protected static final int MIN_CANVAS_SIZE = 1;
-
-    private static final int TITLE_X = 16;
-    private static final int TITLE_Y = 22;
-    private static final int SUBTITLE_Y = 40;
-    private static final int AXIS_LABEL_OFFSET = 18;
-    private static final int SAFE_BORDER = 48;
-
-    private static final Font TITLE_FONT = new Font("SansSerif", Font.BOLD, 14);
-    private static final Font LABEL_FONT = new Font("SansSerif", Font.PLAIN, 11);
-
     protected static final Color BACKGROUND = new Color(3, 7, 14);
     protected static final Color BACKGROUND_SOFT = new Color(5, 10, 20, 58);
     protected static final Color GRID = new Color(18, 35, 58);
@@ -38,7 +28,13 @@ abstract class AbstractLissajousMode implements VisualizationMode {
     protected static final Color AMBER = new Color(255, 190, 80);
     protected static final Color GREEN = new Color(125, 255, 170);
     protected static final Color WHITE_GLOW = new Color(235, 255, 255);
-
+    private static final int TITLE_X = 16;
+    private static final int TITLE_Y = 22;
+    private static final int SUBTITLE_Y = 40;
+    private static final int AXIS_LABEL_OFFSET = 18;
+    private static final int SAFE_BORDER = 48;
+    private static final Font TITLE_FONT = new Font("SansSerif", Font.BOLD, 14);
+    private static final Font LABEL_FONT = new Font("SansSerif", Font.PLAIN, 11);
     protected int width;
     protected int height;
     protected int pointCount;

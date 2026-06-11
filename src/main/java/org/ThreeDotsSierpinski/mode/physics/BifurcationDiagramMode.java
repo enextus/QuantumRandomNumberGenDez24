@@ -1,17 +1,7 @@
 package org.ThreeDotsSierpinski.mode.physics;
 
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
+import org.ThreeDotsSierpinski.mode.VisualizationMode;
+import org.ThreeDotsSierpinski.rng.RNProvider;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -22,7 +12,7 @@ import java.util.OptionalInt;
 /**
  * Visualization mode: bifurcation diagram for the logistic map.
  * Formula:
- *     x(n+1) = r * x(n) * (1 - x(n))
+ * x(n+1) = r * x(n) * (1 - x(n))
  * The horizontal axis is the control parameter r.
  * The vertical axis is the long-term value of x.
  * As r grows, the system moves from a stable fixed point to period doubling
@@ -78,6 +68,26 @@ public class BifurcationDiagramMode implements VisualizationMode {
     private int currentColumn;
     private int pointCount;
     private int randomNumbersUsed;
+
+    private static double initialXFromRandom(int randomValue) {
+        double normalized = Math.clamp(randomValue / (double) UINT16_MAX, 0.0, 1.0);
+        double centered = normalized - 0.5;
+        return Math.clamp(DEFAULT_INITIAL_X + centered * RANDOM_X_JITTER, 0.001, 0.999);
+    }
+
+    private static double logistic(double r, double x) {
+        return r * x * (1.0 - x);
+    }
+
+    private static Color colorForIteration(int iteration) {
+        if (iteration > PLOT_ITERATIONS * 2 / 3) {
+            return POINT_WHITE;
+        }
+        if (iteration > PLOT_ITERATIONS / 3) {
+            return POINT_HOT;
+        }
+        return POINT_COLD;
+    }
 
     @Override
     public String getId() {
@@ -277,16 +287,6 @@ public class BifurcationDiagramMode implements VisualizationMode {
         return R_MIN + t * (R_MAX - R_MIN);
     }
 
-    private static double initialXFromRandom(int randomValue) {
-        double normalized = Math.clamp(randomValue / (double) UINT16_MAX, 0.0, 1.0);
-        double centered = normalized - 0.5;
-        return Math.clamp(DEFAULT_INITIAL_X + centered * RANDOM_X_JITTER, 0.001, 0.999);
-    }
-
-    private static double logistic(double r, double x) {
-        return r * x * (1.0 - x);
-    }
-
     private Point mapToPixel(int column, double xValue) {
         int px = plotX + column;
         int py = plotY + plotHeight - (int) Math.round(xValue * plotHeight);
@@ -298,15 +298,5 @@ public class BifurcationDiagramMode implements VisualizationMode {
                 && point.x <= plotX + plotWidth
                 && point.y >= plotY
                 && point.y <= plotY + plotHeight;
-    }
-
-    private static Color colorForIteration(int iteration) {
-        if (iteration > PLOT_ITERATIONS * 2 / 3) {
-            return POINT_WHITE;
-        }
-        if (iteration > PLOT_ITERATIONS / 3) {
-            return POINT_HOT;
-        }
-        return POINT_COLD;
     }
 }

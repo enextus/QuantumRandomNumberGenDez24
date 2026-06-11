@@ -16,9 +16,9 @@ import java.util.logging.*;
  */
 public class LoggerConfig {
     private static final Logger LOGGER = Logger.getLogger(LoggerConfig.class.getName());
+    private static final Object LOCK = new Object();
     private static volatile boolean isInitialized = false;
     private static volatile boolean initializationAttempted = false;
-    private static final Object LOCK = new Object();
 
     /**
      * Инициализирует конфигурацию логгера.

@@ -1,21 +1,12 @@
 package org.ThreeDotsSierpinski.mode.stochastic;
 
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
+import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.mode.VisualizationMode;
+import org.ThreeDotsSierpinski.rng.RNProvider;
 
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
-
+import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import javax.swing.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalInt;
@@ -51,13 +42,15 @@ public class VoronoiMode implements VisualizationMode {
     private int stepCount = 0;
     private boolean showCenterMarkers = true;
 
-    private record Seed(int x, int y, Color color, int age) {}
+    @Override
+    public String getId() {
+        return "voronoi";
+    }
 
     @Override
-    public String getId() { return "voronoi"; }
-
-    @Override
-    public String getName() { return "Voronoi Mosaic"; }
+    public String getName() {
+        return "Voronoi Mosaic";
+    }
 
     @Override
     public String getDescription() {
@@ -66,13 +59,19 @@ public class VoronoiMode implements VisualizationMode {
     }
 
     @Override
-    public String getIcon() { return "🌐"; }
+    public String getIcon() {
+        return "🌐";
+    }
 
     @Override
-    public boolean usesRecolorAnimation() { return false; }
+    public boolean usesRecolorAnimation() {
+        return false;
+    }
 
     @Override
-    public boolean usesDarkBackground() { return true; }
+    public boolean usesDarkBackground() {
+        return true;
+    }
 
     @Override
     public boolean usesLeftPointCounterOverlay() {
@@ -289,8 +288,15 @@ public class VoronoiMode implements VisualizationMode {
     }
 
     @Override
-    public int getPointCount() { return pointCount; }
+    public int getPointCount() {
+        return pointCount;
+    }
 
     @Override
-    public int getRandomNumbersUsed() { return randomNumbersUsed; }
+    public int getRandomNumbersUsed() {
+        return randomNumbersUsed;
+    }
+
+    private record Seed(int x, int y, Color color, int age) {
+    }
 }

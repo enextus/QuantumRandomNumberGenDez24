@@ -1,17 +1,8 @@
 package org.ThreeDotsSierpinski.mode.montecarlo;
 
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
+import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.mode.VisualizationMode;
+import org.ThreeDotsSierpinski.rng.RNProvider;
 
 import javax.swing.*;
 import java.awt.*;
@@ -123,25 +114,93 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
     private static final Font LABEL_FONT = new Font("SansSerif", Font.PLAIN, 12);
     private static final Font VALUE_FONT = new Font("SansSerif", Font.BOLD, 18);
     private static final Font SMALL_FONT = new Font("SansSerif", Font.PLAIN, 11);
-
+    private final Rectangle[] statCards = new Rectangle[STAT_CARD_COUNT];
     private int width;
     private int height;
-
     private int pointCount;
     private int randomNumbersUsed;
     private int insideCount;
     private int escapedCount;
     private int maxIterations = DEFAULT_MAX_ITERATIONS;
-
     private BufferedImage sampleLayer;
     private BufferedImage chromeLayer;
     private Color[] escapeColorLut;
-
     private Rectangle plotBounds = new Rectangle();
     private Rectangle panelBounds = new Rectangle();
-    private final Rectangle[] statCards = new Rectangle[STAT_CARD_COUNT];
-
     private DotController controller;
+
+    private static Color computeEscapeColor(int iteration, int iterationLimit) {
+        if (iteration <= FAST_ESCAPE_THRESHOLD) {
+            return FAST_ESCAPE_COLOR;
+        }
+
+        float hue = 0.62f - Math.min(0.48f, iteration / (float) iterationLimit * 0.48f);
+        float saturation = 0.85f;
+        float brightness = 0.95f;
+        return Color.getHSBColor(hue, saturation, brightness);
+    }
+
+    /**
+     * Возвращает число итераций до выхода за радиус убегания, либо
+     * {@code iterationLimit}, если точка считается ограниченной.
+     * <p>
+     * Перед основным циклом выполняется аналитическая проверка двух крупнейших
+     * областей множества — главной кардиоиды и бутона периода-2. Все их точки
+     * доказуемо ограничены, поэтому возвращается {@code iterationLimit} без
+     * итераций (результат идентичен полному циклу).
+     * <p>
+     * В основном цикле квадраты zx²/zy² кэшируются и переиспользуются для
+     * следующего шага и проверки выхода (−2 умножения на итерацию).
+     */
+    private static int escapeIterations(double cx, double cy, int iterationLimit) {
+        // Главная кардиоида: q·(q + (cx − 1/4)) ≤ 1/4·cy²
+        double xMinusQuarter = cx - 0.25;
+        double cy2 = cy * cy;
+        double q = xMinusQuarter * xMinusQuarter + cy2;
+        if (q * (q + xMinusQuarter) <= 0.25 * cy2) {
+            return iterationLimit;
+        }
+
+        // Бутон периода-2: круг радиуса 1/4 с центром в (−1, 0)
+        double xPlusOne = cx + 1.0;
+        if (xPlusOne * xPlusOne + cy2 <= 0.0625) {
+            return iterationLimit;
+        }
+
+        double zx = 0.0;
+        double zy = 0.0;
+        double zx2 = 0.0;
+        double zy2 = 0.0;
+
+        for (int iteration = 0; iteration < iterationLimit; iteration++) {
+            zy = 2.0 * zx * zy + cy;   // использует старое zx
+            zx = zx2 - zy2 + cx;       // использует кэшированные квадраты
+            zx2 = zx * zx;
+            zy2 = zy * zy;
+
+            if (zx2 + zy2 > ESCAPE_RADIUS_SQUARED) {
+                return iteration;
+            }
+        }
+
+        return iterationLimit;
+    }
+
+    private static double normalize(int value) {
+        return Math.floorMod(value, RANDOM_RANGE) / RANDOM_MAX;
+    }
+
+    private static String formatPercent(double value) {
+        return String.format(java.util.Locale.US, "%.4f%%", value * 100.0);
+    }
+
+    private static String formatArea(double value) {
+        if (value == 0.0) {
+            return "—";
+        }
+
+        return String.format(java.util.Locale.US, "%.6f", value);
+    }
 
     @Override
     public String getId() {
@@ -601,67 +660,6 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
         return computeEscapeColor(iteration, maxIterations);
     }
 
-    private static Color computeEscapeColor(int iteration, int iterationLimit) {
-        if (iteration <= FAST_ESCAPE_THRESHOLD) {
-            return FAST_ESCAPE_COLOR;
-        }
-
-        float hue = 0.62f - Math.min(0.48f, iteration / (float) iterationLimit * 0.48f);
-        float saturation = 0.85f;
-        float brightness = 0.95f;
-        return Color.getHSBColor(hue, saturation, brightness);
-    }
-
-    /**
-     * Возвращает число итераций до выхода за радиус убегания, либо
-     * {@code iterationLimit}, если точка считается ограниченной.
-     * <p>
-     * Перед основным циклом выполняется аналитическая проверка двух крупнейших
-     * областей множества — главной кардиоиды и бутона периода-2. Все их точки
-     * доказуемо ограничены, поэтому возвращается {@code iterationLimit} без
-     * итераций (результат идентичен полному циклу).
-     * <p>
-     * В основном цикле квадраты zx²/zy² кэшируются и переиспользуются для
-     * следующего шага и проверки выхода (−2 умножения на итерацию).
-     */
-    private static int escapeIterations(double cx, double cy, int iterationLimit) {
-        // Главная кардиоида: q·(q + (cx − 1/4)) ≤ 1/4·cy²
-        double xMinusQuarter = cx - 0.25;
-        double cy2 = cy * cy;
-        double q = xMinusQuarter * xMinusQuarter + cy2;
-        if (q * (q + xMinusQuarter) <= 0.25 * cy2) {
-            return iterationLimit;
-        }
-
-        // Бутон периода-2: круг радиуса 1/4 с центром в (−1, 0)
-        double xPlusOne = cx + 1.0;
-        if (xPlusOne * xPlusOne + cy2 <= 0.0625) {
-            return iterationLimit;
-        }
-
-        double zx = 0.0;
-        double zy = 0.0;
-        double zx2 = 0.0;
-        double zy2 = 0.0;
-
-        for (int iteration = 0; iteration < iterationLimit; iteration++) {
-            zy = 2.0 * zx * zy + cy;   // использует старое zx
-            zx = zx2 - zy2 + cx;       // использует кэшированные квадраты
-            zx2 = zx * zx;
-            zy2 = zy * zy;
-
-            if (zx2 + zy2 > ESCAPE_RADIUS_SQUARED) {
-                return iteration;
-            }
-        }
-
-        return iterationLimit;
-    }
-
-    private static double normalize(int value) {
-        return Math.floorMod(value, RANDOM_RANGE) / RANDOM_MAX;
-    }
-
     private double insideRatio() {
         return pointCount == 0 ? 0.0 : (double) insideCount / pointCount;
     }
@@ -672,17 +670,5 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
 
     private double areaEstimate() {
         return pointCount == 0 ? 0.0 : PLANE_AREA * insideRatio();
-    }
-
-    private static String formatPercent(double value) {
-        return String.format(java.util.Locale.US, "%.4f%%", value * 100.0);
-    }
-
-    private static String formatArea(double value) {
-        if (value == 0.0) {
-            return "—";
-        }
-
-        return String.format(java.util.Locale.US, "%.6f", value);
     }
 }

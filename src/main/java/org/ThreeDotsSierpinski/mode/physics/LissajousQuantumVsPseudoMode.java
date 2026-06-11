@@ -31,6 +31,14 @@ public class LissajousQuantumVsPseudoMode extends AbstractLissajousMode {
     private double pb = BASE_B;
     private double pPhase = 0.4;
 
+    private static void drawPanelFrame(Graphics2D g2d, Rectangle rect, String label) {
+        g2d.setColor(GRID_BRIGHT);
+        g2d.drawRect(rect.x, rect.y, rect.width, rect.height);
+        g2d.setColor(MUTED_TEXT);
+        g2d.setFont(new Font("SansSerif", Font.BOLD, 11));
+        g2d.drawString(label, rect.x + 8, rect.y + 16);
+    }
+
     @Override
     public String getId() {
         return ID;
@@ -114,14 +122,6 @@ public class LissajousQuantumVsPseudoMode extends AbstractLissajousMode {
             ys[i] = mapYInRect(rect, Math.sin(b * t));
         }
         drawPolyline(g2d, xs, ys, SAMPLE_COUNT, color);
-    }
-
-    private static void drawPanelFrame(Graphics2D g2d, Rectangle rect, String label) {
-        g2d.setColor(GRID_BRIGHT);
-        g2d.drawRect(rect.x, rect.y, rect.width, rect.height);
-        g2d.setColor(MUTED_TEXT);
-        g2d.setFont(new Font("SansSerif", Font.BOLD, 11));
-        g2d.drawString(label, rect.x + 8, rect.y + 16);
     }
 
     private double pseudoSigned() {

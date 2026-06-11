@@ -1,17 +1,7 @@
 package org.ThreeDotsSierpinski.mode.stochastic;
 
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
+import org.ThreeDotsSierpinski.mode.VisualizationMode;
+import org.ThreeDotsSierpinski.rng.RNProvider;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -177,13 +167,16 @@ public class DLAMode implements VisualizationMode {
 
     // ---- состояние -----------------------------------------------------------
 
+    private final int[] walkerX = new int[PARALLEL_WALKERS];
+    private final int[] walkerY = new int[PARALLEL_WALKERS];
+    private final int[] walkerAge = new int[PARALLEL_WALKERS];
+    private final boolean[] walkerAlive = new boolean[PARALLEL_WALKERS];
     private boolean[] grid;
     private int width;
     private int height;
     private int pointCount = INITIAL_POINT_COUNT;
     private int randomNumbersUsed = INITIAL_RANDOM_NUMBERS_USED;
     private int baseDotSize = DEFAULT_BASE_DOT_SIZE;
-
     private int centerX;
     private int centerY;
     /**
@@ -192,13 +185,7 @@ public class DLAMode implements VisualizationMode {
     private int maxRadiusCap;
     private double maxDist = INITIAL_MAX_DISTANCE;
     private double maxDistSquared = INITIAL_MAX_DISTANCE * INITIAL_MAX_DISTANCE;
-
     private int spawnRadius = INITIAL_SPAWN_RADIUS;
-
-    private final int[] walkerX = new int[PARALLEL_WALKERS];
-    private final int[] walkerY = new int[PARALLEL_WALKERS];
-    private final int[] walkerAge = new int[PARALLEL_WALKERS];
-    private final boolean[] walkerAlive = new boolean[PARALLEL_WALKERS];
 
     // ==== интерфейсные методы ================================================
 
@@ -344,7 +331,7 @@ public class DLAMode implements VisualizationMode {
 
                     int dx = walkerX[i] - centerX;
                     int dy = walkerY[i] - centerY;
-                    double distSquared = (double) (dx * dx + dy * dy);
+                    double distSquared = dx * dx + dy * dy;
 
                     // Kill circle: walker вышел далеко — он умирает, не телепортируется.
                     double killR = spawnRadius * KILL_RADIUS_MULT;

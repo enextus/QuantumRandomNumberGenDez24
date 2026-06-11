@@ -1,21 +1,20 @@
 package org.ThreeDotsSierpinski.mode;
 
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
+import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.mode.chaos.BarnsleyFernMode;
+import org.ThreeDotsSierpinski.mode.chaos.ChaosGameRepresentationMode;
+import org.ThreeDotsSierpinski.mode.chaos.SierpinskiMode;
+import org.ThreeDotsSierpinski.mode.montecarlo.MonteCarloMandelbrot3DAreaMode;
+import org.ThreeDotsSierpinski.mode.montecarlo.MonteCarloMandelbrotAreaMode;
+import org.ThreeDotsSierpinski.mode.montecarlo.MonteCarloPiMode;
 import org.ThreeDotsSierpinski.mode.physics.*;
 import org.ThreeDotsSierpinski.mode.stochastic.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
+import org.ThreeDotsSierpinski.rng.RNProvider;
 
+import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.List;
-import javax.swing.*;
 
 /**
  * Интерфейс для режимов визуализации случайных чисел.
@@ -29,24 +28,68 @@ import javax.swing.*;
  */
 public interface VisualizationMode {
 
-    /** Уникальный идентификатор режима (для конфига) */
+    /**
+     * Реестр всех доступных режимов.
+     * Для добавления нового — просто добавить в массив.
+     */
+    static VisualizationMode[] allModes() {
+        return new VisualizationMode[]{
+                new SierpinskiMode(),
+                new VoronoiMode(),
+                new BarnsleyFernMode(),
+                new RandomWalkHeatmapMode(),
+                new Rule30AutomatonMode(),
+                new MonteCarloMandelbrotAreaMode(),
+                new MonteCarloMandelbrot3DAreaMode(),
+                new LorenzAttractor3DMode(),
+                new AizawaAttractorMode(),
+                new ThomasAttractorMode(),
+                new RosslerAttractorMode(),
+                new HalvorsenAttractorMode(),
+                new DadrasAttractorMode(),
+                new MonteCarloPiMode(),
+                new GaltonBoardMode(),
+                new PercolationMode(),
+                new ForestFireMode(),
+                new SpectralPlotMode(),
+                new ChaosGameRepresentationMode(),
+                new DLAMode(),
+                new BifurcationDiagramMode(),
+                new LissajousFrequencyMode(),
+                new LissajousOscilloscopeMode(),
+                new LissajousQuantumVsPseudoMode(),
+                new Lissajous3DMode(),
+                new LissajousSpectralAnalyzerMode(),
+                new ChaosLissajousMode(),
+        };
+    }
+
+    /**
+     * Уникальный идентификатор режима (для конфига)
+     */
     String getId();
 
-    /** Человекочитаемое название */
+    /**
+     * Человекочитаемое название
+     */
     String getName();
 
-    /** Краткое описание (1-2 строки) */
+    /**
+     * Краткое описание (1-2 строки)
+     */
     String getDescription();
 
-    /** Эмодзи или символ для карточки выбора */
+    /**
+     * Эмодзи или символ для карточки выбора
+     */
     String getIcon();
 
     /**
      * Инициализация. Вызывается один раз перед началом анимации.
      *
-     * @param canvas    изображение для рисования
-     * @param width     ширина области
-     * @param height    высота области
+     * @param canvas изображение для рисования
+     * @param width  ширина области
+     * @param height высота области
      */
     void initialize(BufferedImage canvas, int width, int height);
 
@@ -61,10 +104,14 @@ public interface VisualizationMode {
      */
     List<Point> step(RNProvider provider, BufferedImage canvas, int dotSize);
 
-    /** Количество нарисованных точек с момента initialize() */
+    /**
+     * Количество нарисованных точек с момента initialize()
+     */
     int getPointCount();
 
-    /** Количество потреблённых случайных чисел */
+    /**
+     * Количество потреблённых случайных чисел
+     */
     int getRandomNumbersUsed();
 
     /**
@@ -84,7 +131,6 @@ public interface VisualizationMode {
         return List.of();
     }
 
-
     /**
      * Прямоугольные области внутри canvas, которые режим не должен
      * использовать для рисования собственных точек/объектов.
@@ -101,12 +147,6 @@ public interface VisualizationMode {
      */
     default void handleMouseClicked(Point point, Component parent) {
         // Default no-op.
-    }
-
-    enum PointCounterOverlayPlacement {
-        LEFT,
-        RIGHT,
-        TOP_CENTER
     }
 
     default boolean usesLeftPointCounterOverlay() {
@@ -130,7 +170,9 @@ public interface VisualizationMode {
      * Нужна ли анимация свежих точек в stable-color.
      * True = Sierpinski-style; False = режим сам управляет цветами.
      */
-    default boolean usesRecolorAnimation() { return true; }
+    default boolean usesRecolorAnimation() {
+        return true;
+    }
 
     /**
      * Цвет, в который DotController перекрашивает свежие точки.
@@ -142,7 +184,9 @@ public interface VisualizationMode {
     /**
      * Нужен ли чёрный/тёмный фон.
      */
-    default boolean usesDarkBackground() { return false; }
+    default boolean usesDarkBackground() {
+        return false;
+    }
 
     /**
      * Нужно ли показывать верхний informational overlay DotController.
@@ -178,7 +222,7 @@ public interface VisualizationMode {
 
     /**
      * High-level category used by the two-level mode selection dialog.
-     *
+     * <p>
      * Current modes are classified here so existing visualization classes do not
      * need boilerplate category overrides. A new mode may still override this
      * method when it belongs to a different category.
@@ -222,39 +266,9 @@ public interface VisualizationMode {
         };
     }
 
-    /**
-     * Реестр всех доступных режимов.
-     * Для добавления нового — просто добавить в массив.
-     */
-    static VisualizationMode[] allModes() {
-        return new VisualizationMode[] {
-                new SierpinskiMode(),
-                new VoronoiMode(),
-                new BarnsleyFernMode(),
-                new RandomWalkHeatmapMode(),
-                new Rule30AutomatonMode(),
-                new MonteCarloMandelbrotAreaMode(),
-                new MonteCarloMandelbrot3DAreaMode(),
-                new LorenzAttractor3DMode(),
-                new AizawaAttractorMode(),
-                new ThomasAttractorMode(),
-                new RosslerAttractorMode(),
-                new HalvorsenAttractorMode(),
-                new DadrasAttractorMode(),
-                new MonteCarloPiMode(),
-                new GaltonBoardMode(),
-                new PercolationMode(),
-                new ForestFireMode(),
-                new SpectralPlotMode(),
-                new ChaosGameRepresentationMode(),
-                new DLAMode(),
-                new BifurcationDiagramMode(),
-                new LissajousFrequencyMode(),
-                new LissajousOscilloscopeMode(),
-                new LissajousQuantumVsPseudoMode(),
-                new Lissajous3DMode(),
-                new LissajousSpectralAnalyzerMode(),
-                new ChaosLissajousMode(),
-        };
+    enum PointCounterOverlayPlacement {
+        LEFT,
+        RIGHT,
+        TOP_CENTER
     }
 }

@@ -28,6 +28,10 @@ public class ChaosLissajousMode extends AbstractLissajousMode {
     private double r = BASE_R;
     private double phase;
 
+    private static String fmt(double value) {
+        return String.format(java.util.Locale.US, "%.3f", value);
+    }
+
     @Override
     public String getId() {
         return ID;
@@ -106,9 +110,5 @@ public class ChaosLissajousMode extends AbstractLissajousMode {
         g2d.setFont(new Font("SansSerif", Font.BOLD, 12));
         g2d.setColor(TEXT);
         g2d.drawString("r=" + fmt(r) + "   x=" + fmt(logisticX) + "   a:b=" + fmt(a) + ":" + fmt(b), 16, 60);
-    }
-
-    private static String fmt(double value) {
-        return String.format(java.util.Locale.US, "%.3f", value);
     }
 }

@@ -1,29 +1,16 @@
 package org.ThreeDotsSierpinski.mode.montecarlo;
 
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
-
+import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.mode.VisualizationMode;
+import org.ThreeDotsSierpinski.rng.RNProvider;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.EnumMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import java.util.OptionalInt;
 
 /**
  * Режим визуализации: Monte Carlo estimation of π.
@@ -161,188 +148,162 @@ public class MonteCarloPiMode implements VisualizationMode {
             new Font("SansSerif", Font.BOLD, HELP_DIALOG_LANGUAGE_FONT_SIZE);
     private static final Font HELP_DIALOG_TEXT_FONT =
             new Font("SansSerif", Font.PLAIN, HELP_DIALOG_TEXT_FONT_SIZE);
-
-    private enum HelpTopic {
-        MAIN_TITLE(
-                "MONTE CARLO ESTIMATION OF π",
-                """
-                Это общий заголовок режима. Он показывает, что визуализация использует метод Монте-Карло для оценки числа π.
-
-                Смысл метода: мы бросаем случайные точки в квадрат и считаем, какая доля попала внутрь вписанной окружности. Так как отношение площади окружности к площади квадрата связано с π, из случайных точек постепенно появляется численная оценка π.
-                """,
-                """
-                This is the main title of the mode. It indicates that the visualization uses a Monte Carlo method to estimate π.
-
-                The idea is to throw random points into a square and count what fraction lands inside the inscribed circle. Since the circle-to-square area ratio is related to π, the random samples gradually produce a numerical estimate of π.
-                """
-        ),
-        RANDOMNESS_SOURCE(
-                "RANDOMNESS SOURCE",
-                """
-                Этот блок показывает, откуда сейчас поступают случайные числа.
-
-                TRUE RANDOM / QRNG означает внешний квантовый источник. PSEUDO / LOCAL PRNG означает локальный псевдослучайный генератор fallback-режима. Для самого метода Монте-Карло важно, чтобы точки были распределены как можно равномернее и независимее.
-                """,
-                """
-                This block shows where the random numbers currently come from.
-
-                TRUE RANDOM / QRNG means the external quantum source. PSEUDO / LOCAL PRNG means the local fallback pseudo-random generator. For Monte Carlo estimation, the important property is that points are as uniform and independent as possible.
-                """
-        ),
-        SAMPLE_SPACE(
-                "MONTE CARLO SAMPLE SPACE",
-                """
-                Это пространство выборки: квадрат [0..1] × [0..1], в который бросаются случайные точки.
-
-                Голубая окружность — вписанная окружность. Точки внутри окружности учитываются как inside, точки вне окружности — как outside. Чем больше точек, тем яснее проявляется круг.
-                """,
-                """
-                This is the sample space: the unit square [0..1] × [0..1] where random points are placed.
-
-                The cyan circle is the inscribed circle. Points inside it count as inside, points outside it count as outside. As more points accumulate, the circle becomes visually clearer.
-                """
-        ),
-        CONVERGENCE(
-                "CONVERGENCE OF π ESTIMATE",
-                """
-                Этот график показывает, как текущая оценка π меняется по мере роста количества точек.
-
-                В начале линия может сильно колебаться, потому что выборка маленькая. С ростом числа samples случайные отклонения частично компенсируются, и оценка обычно приближается к истинному значению π.
-                """,
-                """
-                This chart shows how the current π estimate changes as the number of samples grows.
-
-                At the beginning the line may fluctuate strongly because the sample size is small. As more samples are collected, random deviations partly cancel out and the estimate usually approaches the true value of π.
-                """
-        ),
-        ABSOLUTE_ERROR_PANEL(
-                "ABSOLUTE ERROR |πestimate − πtrue|",
-                """
-                Этот график показывает абсолютную ошибку оценки π.
-
-                Ошибка равна расстоянию между текущей оценкой и истинным значением π. На логарифмической шкале удобно видеть, уменьшается ли ошибка на больших выборках.
-                """,
-                """
-                This chart shows the absolute error of the π estimate.
-
-                The error is the distance between the current estimate and the true value of π. A logarithmic scale makes it easier to see whether the error decreases as the sample size grows.
-                """
-        ),
-        TOTAL_SAMPLES(
-                "TOTAL SAMPLES",
-                """
-                Это общее количество случайных точек, уже использованных в оценке π.
-
-                Каждая точка создаётся из пары случайных чисел: одно задаёт координату x, другое — координату y. Чем больше total samples, тем устойчивее становится статистическая оценка.
-                """,
-                """
-                This is the total number of random points already used in the π estimation.
-
-                Each point is generated from a pair of random numbers: one for x and one for y. The larger the total sample count, the more stable the statistical estimate becomes.
-                """
-        ),
-        POINTS_INSIDE(
-                "POINTS INSIDE",
-                """
-                Это количество точек, попавших внутрь вписанной окружности.
-
-                Именно эта величина входит в формулу π ≈ 4 × inside / total. Если случайные точки равномерны, доля inside постепенно приближается к площади четверти круга относительно единичного квадрата.
-                """,
-                """
-                This is the number of points that landed inside the inscribed circle.
-
-                This value is used in the formula π ≈ 4 × inside / total. If the random points are uniform, the inside fraction gradually approaches the area ratio of the quarter circle within the unit square.
-                """
-        ),
-        POINTS_OUTSIDE(
-                "POINTS OUTSIDE",
-                """
-                Это количество точек, которые попали в квадрат, но оказались вне окружности.
-
-                Эти точки не входят в inside-count, но они важны для total samples. Вместе inside и outside образуют полную статистическую выборку.
-                """,
-                """
-                This is the number of points that landed inside the square but outside the circle.
-
-                These points do not contribute to the inside count, but they are part of the total sample count. Inside and outside together form the complete statistical sample.
-                """
-        ),
-        ESTIMATE_PI(
-                "ESTIMATE OF π",
-                """
-                Это текущая оценка числа π, рассчитанная по формуле π ≈ 4 × inside / total.
-
-                Оценка меняется после накопления новых точек. Она не обязана становиться лучше на каждом отдельном шаге, но на большой выборке обычно стабилизируется около истинного значения.
-                """,
-                """
-                This is the current estimate of π, calculated as π ≈ 4 × inside / total.
-
-                The estimate changes as new points are collected. It does not have to improve on every single step, but with a large sample it usually stabilizes near the true value.
-                """
-        ),
-        ABSOLUTE_ERROR_METRIC(
-                "ABSOLUTE ERROR",
-                """
-                Это текущее абсолютное отклонение оценки от истинного значения π.
-
-                Формула: |πestimate − πtrue|. Чем меньше это число, тем ближе текущая оценка к математическому π.
-                """,
-                """
-                This is the current absolute deviation of the estimate from the true value of π.
-
-                Formula: |πestimate − πtrue|. The smaller this number is, the closer the current estimate is to mathematical π.
-                """
-        ),
-        RELATIVE_ERROR(
-                "RELATIVE ERROR",
-                """
-                Это ошибка, нормированная относительно истинного значения π.
-
-                Она показывает масштаб ошибки не в абсолютных единицах, а как долю от πtrue. Это удобно для сравнения точности между разными экспериментами.
-                """,
-                """
-                This is the error normalized relative to the true value of π.
-
-                It shows the error not as an absolute distance, but as a fraction of πtrue. This is useful for comparing accuracy across different experiments.
-                """
-        );
-
-        private final String title;
-        private final String russianText;
-        private final String englishText;
-
-        HelpTopic(String title, String russianText, String englishText) {
-            this.title = title;
-            this.russianText = russianText.strip();
-            this.englishText = englishText.strip();
-        }
-    }
-
-
+    private final List<Rectangle> metricCardBounds = new ArrayList<>();
+    private final Map<HelpTopic, Rectangle> helpHitAreas = new EnumMap<>(HelpTopic.class);
+    private final List<Double> estimateHistory = new ArrayList<>();
+    private final List<Double> errorHistory = new ArrayList<>();
+    private final List<Integer> sampleHistory = new ArrayList<>();
     private int width;
     private int height;
-
     private int pointCount;
     private int randomNumbersUsed;
     private int insideCount;
     private int outsideCount;
-
     private BufferedImage sampleLayer;
     private Rectangle samplePanelBounds = new Rectangle();
     private Rectangle samplePlotBounds = new Rectangle();
     private Rectangle convergenceChartBounds = new Rectangle();
     private Rectangle errorChartBounds = new Rectangle();
     private int metricsRowHeight;
-    private final List<Rectangle> metricCardBounds = new ArrayList<>();
-    private final Map<HelpTopic, Rectangle> helpHitAreas = new EnumMap<>(HelpTopic.class);
-
-    private final List<Double> estimateHistory = new ArrayList<>();
-    private final List<Double> errorHistory = new ArrayList<>();
-    private final List<Integer> sampleHistory = new ArrayList<>();
-
     private DotController controller;
     private RNProvider.Mode displayedProviderMode = RNProvider.Mode.PSEUDO;
     private String displayedFallbackReason;
+
+    private static <T> void appendBounded(List<T> list, T value) {
+        list.add(value);
+        if (list.size() > HISTORY_CAPACITY) {
+            list.removeFirst();
+        }
+    }
+
+    private static double normalize(int rawValue) {
+        return Math.floorMod(rawValue, RANDOM_RANGE) / RANDOM_MAX;
+    }
+
+    private static boolean isInsideCircle(double x, double y) {
+        double dx = x - 0.5;
+        double dy = y - 0.5;
+        return dx * dx + dy * dy <= 0.25;
+    }
+
+    private static int interpolateX(Rectangle plot, int index, int size) {
+        if (size <= 1) {
+            return plot.x;
+        }
+        return plot.x + (int) Math.round((double) index / (size - 1) * plot.width);
+    }
+
+    private static double normalizeRange(double value, double min, double max) {
+        if (max <= min) {
+            return 0.5;
+        }
+        return Math.clamp((value - min) / (max - min), 0.0, 1.0);
+    }
+
+    private static String formatWithGrouping(int value) {
+        return String.format(java.util.Locale.US, "%,d", value);
+    }
+
+    private static String percent(double value) {
+        return String.format(java.util.Locale.US, "%.5f%%", value * 100.0);
+    }
+
+    private static String formatScientific(double value) {
+        if (value == 0.0) {
+            return "0";
+        }
+        return String.format(java.util.Locale.US, "%.2e", value);
+    }
+
+    private static void drawAxisValue(Graphics2D g, String text, int x, int y) {
+        g.drawString(text, x, y);
+    }
+
+    private static void showHelpDialog(Component parent, HelpTopic topic) {
+        Window owner = parent == null ? null : SwingUtilities.getWindowAncestor(parent);
+        JDialog dialog = new JDialog(
+                owner,
+                "Monte Carlo π Help — " + topic.title,
+                Dialog.ModalityType.APPLICATION_MODAL
+        );
+
+        dialog.setLayout(new BorderLayout());
+        dialog.getContentPane().setBackground(HELP_DIALOG_BACKGROUND);
+
+        JLabel title = new JLabel(topic.title);
+        title.setFont(HELP_DIALOG_TITLE_FONT);
+        title.setForeground(HELP_DIALOG_TITLE_COLOR);
+        title.setBorder(BorderFactory.createEmptyBorder(
+                HELP_DIALOG_PADDING,
+                HELP_DIALOG_PADDING,
+                HELP_DIALOG_PADDING / 2,
+                HELP_DIALOG_PADDING
+        ));
+        dialog.add(title, BorderLayout.NORTH);
+
+        JPanel content = new JPanel(new GridLayout(1, 2, HELP_DIALOG_COLUMN_GAP, 0));
+        content.setBackground(HELP_DIALOG_BACKGROUND);
+        content.setBorder(BorderFactory.createEmptyBorder(
+                HELP_DIALOG_PADDING / 2,
+                HELP_DIALOG_PADDING,
+                HELP_DIALOG_PADDING,
+                HELP_DIALOG_PADDING
+        ));
+
+        content.add(createHelpColumn("Русский", topic.russianText));
+        content.add(createHelpColumn("English", topic.englishText));
+
+        dialog.add(content, BorderLayout.CENTER);
+
+        JButton closeButton = new JButton("OK");
+        closeButton.setPreferredSize(new Dimension(HELP_DIALOG_CLOSE_BUTTON_WIDTH, HELP_DIALOG_CLOSE_BUTTON_HEIGHT));
+        closeButton.addActionListener(ignored -> dialog.dispose());
+
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        footer.setBackground(HELP_DIALOG_BACKGROUND);
+        footer.setBorder(BorderFactory.createEmptyBorder(0, HELP_DIALOG_PADDING, HELP_DIALOG_PADDING, HELP_DIALOG_PADDING));
+        footer.add(closeButton);
+        dialog.add(footer, BorderLayout.SOUTH);
+
+        dialog.setSize(HELP_DIALOG_WIDTH, HELP_DIALOG_HEIGHT);
+        dialog.setLocationRelativeTo(parent);
+        dialog.setVisible(true);
+    }
+
+    private static JComponent createHelpColumn(String languageTitle, String text) {
+        JPanel panel = new JPanel(new BorderLayout(0, 8));
+        panel.setBackground(HELP_DIALOG_COLUMN_BACKGROUND);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(HELP_DIALOG_BORDER, 1, true),
+                BorderFactory.createEmptyBorder(HELP_DIALOG_PADDING, HELP_DIALOG_PADDING, HELP_DIALOG_PADDING, HELP_DIALOG_PADDING)
+        ));
+
+        JLabel title = new JLabel(languageTitle);
+        title.setFont(HELP_DIALOG_LANGUAGE_FONT);
+        title.setForeground(HELP_DIALOG_LANGUAGE_COLOR);
+        panel.add(title, BorderLayout.NORTH);
+
+        JScrollPane scrollPane = getJScrollPane(text);
+        scrollPane.getViewport().setBackground(HELP_DIALOG_COLUMN_BACKGROUND);
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private static @NotNull JScrollPane getJScrollPane(String text) {
+        JTextArea textArea = new JTextArea(text, HELP_DIALOG_TEXT_ROWS, HELP_DIALOG_TEXT_COLUMNS);
+        textArea.setFont(HELP_DIALOG_TEXT_FONT);
+        textArea.setForeground(HELP_DIALOG_TEXT_COLOR);
+        textArea.setBackground(HELP_DIALOG_COLUMN_BACKGROUND);
+        textArea.setLineWrap(true);
+        textArea.setWrapStyleWord(true);
+        textArea.setEditable(false);
+        textArea.setCaretPosition(0);
+
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        scrollPane.setBorder(null);
+        return scrollPane;
+    }
 
     @Override
     public String getId() {
@@ -855,7 +816,6 @@ public class MonteCarloPiMode implements VisualizationMode {
         }
     }
 
-
     private double[] estimateScale() {
         double minEstimate = Math.PI - 0.45;
         double maxEstimate = Math.PI + 0.45;
@@ -940,23 +900,6 @@ public class MonteCarloPiMode implements VisualizationMode {
         appendBounded(errorHistory, error);
     }
 
-    private static <T> void appendBounded(List<T> list, T value) {
-        list.add(value);
-        if (list.size() > HISTORY_CAPACITY) {
-            list.removeFirst();
-        }
-    }
-
-    private static double normalize(int rawValue) {
-        return Math.floorMod(rawValue, RANDOM_RANGE) / RANDOM_MAX;
-    }
-
-    private static boolean isInsideCircle(double x, double y) {
-        double dx = x - 0.5;
-        double dy = y - 0.5;
-        return dx * dx + dy * dy <= 0.25;
-    }
-
     private double currentEstimate() {
         return pointCount == 0 ? 0.0 : 4.0 * insideCount / pointCount;
     }
@@ -964,40 +907,6 @@ public class MonteCarloPiMode implements VisualizationMode {
     private double currentError() {
         return pointCount == 0 ? 0.0 : Math.abs(currentEstimate() - Math.PI);
     }
-
-    private static int interpolateX(Rectangle plot, int index, int size) {
-        if (size <= 1) {
-            return plot.x;
-        }
-        return plot.x + (int) Math.round((double) index / (size - 1) * plot.width);
-    }
-
-    private static double normalizeRange(double value, double min, double max) {
-        if (max <= min) {
-            return 0.5;
-        }
-        return Math.clamp((value - min) / (max - min), 0.0, 1.0);
-    }
-
-    private static String formatWithGrouping(int value) {
-        return String.format(java.util.Locale.US, "%,d", value);
-    }
-
-    private static String percent(double value) {
-        return String.format(java.util.Locale.US, "%.5f%%", value * 100.0);
-    }
-
-    private static String formatScientific(double value) {
-        if (value == 0.0) {
-            return "0";
-        }
-        return String.format(java.util.Locale.US, "%.2e", value);
-    }
-
-    private static void drawAxisValue(Graphics2D g, String text, int x, int y) {
-        g.drawString(text, x, y);
-    }
-
 
     @Override
     public void handleMouseClicked(Point point, Component parent) {
@@ -1055,92 +964,6 @@ public class MonteCarloPiMode implements VisualizationMode {
         }
     }
 
-    private static void showHelpDialog(Component parent, HelpTopic topic) {
-        Window owner = parent == null ? null : SwingUtilities.getWindowAncestor(parent);
-        JDialog dialog = new JDialog(
-                owner,
-                "Monte Carlo π Help — " + topic.title,
-                Dialog.ModalityType.APPLICATION_MODAL
-        );
-
-        dialog.setLayout(new BorderLayout());
-        dialog.getContentPane().setBackground(HELP_DIALOG_BACKGROUND);
-
-        JLabel title = new JLabel(topic.title);
-        title.setFont(HELP_DIALOG_TITLE_FONT);
-        title.setForeground(HELP_DIALOG_TITLE_COLOR);
-        title.setBorder(BorderFactory.createEmptyBorder(
-                HELP_DIALOG_PADDING,
-                HELP_DIALOG_PADDING,
-                HELP_DIALOG_PADDING / 2,
-                HELP_DIALOG_PADDING
-        ));
-        dialog.add(title, BorderLayout.NORTH);
-
-        JPanel content = new JPanel(new GridLayout(1, 2, HELP_DIALOG_COLUMN_GAP, 0));
-        content.setBackground(HELP_DIALOG_BACKGROUND);
-        content.setBorder(BorderFactory.createEmptyBorder(
-                HELP_DIALOG_PADDING / 2,
-                HELP_DIALOG_PADDING,
-                HELP_DIALOG_PADDING,
-                HELP_DIALOG_PADDING
-        ));
-
-        content.add(createHelpColumn("Русский", topic.russianText));
-        content.add(createHelpColumn("English", topic.englishText));
-
-        dialog.add(content, BorderLayout.CENTER);
-
-        JButton closeButton = new JButton("OK");
-        closeButton.setPreferredSize(new Dimension(HELP_DIALOG_CLOSE_BUTTON_WIDTH, HELP_DIALOG_CLOSE_BUTTON_HEIGHT));
-        closeButton.addActionListener(ignored -> dialog.dispose());
-
-        JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        footer.setBackground(HELP_DIALOG_BACKGROUND);
-        footer.setBorder(BorderFactory.createEmptyBorder(0, HELP_DIALOG_PADDING, HELP_DIALOG_PADDING, HELP_DIALOG_PADDING));
-        footer.add(closeButton);
-        dialog.add(footer, BorderLayout.SOUTH);
-
-        dialog.setSize(HELP_DIALOG_WIDTH, HELP_DIALOG_HEIGHT);
-        dialog.setLocationRelativeTo(parent);
-        dialog.setVisible(true);
-    }
-
-    private static JComponent createHelpColumn(String languageTitle, String text) {
-        JPanel panel = new JPanel(new BorderLayout(0, 8));
-        panel.setBackground(HELP_DIALOG_COLUMN_BACKGROUND);
-        panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(HELP_DIALOG_BORDER, 1, true),
-                BorderFactory.createEmptyBorder(HELP_DIALOG_PADDING, HELP_DIALOG_PADDING, HELP_DIALOG_PADDING, HELP_DIALOG_PADDING)
-        ));
-
-        JLabel title = new JLabel(languageTitle);
-        title.setFont(HELP_DIALOG_LANGUAGE_FONT);
-        title.setForeground(HELP_DIALOG_LANGUAGE_COLOR);
-        panel.add(title, BorderLayout.NORTH);
-
-        JScrollPane scrollPane = getJScrollPane(text);
-        scrollPane.getViewport().setBackground(HELP_DIALOG_COLUMN_BACKGROUND);
-        panel.add(scrollPane, BorderLayout.CENTER);
-
-        return panel;
-    }
-
-    private static @NotNull JScrollPane getJScrollPane(String text) {
-        JTextArea textArea = new JTextArea(text, HELP_DIALOG_TEXT_ROWS, HELP_DIALOG_TEXT_COLUMNS);
-        textArea.setFont(HELP_DIALOG_TEXT_FONT);
-        textArea.setForeground(HELP_DIALOG_TEXT_COLOR);
-        textArea.setBackground(HELP_DIALOG_COLUMN_BACKGROUND);
-        textArea.setLineWrap(true);
-        textArea.setWrapStyleWord(true);
-        textArea.setEditable(false);
-        textArea.setCaretPosition(0);
-
-        JScrollPane scrollPane = new JScrollPane(textArea);
-        scrollPane.setBorder(null);
-        return scrollPane;
-    }
-
     @Override
     public int getPointCount() {
         return pointCount;
@@ -1149,5 +972,161 @@ public class MonteCarloPiMode implements VisualizationMode {
     @Override
     public int getRandomNumbersUsed() {
         return randomNumbersUsed;
+    }
+
+    private enum HelpTopic {
+        MAIN_TITLE(
+                "MONTE CARLO ESTIMATION OF π",
+                """
+                        Это общий заголовок режима. Он показывает, что визуализация использует метод Монте-Карло для оценки числа π.
+                        
+                        Смысл метода: мы бросаем случайные точки в квадрат и считаем, какая доля попала внутрь вписанной окружности. Так как отношение площади окружности к площади квадрата связано с π, из случайных точек постепенно появляется численная оценка π.
+                        """,
+                """
+                        This is the main title of the mode. It indicates that the visualization uses a Monte Carlo method to estimate π.
+                        
+                        The idea is to throw random points into a square and count what fraction lands inside the inscribed circle. Since the circle-to-square area ratio is related to π, the random samples gradually produce a numerical estimate of π.
+                        """
+        ),
+        RANDOMNESS_SOURCE(
+                "RANDOMNESS SOURCE",
+                """
+                        Этот блок показывает, откуда сейчас поступают случайные числа.
+                        
+                        TRUE RANDOM / QRNG означает внешний квантовый источник. PSEUDO / LOCAL PRNG означает локальный псевдослучайный генератор fallback-режима. Для самого метода Монте-Карло важно, чтобы точки были распределены как можно равномернее и независимее.
+                        """,
+                """
+                        This block shows where the random numbers currently come from.
+                        
+                        TRUE RANDOM / QRNG means the external quantum source. PSEUDO / LOCAL PRNG means the local fallback pseudo-random generator. For Monte Carlo estimation, the important property is that points are as uniform and independent as possible.
+                        """
+        ),
+        SAMPLE_SPACE(
+                "MONTE CARLO SAMPLE SPACE",
+                """
+                        Это пространство выборки: квадрат [0..1] × [0..1], в который бросаются случайные точки.
+                        
+                        Голубая окружность — вписанная окружность. Точки внутри окружности учитываются как inside, точки вне окружности — как outside. Чем больше точек, тем яснее проявляется круг.
+                        """,
+                """
+                        This is the sample space: the unit square [0..1] × [0..1] where random points are placed.
+                        
+                        The cyan circle is the inscribed circle. Points inside it count as inside, points outside it count as outside. As more points accumulate, the circle becomes visually clearer.
+                        """
+        ),
+        CONVERGENCE(
+                "CONVERGENCE OF π ESTIMATE",
+                """
+                        Этот график показывает, как текущая оценка π меняется по мере роста количества точек.
+                        
+                        В начале линия может сильно колебаться, потому что выборка маленькая. С ростом числа samples случайные отклонения частично компенсируются, и оценка обычно приближается к истинному значению π.
+                        """,
+                """
+                        This chart shows how the current π estimate changes as the number of samples grows.
+                        
+                        At the beginning the line may fluctuate strongly because the sample size is small. As more samples are collected, random deviations partly cancel out and the estimate usually approaches the true value of π.
+                        """
+        ),
+        ABSOLUTE_ERROR_PANEL(
+                "ABSOLUTE ERROR |πestimate − πtrue|",
+                """
+                        Этот график показывает абсолютную ошибку оценки π.
+                        
+                        Ошибка равна расстоянию между текущей оценкой и истинным значением π. На логарифмической шкале удобно видеть, уменьшается ли ошибка на больших выборках.
+                        """,
+                """
+                        This chart shows the absolute error of the π estimate.
+                        
+                        The error is the distance between the current estimate and the true value of π. A logarithmic scale makes it easier to see whether the error decreases as the sample size grows.
+                        """
+        ),
+        TOTAL_SAMPLES(
+                "TOTAL SAMPLES",
+                """
+                        Это общее количество случайных точек, уже использованных в оценке π.
+                        
+                        Каждая точка создаётся из пары случайных чисел: одно задаёт координату x, другое — координату y. Чем больше total samples, тем устойчивее становится статистическая оценка.
+                        """,
+                """
+                        This is the total number of random points already used in the π estimation.
+                        
+                        Each point is generated from a pair of random numbers: one for x and one for y. The larger the total sample count, the more stable the statistical estimate becomes.
+                        """
+        ),
+        POINTS_INSIDE(
+                "POINTS INSIDE",
+                """
+                        Это количество точек, попавших внутрь вписанной окружности.
+                        
+                        Именно эта величина входит в формулу π ≈ 4 × inside / total. Если случайные точки равномерны, доля inside постепенно приближается к площади четверти круга относительно единичного квадрата.
+                        """,
+                """
+                        This is the number of points that landed inside the inscribed circle.
+                        
+                        This value is used in the formula π ≈ 4 × inside / total. If the random points are uniform, the inside fraction gradually approaches the area ratio of the quarter circle within the unit square.
+                        """
+        ),
+        POINTS_OUTSIDE(
+                "POINTS OUTSIDE",
+                """
+                        Это количество точек, которые попали в квадрат, но оказались вне окружности.
+                        
+                        Эти точки не входят в inside-count, но они важны для total samples. Вместе inside и outside образуют полную статистическую выборку.
+                        """,
+                """
+                        This is the number of points that landed inside the square but outside the circle.
+                        
+                        These points do not contribute to the inside count, but they are part of the total sample count. Inside and outside together form the complete statistical sample.
+                        """
+        ),
+        ESTIMATE_PI(
+                "ESTIMATE OF π",
+                """
+                        Это текущая оценка числа π, рассчитанная по формуле π ≈ 4 × inside / total.
+                        
+                        Оценка меняется после накопления новых точек. Она не обязана становиться лучше на каждом отдельном шаге, но на большой выборке обычно стабилизируется около истинного значения.
+                        """,
+                """
+                        This is the current estimate of π, calculated as π ≈ 4 × inside / total.
+                        
+                        The estimate changes as new points are collected. It does not have to improve on every single step, but with a large sample it usually stabilizes near the true value.
+                        """
+        ),
+        ABSOLUTE_ERROR_METRIC(
+                "ABSOLUTE ERROR",
+                """
+                        Это текущее абсолютное отклонение оценки от истинного значения π.
+                        
+                        Формула: |πestimate − πtrue|. Чем меньше это число, тем ближе текущая оценка к математическому π.
+                        """,
+                """
+                        This is the current absolute deviation of the estimate from the true value of π.
+                        
+                        Formula: |πestimate − πtrue|. The smaller this number is, the closer the current estimate is to mathematical π.
+                        """
+        ),
+        RELATIVE_ERROR(
+                "RELATIVE ERROR",
+                """
+                        Это ошибка, нормированная относительно истинного значения π.
+                        
+                        Она показывает масштаб ошибки не в абсолютных единицах, а как долю от πtrue. Это удобно для сравнения точности между разными экспериментами.
+                        """,
+                """
+                        This is the error normalized relative to the true value of π.
+                        
+                        It shows the error not as an absolute distance, but as a fraction of πtrue. This is useful for comparing accuracy across different experiments.
+                        """
+        );
+
+        private final String title;
+        private final String russianText;
+        private final String englishText;
+
+        HelpTopic(String title, String russianText, String englishText) {
+            this.title = title;
+            this.russianText = russianText.strip();
+            this.englishText = englishText.strip();
+        }
     }
 }

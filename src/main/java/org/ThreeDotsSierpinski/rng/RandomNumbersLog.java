@@ -68,25 +68,6 @@ final class RandomNumbersLog implements AutoCloseable {
                 : NumberFileWriter.disabled("PSEUDO random numbers logging disabled");
     }
 
-    void writeTrueNumber(long value) {
-        trueNumbersWriter.writeNumber(value);
-    }
-
-    void writePseudoNumber(long value) {
-        pseudoNumbersWriter.writeNumber(value);
-    }
-
-    void finishBatch() {
-        trueNumbersWriter.finishBatch();
-        pseudoNumbersWriter.finishBatch();
-    }
-
-    @Override
-    public void close() {
-        trueNumbersWriter.close();
-        pseudoNumbersWriter.close();
-    }
-
     private static Path resolvePath(String configKey, String defaultPath) {
         String configuredPath = Config.getString(configKey);
         if (configuredPath == null || configuredPath.isBlank()) {
@@ -114,6 +95,25 @@ final class RandomNumbersLog implements AutoCloseable {
                     + ". Using default: " + DEFAULT_FLUSH_EVERY_VALUES);
             return DEFAULT_FLUSH_EVERY_VALUES;
         }
+    }
+
+    void writeTrueNumber(long value) {
+        trueNumbersWriter.writeNumber(value);
+    }
+
+    void writePseudoNumber(long value) {
+        pseudoNumbersWriter.writeNumber(value);
+    }
+
+    void finishBatch() {
+        trueNumbersWriter.finishBatch();
+        pseudoNumbersWriter.finishBatch();
+    }
+
+    @Override
+    public void close() {
+        trueNumbersWriter.close();
+        pseudoNumbersWriter.close();
     }
 
     private static final class NumberFileWriter implements AutoCloseable {

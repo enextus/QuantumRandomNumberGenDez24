@@ -1,17 +1,8 @@
 package org.ThreeDotsSierpinski.mode.physics;
 
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
+import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.mode.VisualizationMode;
+import org.ThreeDotsSierpinski.rng.RNProvider;
 
 import javax.swing.*;
 import java.awt.*;
@@ -34,7 +25,7 @@ public class PercolationMode implements VisualizationMode {
     private static final String NAME = "Percolation";
     private static final String DESCRIPTION =
             "Случайные клетки открывают кластеры связности.\n"
-          + "Около p≈0.59 появляется путь через всю решётку.";
+                    + "Около p≈0.59 появляется путь через всю решётку.";
     private static final String ICON = "🧩";
 
     private static final int CELL_SIZE = 7;

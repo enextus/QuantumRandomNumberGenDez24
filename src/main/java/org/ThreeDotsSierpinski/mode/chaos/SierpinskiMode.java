@@ -1,17 +1,11 @@
 package org.ThreeDotsSierpinski.mode.chaos;
 
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
+import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.config.Config;
+import org.ThreeDotsSierpinski.math.SierpinskiAlgorithm;
+import org.ThreeDotsSierpinski.mode.VisualizationMode;
+import org.ThreeDotsSierpinski.mode.VisualizationStyle;
+import org.ThreeDotsSierpinski.rng.RNProvider;
 
 import javax.swing.*;
 import java.awt.*;
@@ -23,7 +17,7 @@ import java.util.OptionalInt;
 
 /**
  * Режим визуализации: треугольник Серпинского (Chaos Game).
- *
+ * <p>
  * Дополнительно поддерживает переключаемые визуальные стили:
  * - Default: текущий рабочий стиль проекта;
  * - AppleMac: ретро grayscale-style в духе ранних GUI-компьютеров.
@@ -34,7 +28,7 @@ public class SierpinskiMode implements VisualizationMode {
     private static final String NAME = "Sierpinski Triangle";
     private static final String DESCRIPTION =
             "Фрактал из хаоса: случайные числа определяют вершину,\n"
-          + "точка прыгает на полпути — и возникает треугольник Серпинского.";
+                    + "точка прыгает на полпути — и возникает треугольник Серпинского.";
     private static final String ICON = "△";
 
     private static final String ERROR_CANVAS_NULL = "Canvas cannot be null";
@@ -65,16 +59,14 @@ public class SierpinskiMode implements VisualizationMode {
     private static final Color LIGHT_STABLE_POINT_COLOR = Color.BLACK;
     private static final Color DARK_STABLE_POINT_COLOR = new Color(215, 240, 255);
     private static final Color APPLE_MAC_STABLE_POINT_COLOR = Color.BLACK;
-
+    private final List<Point> pointHistory = new ArrayList<>();
+    private final List<Rectangle> reservedDrawingAreas = new ArrayList<>();
     private SierpinskiAlgorithm algorithm;
     private Point currentPoint;
     private int pointCount = 0;
     private int randomNumbersUsed = 0;
-
     private boolean darkMode = DEFAULT_DARK_MODE_ENABLED;
     private VisualizationStyle visualizationStyle = VisualizationStyle.APPLE_MAC;
-    private final List<Point> pointHistory = new ArrayList<>();
-    private final List<Rectangle> reservedDrawingAreas = new ArrayList<>();
 
     @Override
     public String getId() {
@@ -196,7 +188,7 @@ public class SierpinskiMode implements VisualizationMode {
     public List<JComponent> createModeControls(DotController controller) {
         JLabel styleLabel = new JLabel(STYLE_LABEL_TEXT);
 
-        JComboBox<VisualizationStyle> styleComboBox = new JComboBox<>(new VisualizationStyle[] {
+        JComboBox<VisualizationStyle> styleComboBox = new JComboBox<>(new VisualizationStyle[]{
                 VisualizationStyle.DEFAULT,
                 VisualizationStyle.APPLE_MAC
         });

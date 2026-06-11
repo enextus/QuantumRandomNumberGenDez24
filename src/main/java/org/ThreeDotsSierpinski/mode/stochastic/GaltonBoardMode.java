@@ -1,17 +1,7 @@
 package org.ThreeDotsSierpinski.mode.stochastic;
 
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
+import org.ThreeDotsSierpinski.mode.VisualizationMode;
+import org.ThreeDotsSierpinski.rng.RNProvider;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -34,7 +24,7 @@ public class GaltonBoardMode implements VisualizationMode {
     private static final String NAME = "Galton Board";
     private static final String DESCRIPTION =
             "Шарики падают через уровни случайных развилок.\n"
-          + "Из бинарного хаоса постепенно возникает биномиальное распределение.";
+                    + "Из бинарного хаоса постепенно возникает биномиальное распределение.";
     private static final String ICON = "📊";
 
     private static final int LEVELS = 32;
@@ -80,19 +70,6 @@ public class GaltonBoardMode implements VisualizationMode {
     private List<ActiveBall> activeBalls;
     private int pointCount;
     private int randomNumbersUsed;
-
-    private static final class ActiveBall {
-        private int level;
-        private int rightMoves;
-    }
-
-    private record BoardGeometry(
-            int usableWidth,
-            int boardBottom,
-            double verticalGap,
-            double horizontalGap,
-            int centerX
-    ) {}
 
     @Override
     public boolean usesLeftPointCounterOverlay() {
@@ -408,14 +385,6 @@ public class GaltonBoardMode implements VisualizationMode {
         return new BoardGeometry(usableWidth, boardBottom, verticalGap, horizontalGap, centerX);
     }
 
-    private record HistogramGeometry(
-            int histogramTop,
-            int histogramBottom,
-            int histogramHeight,
-            int barWidth,
-            int startX
-    ) {}
-
     private HistogramGeometry getHistogramGeometry() {
         int histogramTop = Math.max(TOP_MARGIN + 80, height - BOARD_BOTTOM_GAP + HISTOGRAM_TOP_GAP);
         int histogramBottom = height - HISTOGRAM_BOTTOM_MARGIN;
@@ -490,5 +459,28 @@ public class GaltonBoardMode implements VisualizationMode {
     @Override
     public int getRandomNumbersUsed() {
         return randomNumbersUsed;
+    }
+
+    private static final class ActiveBall {
+        private int level;
+        private int rightMoves;
+    }
+
+    private record BoardGeometry(
+            int usableWidth,
+            int boardBottom,
+            double verticalGap,
+            double horizontalGap,
+            int centerX
+    ) {
+    }
+
+    private record HistogramGeometry(
+            int histogramTop,
+            int histogramBottom,
+            int histogramHeight,
+            int barWidth,
+            int startX
+    ) {
     }
 }

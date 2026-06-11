@@ -7,15 +7,12 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.ArrayList;
-import java.util.EnumMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Диалог выбора режима визуализации.
- *
+ * <p>
  * Сначала показывает категории научных визуализаций, затем — режимы внутри
  * выбранной категории. Это удерживает меню компактным даже при большом
  * количестве режимов.
@@ -131,86 +128,6 @@ public class ModeSelectionDialog {
     private String lastSelectedModeId = null;
     private GraphicsConfiguration lastDialogGraphicsConfiguration = null;
 
-    public GraphicsConfiguration getLastDialogGraphicsConfiguration() {
-        return lastDialogGraphicsConfiguration;
-    }
-
-    /**
-     * Показывает диалог и центрирует его на указанном мониторе.
-     *
-     * @param parent                      родительский фрейм (может быть null)
-     * @param targetGraphicsConfiguration целевой монитор/экран
-     * @return выбранный режим, или null если закрыли без выбора
-     */
-    public VisualizationMode showAndWait(
-            JFrame parent,
-            GraphicsConfiguration targetGraphicsConfiguration,
-            VisualizationCategory initialCategory,
-            Set<String> visitedModeIds,
-            String lastSelectedModeId
-    ) {
-        selectedMode = null;
-        highlightedCategory = initialCategory;
-        this.visitedModeIds = visitedModeIds == null ? Set.of() : Set.copyOf(visitedModeIds);
-        this.lastSelectedModeId = lastSelectedModeId;
-        lastDialogGraphicsConfiguration = targetGraphicsConfiguration;
-
-        VisualizationMode[] modes = VisualizationMode.allModes();
-        Map<VisualizationCategory, List<VisualizationMode>> modesByCategory = groupModesByCategory(modes);
-
-        var dialog = new JDialog(parent, DIALOG_TITLE, true);
-        dialog.setLayout(new BorderLayout(DIALOG_LAYOUT_H_GAP, DIALOG_LAYOUT_V_GAP));
-        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-
-        var subtitleLabel = new JLabel(SUBTITLE_CATEGORY_TEXT);
-        dialog.add(createHeaderPanel(subtitleLabel), BorderLayout.NORTH);
-
-        var contentPanel = new JPanel(new BorderLayout(DIALOG_LAYOUT_H_GAP, DIALOG_LAYOUT_V_GAP));
-        contentPanel.setBackground(CARDS_BACKGROUND);
-        dialog.add(contentPanel, BorderLayout.CENTER);
-
-        dialog.add(createFooterPanel(), BorderLayout.SOUTH);
-
-        if (initialCategory != null && !modesByCategory.getOrDefault(initialCategory, List.of()).isEmpty()) {
-            showModeSelection(
-                    initialCategory,
-                    modesByCategory.get(initialCategory),
-                    modesByCategory,
-                    contentPanel,
-                    dialog,
-                    subtitleLabel
-            );
-        } else {
-            showCategorySelection(contentPanel, modesByCategory, dialog, subtitleLabel);
-        }
-
-        dialog.setSize(DIALOG_WIDTH, DIALOG_MAX_HEIGHT);
-        dialog.setMinimumSize(new Dimension(DIALOG_MIN_WIDTH, DIALOG_MIN_HEIGHT));
-        centerDialog(dialog, parent, targetGraphicsConfiguration);
-        dialog.setVisible(true);
-
-        lastDialogGraphicsConfiguration = resolveDialogGraphicsConfiguration(dialog);
-
-        return selectedMode;
-    }
-
-    public VisualizationMode showAndWait(
-            JFrame parent,
-            GraphicsConfiguration targetGraphicsConfiguration,
-            VisualizationCategory initialCategory,
-            Set<String> visitedModeIds
-    ) {
-        return showAndWait(parent, targetGraphicsConfiguration, initialCategory, visitedModeIds, null);
-    }
-
-    public VisualizationMode showAndWait(
-            JFrame parent,
-            GraphicsConfiguration targetGraphicsConfiguration,
-            VisualizationCategory initialCategory
-    ) {
-        return showAndWait(parent, targetGraphicsConfiguration, initialCategory, Set.of(), null);
-    }
-
     private static Map<VisualizationCategory, List<VisualizationMode>> groupModesByCategory(VisualizationMode[] modes) {
         Map<VisualizationCategory, List<VisualizationMode>> modesByCategory =
                 new EnumMap<>(VisualizationCategory.class);
@@ -224,35 +141,6 @@ public class ModeSelectionDialog {
         }
 
         return modesByCategory;
-    }
-
-    private void showCategorySelection(
-            JPanel contentPanel,
-            Map<VisualizationCategory, List<VisualizationMode>> modesByCategory,
-            JDialog dialog,
-            JLabel subtitleLabel
-    ) {
-        subtitleLabel.setText(SUBTITLE_CATEGORY_TEXT);
-        contentPanel.removeAll();
-        contentPanel.add(createCategoryCardsScrollPane(modesByCategory, contentPanel, dialog, subtitleLabel), BorderLayout.CENTER);
-        contentPanel.revalidate();
-        contentPanel.repaint();
-    }
-
-    private void showModeSelection(
-            VisualizationCategory category,
-            List<VisualizationMode> modes,
-            Map<VisualizationCategory, List<VisualizationMode>> modesByCategory,
-            JPanel contentPanel,
-            JDialog dialog,
-            JLabel subtitleLabel
-    ) {
-        subtitleLabel.setText(category.getDisplayName() + SUBTITLE_MODE_SEPARATOR + modes.size() + SUBTITLE_MODE_SUFFIX);
-        contentPanel.removeAll();
-        contentPanel.add(createBackBar(contentPanel, modesByCategory, dialog, subtitleLabel), BorderLayout.NORTH);
-        contentPanel.add(createModeCardsScrollPane(modes, dialog), BorderLayout.CENTER);
-        contentPanel.revalidate();
-        contentPanel.repaint();
     }
 
     private static JPanel createHeaderPanel(JLabel subtitleLabel) {
@@ -274,48 +162,6 @@ public class ModeSelectionDialog {
         header.add(subtitleLabel, BorderLayout.SOUTH);
 
         return header;
-    }
-
-    private JScrollPane createCategoryCardsScrollPane(
-            Map<VisualizationCategory, List<VisualizationMode>> modesByCategory,
-            JPanel contentPanel,
-            JDialog dialog,
-            JLabel subtitleLabel
-    ) {
-        var cardsPanel = createCardsPanel();
-
-        for (VisualizationCategory category : VisualizationCategory.values()) {
-            List<VisualizationMode> categoryModes = modesByCategory.getOrDefault(category, List.of());
-            if (!categoryModes.isEmpty()) {
-                boolean categoryVisited = containsVisitedMode(categoryModes);
-                boolean categoryLastVisited = containsLastVisitedMode(categoryModes);
-                cardsPanel.add(createCategoryCard(
-                        category,
-                        categoryModes,
-                        category == highlightedCategory,
-                        categoryVisited,
-                        categoryLastVisited,
-                        modesByCategory,
-                        contentPanel,
-                        dialog,
-                        subtitleLabel
-                ));
-            }
-        }
-
-        return createCardsScrollPane(cardsPanel);
-    }
-
-    private JScrollPane createModeCardsScrollPane(List<VisualizationMode> modes, JDialog dialog) {
-        var cardsPanel = createCardsPanel();
-
-        for (var mode : modes) {
-            boolean visited = visitedModeIds.contains(mode.getId());
-            boolean lastVisited = mode.getId().equals(lastSelectedModeId);
-            cardsPanel.add(createModeCard(mode, visited, lastVisited, dialog));
-        }
-
-        return createCardsScrollPane(cardsPanel);
     }
 
     private static JPanel createCardsPanel() {
@@ -368,34 +214,6 @@ public class ModeSelectionDialog {
             filler.setOpaque(false);
             cardsPanel.add(filler);
         }
-    }
-
-    private JPanel createBackBar(
-            JPanel contentPanel,
-            Map<VisualizationCategory, List<VisualizationMode>> modesByCategory,
-            JDialog dialog,
-            JLabel subtitleLabel
-    ) {
-        var backBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        backBar.setBorder(BorderFactory.createEmptyBorder(
-                BACK_BAR_BORDER_TOP,
-                BACK_BAR_BORDER_LEFT,
-                BACK_BAR_BORDER_BOTTOM,
-                BACK_BAR_BORDER_RIGHT
-        ));
-        backBar.setBackground(BACK_BAR_BACKGROUND);
-
-        var backButton = new JButton(BACK_BUTTON_TEXT);
-        backButton.setFont(MODE_DESCRIPTION_FONT);
-        backButton.addActionListener(ignored -> showCategorySelection(
-                contentPanel,
-                modesByCategory,
-                dialog,
-                subtitleLabel
-        ));
-        backBar.add(backButton);
-
-        return backBar;
     }
 
     private static JPanel createFooterPanel() {
@@ -538,6 +356,303 @@ public class ModeSelectionDialog {
         );
     }
 
+    private static JPanel createBaseCard(boolean highlighted, boolean visited, boolean lastVisited) {
+        var card = new JPanel(new BorderLayout(CARD_LAYOUT_H_GAP, CARD_LAYOUT_V_GAP));
+        card.setBorder(createCardBorder(resolveCardBorderColor(highlighted, visited, lastVisited)));
+        card.setBackground(resolveCardBackground(highlighted, visited));
+        card.setPreferredSize(new Dimension(CARD_MIN_WIDTH, CARD_PREF_HEIGHT));
+        card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return card;
+    }
+
+    private static void attachCardHoverAndClick(
+            JPanel card,
+            boolean highlighted,
+            boolean visited,
+            boolean lastVisited,
+            Runnable onClick
+    ) {
+        card.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                card.setBackground(CARD_HOVER_BACKGROUND);
+                card.setBorder(createCardBorder(CARD_HOVER_BORDER_COLOR));
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                card.setBackground(resolveCardBackground(highlighted, visited));
+                card.setBorder(createCardBorder(resolveCardBorderColor(highlighted, visited, lastVisited)));
+            }
+
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                onClick.run();
+            }
+        });
+    }
+
+    private static Color resolveCardBackground(boolean highlighted, boolean visited) {
+        if (visited) {
+            return CARD_VISITED_BACKGROUND;
+        }
+        return highlighted ? CARD_SELECTED_BACKGROUND : CARD_BACKGROUND;
+    }
+
+    private static Color resolveCardBorderColor(boolean highlighted, boolean visited, boolean lastVisited) {
+        if (lastVisited) {
+            return CARD_LAST_VISITED_BORDER_COLOR;
+        }
+        if (visited) {
+            return CARD_VISITED_BORDER_COLOR;
+        }
+        return highlighted ? CARD_SELECTED_BORDER_COLOR : CARD_BORDER_COLOR;
+    }
+
+    private static JPanel createCategoryTextPanel(VisualizationCategory category, int modeCount) {
+        var textPanel = new JPanel();
+        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
+        textPanel.setOpaque(false);
+
+        var name = new JLabel(category.getDisplayName());
+        name.setFont(MODE_NAME_FONT);
+        name.setAlignmentX(Component.LEFT_ALIGNMENT);
+        textPanel.add(name);
+
+        textPanel.add(Box.createVerticalStrut(CARD_DESCRIPTION_TOP_SPACING));
+
+        var desc = new JLabel(category.getDescription());
+        desc.setFont(MODE_DESCRIPTION_FONT);
+        desc.setForeground(DESCRIPTION_COLOR);
+        desc.setAlignmentX(Component.LEFT_ALIGNMENT);
+        textPanel.add(desc);
+
+        textPanel.add(Box.createVerticalStrut(CARD_DESCRIPTION_TOP_SPACING));
+
+        String countText = modeCount + (modeCount == 1 ? CATEGORY_COUNT_SUFFIX_ONE : CATEGORY_COUNT_SUFFIX_MANY);
+        var count = new JLabel(countText);
+        count.setFont(CATEGORY_COUNT_FONT);
+        count.setForeground(CATEGORY_COUNT_COLOR);
+        count.setAlignmentX(Component.LEFT_ALIGNMENT);
+        textPanel.add(count);
+
+        return textPanel;
+    }
+
+    private static JPanel createModeTextPanel(VisualizationMode mode) {
+        var textPanel = new JPanel();
+        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
+        textPanel.setOpaque(false);
+
+        var name = new JLabel(mode.getName());
+        name.setFont(MODE_NAME_FONT);
+        name.setAlignmentX(Component.LEFT_ALIGNMENT);
+        textPanel.add(name);
+
+        textPanel.add(Box.createVerticalStrut(CARD_DESCRIPTION_TOP_SPACING));
+
+        for (String line : mode.getDescription().split(DESCRIPTION_LINE_SEPARATOR)) {
+            var desc = new JLabel(line);
+            desc.setFont(MODE_DESCRIPTION_FONT);
+            desc.setForeground(DESCRIPTION_COLOR);
+            desc.setAlignmentX(Component.LEFT_ALIGNMENT);
+            textPanel.add(desc);
+        }
+
+        return textPanel;
+    }
+
+    private static javax.swing.border.Border createCardBorder(Color color) {
+        return BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(color, CARD_BORDER_THICKNESS, true),
+                BorderFactory.createEmptyBorder(
+                        CARD_BORDER_TOP,
+                        CARD_BORDER_LEFT,
+                        CARD_BORDER_BOTTOM,
+                        CARD_BORDER_RIGHT
+                )
+        );
+    }
+
+    public GraphicsConfiguration getLastDialogGraphicsConfiguration() {
+        return lastDialogGraphicsConfiguration;
+    }
+
+    /**
+     * Показывает диалог и центрирует его на указанном мониторе.
+     *
+     * @param parent                      родительский фрейм (может быть null)
+     * @param targetGraphicsConfiguration целевой монитор/экран
+     * @return выбранный режим, или null если закрыли без выбора
+     */
+    public VisualizationMode showAndWait(
+            JFrame parent,
+            GraphicsConfiguration targetGraphicsConfiguration,
+            VisualizationCategory initialCategory,
+            Set<String> visitedModeIds,
+            String lastSelectedModeId
+    ) {
+        selectedMode = null;
+        highlightedCategory = initialCategory;
+        this.visitedModeIds = visitedModeIds == null ? Set.of() : Set.copyOf(visitedModeIds);
+        this.lastSelectedModeId = lastSelectedModeId;
+        lastDialogGraphicsConfiguration = targetGraphicsConfiguration;
+
+        VisualizationMode[] modes = VisualizationMode.allModes();
+        Map<VisualizationCategory, List<VisualizationMode>> modesByCategory = groupModesByCategory(modes);
+
+        var dialog = new JDialog(parent, DIALOG_TITLE, true);
+        dialog.setLayout(new BorderLayout(DIALOG_LAYOUT_H_GAP, DIALOG_LAYOUT_V_GAP));
+        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+
+        var subtitleLabel = new JLabel(SUBTITLE_CATEGORY_TEXT);
+        dialog.add(createHeaderPanel(subtitleLabel), BorderLayout.NORTH);
+
+        var contentPanel = new JPanel(new BorderLayout(DIALOG_LAYOUT_H_GAP, DIALOG_LAYOUT_V_GAP));
+        contentPanel.setBackground(CARDS_BACKGROUND);
+        dialog.add(contentPanel, BorderLayout.CENTER);
+
+        dialog.add(createFooterPanel(), BorderLayout.SOUTH);
+
+        if (initialCategory != null && !modesByCategory.getOrDefault(initialCategory, List.of()).isEmpty()) {
+            showModeSelection(
+                    initialCategory,
+                    modesByCategory.get(initialCategory),
+                    modesByCategory,
+                    contentPanel,
+                    dialog,
+                    subtitleLabel
+            );
+        } else {
+            showCategorySelection(contentPanel, modesByCategory, dialog, subtitleLabel);
+        }
+
+        dialog.setSize(DIALOG_WIDTH, DIALOG_MAX_HEIGHT);
+        dialog.setMinimumSize(new Dimension(DIALOG_MIN_WIDTH, DIALOG_MIN_HEIGHT));
+        centerDialog(dialog, parent, targetGraphicsConfiguration);
+        dialog.setVisible(true);
+
+        lastDialogGraphicsConfiguration = resolveDialogGraphicsConfiguration(dialog);
+
+        return selectedMode;
+    }
+
+    public VisualizationMode showAndWait(
+            JFrame parent,
+            GraphicsConfiguration targetGraphicsConfiguration,
+            VisualizationCategory initialCategory,
+            Set<String> visitedModeIds
+    ) {
+        return showAndWait(parent, targetGraphicsConfiguration, initialCategory, visitedModeIds, null);
+    }
+
+    public VisualizationMode showAndWait(
+            JFrame parent,
+            GraphicsConfiguration targetGraphicsConfiguration,
+            VisualizationCategory initialCategory
+    ) {
+        return showAndWait(parent, targetGraphicsConfiguration, initialCategory, Set.of(), null);
+    }
+
+    private void showCategorySelection(
+            JPanel contentPanel,
+            Map<VisualizationCategory, List<VisualizationMode>> modesByCategory,
+            JDialog dialog,
+            JLabel subtitleLabel
+    ) {
+        subtitleLabel.setText(SUBTITLE_CATEGORY_TEXT);
+        contentPanel.removeAll();
+        contentPanel.add(createCategoryCardsScrollPane(modesByCategory, contentPanel, dialog, subtitleLabel), BorderLayout.CENTER);
+        contentPanel.revalidate();
+        contentPanel.repaint();
+    }
+
+    private void showModeSelection(
+            VisualizationCategory category,
+            List<VisualizationMode> modes,
+            Map<VisualizationCategory, List<VisualizationMode>> modesByCategory,
+            JPanel contentPanel,
+            JDialog dialog,
+            JLabel subtitleLabel
+    ) {
+        subtitleLabel.setText(category.getDisplayName() + SUBTITLE_MODE_SEPARATOR + modes.size() + SUBTITLE_MODE_SUFFIX);
+        contentPanel.removeAll();
+        contentPanel.add(createBackBar(contentPanel, modesByCategory, dialog, subtitleLabel), BorderLayout.NORTH);
+        contentPanel.add(createModeCardsScrollPane(modes, dialog), BorderLayout.CENTER);
+        contentPanel.revalidate();
+        contentPanel.repaint();
+    }
+
+    private JScrollPane createCategoryCardsScrollPane(
+            Map<VisualizationCategory, List<VisualizationMode>> modesByCategory,
+            JPanel contentPanel,
+            JDialog dialog,
+            JLabel subtitleLabel
+    ) {
+        var cardsPanel = createCardsPanel();
+
+        for (VisualizationCategory category : VisualizationCategory.values()) {
+            List<VisualizationMode> categoryModes = modesByCategory.getOrDefault(category, List.of());
+            if (!categoryModes.isEmpty()) {
+                boolean categoryVisited = containsVisitedMode(categoryModes);
+                boolean categoryLastVisited = containsLastVisitedMode(categoryModes);
+                cardsPanel.add(createCategoryCard(
+                        category,
+                        categoryModes,
+                        category == highlightedCategory,
+                        categoryVisited,
+                        categoryLastVisited,
+                        modesByCategory,
+                        contentPanel,
+                        dialog,
+                        subtitleLabel
+                ));
+            }
+        }
+
+        return createCardsScrollPane(cardsPanel);
+    }
+
+    private JScrollPane createModeCardsScrollPane(List<VisualizationMode> modes, JDialog dialog) {
+        var cardsPanel = createCardsPanel();
+
+        for (var mode : modes) {
+            boolean visited = visitedModeIds.contains(mode.getId());
+            boolean lastVisited = mode.getId().equals(lastSelectedModeId);
+            cardsPanel.add(createModeCard(mode, visited, lastVisited, dialog));
+        }
+
+        return createCardsScrollPane(cardsPanel);
+    }
+
+    private JPanel createBackBar(
+            JPanel contentPanel,
+            Map<VisualizationCategory, List<VisualizationMode>> modesByCategory,
+            JDialog dialog,
+            JLabel subtitleLabel
+    ) {
+        var backBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        backBar.setBorder(BorderFactory.createEmptyBorder(
+                BACK_BAR_BORDER_TOP,
+                BACK_BAR_BORDER_LEFT,
+                BACK_BAR_BORDER_BOTTOM,
+                BACK_BAR_BORDER_RIGHT
+        ));
+        backBar.setBackground(BACK_BAR_BACKGROUND);
+
+        var backButton = new JButton(BACK_BUTTON_TEXT);
+        backButton.setFont(MODE_DESCRIPTION_FONT);
+        backButton.addActionListener(ignored -> showCategorySelection(
+                contentPanel,
+                modesByCategory,
+                dialog,
+                subtitleLabel
+        ));
+        backBar.add(backButton);
+
+        return backBar;
+    }
+
     /**
      * Создаёт карточку категории режимов.
      */
@@ -611,59 +726,6 @@ public class ModeSelectionDialog {
         return card;
     }
 
-    private static JPanel createBaseCard(boolean highlighted, boolean visited, boolean lastVisited) {
-        var card = new JPanel(new BorderLayout(CARD_LAYOUT_H_GAP, CARD_LAYOUT_V_GAP));
-        card.setBorder(createCardBorder(resolveCardBorderColor(highlighted, visited, lastVisited)));
-        card.setBackground(resolveCardBackground(highlighted, visited));
-        card.setPreferredSize(new Dimension(CARD_MIN_WIDTH, CARD_PREF_HEIGHT));
-        card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        return card;
-    }
-
-    private static void attachCardHoverAndClick(
-            JPanel card,
-            boolean highlighted,
-            boolean visited,
-            boolean lastVisited,
-            Runnable onClick
-    ) {
-        card.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                card.setBackground(CARD_HOVER_BACKGROUND);
-                card.setBorder(createCardBorder(CARD_HOVER_BORDER_COLOR));
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                card.setBackground(resolveCardBackground(highlighted, visited));
-                card.setBorder(createCardBorder(resolveCardBorderColor(highlighted, visited, lastVisited)));
-            }
-
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                onClick.run();
-            }
-        });
-    }
-
-    private static Color resolveCardBackground(boolean highlighted, boolean visited) {
-        if (visited) {
-            return CARD_VISITED_BACKGROUND;
-        }
-        return highlighted ? CARD_SELECTED_BACKGROUND : CARD_BACKGROUND;
-    }
-
-    private static Color resolveCardBorderColor(boolean highlighted, boolean visited, boolean lastVisited) {
-        if (lastVisited) {
-            return CARD_LAST_VISITED_BORDER_COLOR;
-        }
-        if (visited) {
-            return CARD_VISITED_BORDER_COLOR;
-        }
-        return highlighted ? CARD_SELECTED_BORDER_COLOR : CARD_BORDER_COLOR;
-    }
-
     private boolean containsVisitedMode(List<VisualizationMode> modes) {
         for (VisualizationMode mode : modes) {
             if (visitedModeIds.contains(mode.getId())) {
@@ -686,74 +748,9 @@ public class ModeSelectionDialog {
         return false;
     }
 
-    private static JPanel createCategoryTextPanel(VisualizationCategory category, int modeCount) {
-        var textPanel = new JPanel();
-        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
-        textPanel.setOpaque(false);
-
-        var name = new JLabel(category.getDisplayName());
-        name.setFont(MODE_NAME_FONT);
-        name.setAlignmentX(Component.LEFT_ALIGNMENT);
-        textPanel.add(name);
-
-        textPanel.add(Box.createVerticalStrut(CARD_DESCRIPTION_TOP_SPACING));
-
-        var desc = new JLabel(category.getDescription());
-        desc.setFont(MODE_DESCRIPTION_FONT);
-        desc.setForeground(DESCRIPTION_COLOR);
-        desc.setAlignmentX(Component.LEFT_ALIGNMENT);
-        textPanel.add(desc);
-
-        textPanel.add(Box.createVerticalStrut(CARD_DESCRIPTION_TOP_SPACING));
-
-        String countText = modeCount + (modeCount == 1 ? CATEGORY_COUNT_SUFFIX_ONE : CATEGORY_COUNT_SUFFIX_MANY);
-        var count = new JLabel(countText);
-        count.setFont(CATEGORY_COUNT_FONT);
-        count.setForeground(CATEGORY_COUNT_COLOR);
-        count.setAlignmentX(Component.LEFT_ALIGNMENT);
-        textPanel.add(count);
-
-        return textPanel;
-    }
-
-    private static JPanel createModeTextPanel(VisualizationMode mode) {
-        var textPanel = new JPanel();
-        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
-        textPanel.setOpaque(false);
-
-        var name = new JLabel(mode.getName());
-        name.setFont(MODE_NAME_FONT);
-        name.setAlignmentX(Component.LEFT_ALIGNMENT);
-        textPanel.add(name);
-
-        textPanel.add(Box.createVerticalStrut(CARD_DESCRIPTION_TOP_SPACING));
-
-        for (String line : mode.getDescription().split(DESCRIPTION_LINE_SEPARATOR)) {
-            var desc = new JLabel(line);
-            desc.setFont(MODE_DESCRIPTION_FONT);
-            desc.setForeground(DESCRIPTION_COLOR);
-            desc.setAlignmentX(Component.LEFT_ALIGNMENT);
-            textPanel.add(desc);
-        }
-
-        return textPanel;
-    }
-
-    private static javax.swing.border.Border createCardBorder(Color color) {
-        return BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(color, CARD_BORDER_THICKNESS, true),
-                BorderFactory.createEmptyBorder(
-                        CARD_BORDER_TOP,
-                        CARD_BORDER_LEFT,
-                        CARD_BORDER_BOTTOM,
-                        CARD_BORDER_RIGHT
-                )
-        );
-    }
-
     /**
      * Responsive fixed-height grid for mode/category cards.
-     *
+     * <p>
      * GridLayout stretches cards to the full viewport height when only a few rows
      * are present. This panel keeps cards compact and only adapts their width to
      * the current dialog width.

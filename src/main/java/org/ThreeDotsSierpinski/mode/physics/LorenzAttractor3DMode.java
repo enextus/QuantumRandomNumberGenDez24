@@ -1,17 +1,8 @@
 package org.ThreeDotsSierpinski.mode.physics;
 
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
+import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.mode.VisualizationMode;
+import org.ThreeDotsSierpinski.rng.RNProvider;
 
 import javax.swing.*;
 import java.awt.*;
@@ -135,40 +126,33 @@ public class LorenzAttractor3DMode implements VisualizationMode {
     private static final Font LABEL_FONT = new Font("SansSerif", Font.PLAIN, 12);
     private static final Font VALUE_FONT = new Font("SansSerif", Font.BOLD, 18);
     private static final Font SMALL_FONT = new Font("SansSerif", Font.PLAIN, 11);
-
-    // --- Mutable application state -------------------------------------------
-    private int width;
-    private int height;
-
-    private int pointCount;
-    private int randomNumbersUsed;
-
     private final double[] x = new double[PARTICLE_COUNT];
     private final double[] y = new double[PARTICLE_COUNT];
     private final double[] z = new double[PARTICLE_COUNT];
-
+    private final Rectangle[] statCards = new Rectangle[STAT_CARD_COUNT];
+    // --- Mutable application state -------------------------------------------
+    private int width;
+    private int height;
+    private int pointCount;
+    private int randomNumbersUsed;
     private float[] trailX;
     private float[] trailY;
     private float[] trailZ;
     private int[] trailColor;
     private int[] trailWritePos;
     private int[] trailCount;
-
     private boolean spinning = true;
     private boolean jitterEnabled = true;
     private double yaw;
     private double pitch = Math.toRadians(DEFAULT_PITCH_DEG);
     private long lastNanos;
     private double jitterScale = DEFAULT_JITTER_SLIDER / 100.0;
-
     private double currentSigma = BASE_SIGMA;
     private double currentRho = BASE_RHO;
     private double currentBeta = BASE_BETA;
     private double spread;
-
     private int[] colorLut;
     private int[] toneLut;
-
     private BufferedImage plotImage;
     private int[] plotPixels;
     private int[] accumR;
@@ -176,14 +160,46 @@ public class LorenzAttractor3DMode implements VisualizationMode {
     private int[] accumB;
     private int plotW;
     private int plotH;
-
     private BufferedImage chromeLayer;
-
     private Rectangle plotBounds = new Rectangle();
     private Rectangle panelBounds = new Rectangle();
-    private final Rectangle[] statCards = new Rectangle[STAT_CARD_COUNT];
-
     private DotController controller;
+
+    private static double dx(double x, double y, double sigma) {
+        return sigma * (y - x);
+    }
+
+    private static double dy(double x, double y, double z, double rho) {
+        return x * (rho - z) - y;
+    }
+
+    private static double dz(double x, double y, double z, double beta) {
+        return x * y - beta * z;
+    }
+
+    private static double normalizeX(double value) {
+        return value / MODEL_XY_SCALE;
+    }
+
+    private static double normalizeY(double value) {
+        return value / MODEL_XY_SCALE;
+    }
+
+    private static double normalizeZ(double value) {
+        return (value - MODEL_Z_CENTER) / MODEL_Z_SCALE;
+    }
+
+    private static double normalize(int value) {
+        return Math.floorMod(value, RANDOM_RANGE) / RANDOM_MAX;
+    }
+
+    private static String formatSpread(double value) {
+        return String.format(java.util.Locale.US, SPREAD_FORMAT, value);
+    }
+
+    private static String formatPercent(double value) {
+        return String.format(java.util.Locale.US, "%.0f%%", value * 100.0);
+    }
 
     @Override
     public String getId() {
@@ -442,18 +458,6 @@ public class LorenzAttractor3DMode implements VisualizationMode {
         x[particle] = px + RK4_DT_SIXTH * (k1x + 2.0 * k2x + 2.0 * k3x + k4x);
         y[particle] = py + RK4_DT_SIXTH * (k1y + 2.0 * k2y + 2.0 * k3y + k4y);
         z[particle] = pz + RK4_DT_SIXTH * (k1z + 2.0 * k2z + 2.0 * k3z + k4z);
-    }
-
-    private static double dx(double x, double y, double sigma) {
-        return sigma * (y - x);
-    }
-
-    private static double dy(double x, double y, double z, double rho) {
-        return x * (rho - z) - y;
-    }
-
-    private static double dz(double x, double y, double z, double beta) {
-        return x * y - beta * z;
     }
 
     private void storeTrailPoint(int particle) {
@@ -880,34 +884,10 @@ public class LorenzAttractor3DMode implements VisualizationMode {
         g.drawRoundRect(bounds.x, bounds.y, bounds.width, bounds.height, PANEL_RADIUS, PANEL_RADIUS);
     }
 
-    private static double normalizeX(double value) {
-        return value / MODEL_XY_SCALE;
-    }
-
-    private static double normalizeY(double value) {
-        return value / MODEL_XY_SCALE;
-    }
-
-    private static double normalizeZ(double value) {
-        return (value - MODEL_Z_CENTER) / MODEL_Z_SCALE;
-    }
-
-    private static double normalize(int value) {
-        return Math.floorMod(value, RANDOM_RANGE) / RANDOM_MAX;
-    }
-
-    private static String formatSpread(double value) {
-        return String.format(java.util.Locale.US, SPREAD_FORMAT, value);
-    }
-
     private String formatParams() {
         return String.format(java.util.Locale.US, "%.2f / %.2f / %.3f", currentSigma, currentRho, currentBeta);
     }
 
-    private static String formatPercent(double value) {
-        return String.format(java.util.Locale.US, "%.0f%%", value * 100.0);
+    private record ProjectedPoint(int x, int y, boolean visible) {
     }
-
-
-    private record ProjectedPoint(int x, int y, boolean visible) { }
 }

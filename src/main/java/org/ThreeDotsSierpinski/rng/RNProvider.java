@@ -36,45 +36,26 @@ import java.util.random.RandomGenerator;
  */
 public class RNProvider {
     private static final Logger LOGGER = LoggerConfig.getLogger();
-
     /**
-     * Исключение-маркер для мгновенного переключения в PSEUDO без ретраев.
+     * Максимальный размер истории потребленных чисел (~0.8 МБ памяти)
      */
-    private static class RateLimitException extends RuntimeException {
-        RateLimitException(String message) {
-            super(message);
-        }
-    }
-
+    private static final int HISTORY_MAX_SIZE = 100_000;
     /**
-     * Queue item with source metadata.
-     * Needed so we log only TRUE/QUANTUM numbers and never log fallback PSEUDO values.
+     * Сколько pseudo-чисел генерировать за одну «подгрузку»
      */
-    private record RandomNumberEntry(int value, Mode sourceMode) {
-    }
+    private static final int PSEUDO_BATCH_SIZE = 1024;
 
     // ========================================================================
     // Режим работы
     // ========================================================================
-
     /**
-     * Источник случайных чисел.
+     * После скольких pseudo-batch-ей пытаться переподключиться к API
      */
-    public enum Mode {
-        /**
-         * Квантовые числа от ANU API
-         */
-        QUANTUM,
-        /**
-         * Псевдослучайные числа от L128X256MixRandom (fallback)
-         */
-        PSEUDO
-    }
+    private static final int RECONNECT_EVERY_N_BATCHES = 5;
 
     // ========================================================================
     // Настройки экземпляра
     // ========================================================================
-
     private final String apiUrl;
     private final String apiKey;
     private final String dataType;
@@ -99,31 +80,22 @@ public class RNProvider {
     private final ObjectMapper objectMapper;
     private final RandomNumberProcessor numberProcessor;
     private final RandomNumbersLog randomNumbersLog;
-    private int apiRequestCount = 0;
     private final List<RNLoadListener> listeners = new CopyOnWriteArrayList<>();
-
-    // ========================================================================
-    // RING BUFFER ДЛЯ ИСТОРИИ (Вместо List<Long>)
-    // ========================================================================
-
-    /**
-     * Максимальный размер истории потребленных чисел (~0.8 МБ памяти)
-     */
-    private static final int HISTORY_MAX_SIZE = 100_000;
-
     /**
      * Сам массив-буфер
      */
     private final Object consumedNumbersLock = new Object();
 
+    // ========================================================================
+    // RING BUFFER ДЛЯ ИСТОРИИ (Вместо List<Long>)
+    // ========================================================================
     private final long[] consumedNumbersRing = new long[HISTORY_MAX_SIZE];
-
+    private int apiRequestCount = 0;
     /**
      * Указатель, куда писать следующее число.
      * Доступ только под consumedNumbersLock.
      */
     private int ringWriteIndex = 0;
-
     /**
      * Количество реально заполненных значений в history-buffer.
      * Доступ только под consumedNumbersLock.
@@ -138,81 +110,7 @@ public class RNProvider {
     private volatile Mode currentMode = Mode.QUANTUM;
     private volatile boolean isForcedPseudo = true; // По умолчанию всегда стартуем локально
     private volatile boolean apiKeyConfigured = true;
-
-    /**
-     * Сколько pseudo-чисел генерировать за одну «подгрузку»
-     */
-    private static final int PSEUDO_BATCH_SIZE = 1024;
-
-    /**
-     * После скольких pseudo-batch-ей пытаться переподключиться к API
-     */
-    private static final int RECONNECT_EVERY_N_BATCHES = 5;
     private volatile int pseudoBatchCount = 0;
-
-    /**
-     * Принудительно переключает в локальный режим (без запросов к API).
-     */
-    public void setForcedPseudo(boolean forced) {
-        this.isForcedPseudo = forced;
-        if (forced) {
-            currentMode = Mode.PSEUDO;
-            fallbackReason = "Manually forced to PSEUDO";
-            isReconnecting = false;
-            notifyModeChanged(Mode.PSEUDO);
-        } else {
-            // Юзер кликнул ВПРАВО (QUANTUM)
-            if (!apiKeyConfigured) {
-                // Нет ключа — не даём переключиться
-                notifyModeChanged(Mode.PSEUDO); // Сигнализируем, что остались в PSEUDO
-                return;
-            }
-
-            fallbackReason = null;
-            currentMode = Mode.QUANTUM;
-            isReconnecting = false;
-            loadInitialDataAsync(); // Попытка подключиться
-        }
-    }
-
-    public boolean isForcedPseudo() {
-        return isForcedPseudo;
-    }
-
-    // ========================================================================
-    // Sleeper и ProviderSettings
-    // ========================================================================
-
-    @FunctionalInterface
-    public interface Sleeper {
-        void sleep(long ms) throws InterruptedException;
-    }
-
-    public record ProviderSettings(
-            String apiUrl, String apiKey, String dataType,
-            int arrayLength, int blockSize, int maxApiRequests,
-            int connectTimeout, int readTimeout, int queueMinSize,
-            int maxRetries, long initialBackoffMs, long maxBackoffMs
-    ) {
-        public static ProviderSettings fromConfig() {
-            return new ProviderSettings(
-                    Config.getString("api.url"),
-                    Config.getString("api.key"),
-                    Config.getString("api.data.type"),
-                    Config.getInt("api.array.length"),
-                    Config.getInt("api.block.size"),
-                    Config.getInt("api.max.requests"),
-                    Config.getInt("api.connect.timeout"),
-                    Config.getInt("api.read.timeout"),
-                    Config.getInt("random.queue.min.size"),
-                    5, 1000L, 30000L
-            );
-        }
-    }
-
-    // ========================================================================
-    // Конструкторы
-    // ========================================================================
 
     public RNProvider() {
         this(ProviderSettings.fromConfig(), true, Thread::sleep);
@@ -262,9 +160,34 @@ public class RNProvider {
         }
     }
 
-    // ========================================================================
-    // Публичный API
-    // ========================================================================
+    public boolean isForcedPseudo() {
+        return isForcedPseudo;
+    }
+
+    /**
+     * Принудительно переключает в локальный режим (без запросов к API).
+     */
+    public void setForcedPseudo(boolean forced) {
+        this.isForcedPseudo = forced;
+        if (forced) {
+            currentMode = Mode.PSEUDO;
+            fallbackReason = "Manually forced to PSEUDO";
+            isReconnecting = false;
+            notifyModeChanged(Mode.PSEUDO);
+        } else {
+            // Юзер кликнул ВПРАВО (QUANTUM)
+            if (!apiKeyConfigured) {
+                // Нет ключа — не даём переключиться
+                notifyModeChanged(Mode.PSEUDO); // Сигнализируем, что остались в PSEUDO
+                return;
+            }
+
+            fallbackReason = null;
+            currentMode = Mode.QUANTUM;
+            isReconnecting = false;
+            loadInitialDataAsync(); // Попытка подключиться
+        }
+    }
 
     public boolean waitForInitialData(long timeoutMs) {
         long start = System.currentTimeMillis();
@@ -280,6 +203,10 @@ public class RNProvider {
         return initialLoadComplete;
     }
 
+    // ========================================================================
+    // Sleeper и ProviderSettings
+    // ========================================================================
+
     /**
      * Проверяет, был ли изначально сконфигурирован API ключ
      */
@@ -291,6 +218,10 @@ public class RNProvider {
         return lastError;
     }
 
+    // ========================================================================
+    // Конструкторы
+    // ========================================================================
+
     public int getQueueSize() {
         return randomNumbersQueue.size();
     }
@@ -301,6 +232,10 @@ public class RNProvider {
     public Mode getMode() {
         return currentMode;
     }
+
+    // ========================================================================
+    // Публичный API
+    // ========================================================================
 
     /**
      * Возвращает причину последнего переключения в PSEUDO режим
@@ -458,10 +393,6 @@ public class RNProvider {
                 + ", pseudo batches: " + pseudoBatchCount);
     }
 
-    // ========================================================================
-    // Package-private accessors
-    // ========================================================================
-
     int getApiRequestCount() {
         return apiRequestCount;
     }
@@ -473,10 +404,6 @@ public class RNProvider {
     void triggerLoad() {
         loadInitialDataAsync();
     }
-
-    // ========================================================================
-    // Внутренняя логика Ring Buffer
-    // ========================================================================
 
     /**
      * Добавляет число в кольцевой буфер.
@@ -499,10 +426,6 @@ public class RNProvider {
             randomNumbersLog.writePseudoNumber(value);
         }
     }
-
-    // ========================================================================
-    // Pseudo-random fallback
-    // ========================================================================
 
     private void activatePseudoMode(String reason) {
         // Всегда обновляем причину, даже если уже в PSEUDO
@@ -527,6 +450,10 @@ public class RNProvider {
         notifyModeChanged(Mode.PSEUDO);
         notifyLoadingCompleted();
     }
+
+    // ========================================================================
+    // Package-private accessors
+    // ========================================================================
 
     private void fillQueueWithPseudo() {
         for (int i = 0; i < PSEUDO_BATCH_SIZE; i++) {
@@ -572,7 +499,7 @@ public class RNProvider {
     }
 
     // ========================================================================
-    // Внутренняя логика загрузки
+    // Внутренняя логика Ring Buffer
     // ========================================================================
 
     private void loadInitialDataAsync() {
@@ -603,6 +530,10 @@ public class RNProvider {
                     return null;
                 });
     }
+
+    // ========================================================================
+    // Pseudo-random fallback
+    // ========================================================================
 
     private void loadWithRetry() {
         int retryCount = 0;
@@ -699,6 +630,10 @@ public class RNProvider {
         return url.toString();
     }
 
+    // ========================================================================
+    // Внутренняя логика загрузки
+    // ========================================================================
+
     private void loadInitialData() throws Exception {
         notifyLoadingStarted();
 
@@ -776,10 +711,6 @@ public class RNProvider {
         }
     }
 
-    // ========================================================================
-    // Notifications
-    // ========================================================================
-
     private void notifyLoadingStarted() {
         listeners.forEach(RNLoadListener::onLoadingStarted);
     }
@@ -800,7 +731,68 @@ public class RNProvider {
         listeners.forEach(listener -> listener.onModeChanged(mode));
     }
 
+    // ========================================================================
+    // Notifications
+    // ========================================================================
+
     private void notifyApiAvailability(boolean isAvailable) {
         listeners.forEach(listener -> listener.onApiAvailabilityChanged(isAvailable));
+    }
+
+    /**
+     * Источник случайных чисел.
+     */
+    public enum Mode {
+        /**
+         * Квантовые числа от ANU API
+         */
+        QUANTUM,
+        /**
+         * Псевдослучайные числа от L128X256MixRandom (fallback)
+         */
+        PSEUDO
+    }
+
+    @FunctionalInterface
+    public interface Sleeper {
+        void sleep(long ms) throws InterruptedException;
+    }
+
+    /**
+     * Исключение-маркер для мгновенного переключения в PSEUDO без ретраев.
+     */
+    private static class RateLimitException extends RuntimeException {
+        RateLimitException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * Queue item with source metadata.
+     * Needed so we log only TRUE/QUANTUM numbers and never log fallback PSEUDO values.
+     */
+    private record RandomNumberEntry(int value, Mode sourceMode) {
+    }
+
+    public record ProviderSettings(
+            String apiUrl, String apiKey, String dataType,
+            int arrayLength, int blockSize, int maxApiRequests,
+            int connectTimeout, int readTimeout, int queueMinSize,
+            int maxRetries, long initialBackoffMs, long maxBackoffMs
+    ) {
+        public static ProviderSettings fromConfig() {
+            return new ProviderSettings(
+                    Config.getString("api.url"),
+                    Config.getString("api.key"),
+                    Config.getString("api.data.type"),
+                    Config.getInt("api.array.length"),
+                    Config.getInt("api.block.size"),
+                    Config.getInt("api.max.requests"),
+                    Config.getInt("api.connect.timeout"),
+                    Config.getInt("api.read.timeout"),
+                    Config.getInt("random.queue.min.size"),
+                    5, 1000L, 30000L
+            );
+        }
     }
 }

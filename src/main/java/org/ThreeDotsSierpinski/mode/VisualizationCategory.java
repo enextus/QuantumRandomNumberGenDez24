@@ -2,7 +2,7 @@ package org.ThreeDotsSierpinski.mode;
 
 /**
  * High-level grouping for visualization modes in the mode selection dialog.
- *
+ * <p>
  * The menu uses this enum to present a two-level navigation:
  * category first, concrete visualization mode second.
  */

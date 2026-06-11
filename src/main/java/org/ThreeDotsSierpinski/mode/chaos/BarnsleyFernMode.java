@@ -1,17 +1,7 @@
 package org.ThreeDotsSierpinski.mode.chaos;
 
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
+import org.ThreeDotsSierpinski.mode.VisualizationMode;
+import org.ThreeDotsSierpinski.rng.RNProvider;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -33,7 +23,7 @@ public class BarnsleyFernMode implements VisualizationMode {
     private static final String NAME = "Barnsley Fern";
     private static final String DESCRIPTION =
             "Случайные числа выбирают affine transformations.\n"
-          + "Из хаоса постепенно вырастает фрактальный папоротник.";
+                    + "Из хаоса постепенно вырастает фрактальный папоротник.";
     private static final String ICON = "🌿";
 
     private static final int ITERATIONS_PER_STEP = 250;
@@ -108,6 +98,7 @@ public class BarnsleyFernMode implements VisualizationMode {
     public boolean usesDarkBackground() {
         return true;
     }
+
     @Override
     public void initialize(BufferedImage canvas, int width, int height) {
         this.width = width;

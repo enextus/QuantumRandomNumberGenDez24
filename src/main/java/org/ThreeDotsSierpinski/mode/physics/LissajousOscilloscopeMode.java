@@ -28,6 +28,10 @@ public class LissajousOscilloscopeMode extends AbstractLissajousMode {
     private double b = BASE_B;
     private double phase = Math.PI / 3.0;
 
+    private static String format(double value) {
+        return String.format(java.util.Locale.US, "%.2f", value);
+    }
+
     @Override
     public String getId() {
         return ID;
@@ -102,9 +106,5 @@ public class LissajousOscilloscopeMode extends AbstractLissajousMode {
         g2d.setFont(new Font("SansSerif", Font.BOLD, 12));
         g2d.setColor(TEXT);
         g2d.drawString("a=" + format(a) + "   b=" + format(b) + "   δ=" + format(Math.toDegrees(phase)) + "°", 16, 60);
-    }
-
-    private static String format(double value) {
-        return String.format(java.util.Locale.US, "%.2f", value);
     }
 }

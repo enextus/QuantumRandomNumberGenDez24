@@ -13,16 +13,6 @@ import org.jetbrains.annotations.NotNull;
 public record TestResult(String testName, boolean passed, String statistic, Quality quality) {
 
     /**
-     * Уровень качества результата теста.
-     * STRONG — уверенно пройден, большой запас до порога
-     * MARGINAL — пройден, но близко к порогу (требует внимания)
-     * FAIL — не пройден
-     */
-    public enum Quality {
-        STRONG, MARGINAL, FAIL
-    }
-
-    /**
      * Обратно-совместимый конструктор: quality вычисляется из passed.
      * Используется в RandomnessTestSuite при перехвате exception.
      */
@@ -38,5 +28,15 @@ public record TestResult(String testName, boolean passed, String statistic, Qual
             case FAIL -> "✗";     // ✗
         };
         return mark + "  " + statistic + "    " + testName;
+    }
+
+    /**
+     * Уровень качества результата теста.
+     * STRONG — уверенно пройден, большой запас до порога
+     * MARGINAL — пройден, но близко к порогу (требует внимания)
+     * FAIL — не пройден
+     */
+    public enum Quality {
+        STRONG, MARGINAL, FAIL
     }
 }

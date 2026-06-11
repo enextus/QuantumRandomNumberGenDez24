@@ -20,18 +20,6 @@ public class RandomnessTestSuite {
         );
     }
 
-    public List<TestResult> runAll(List<Long> numbers, double alpha) {
-        return tests.stream()
-                .map(test -> {
-                    try {
-                        return test.testWithDetails(numbers, alpha);
-                    } catch (Exception e) {
-                        return new TestResult(test.getTestName(), false, "error: " + e.getMessage());
-                    }
-                })
-                .toList();
-    }
-
     public static String formatResults(List<TestResult> results) {
         StringBuilder sb = new StringBuilder();
         int passed = 0;
@@ -43,6 +31,18 @@ public class RandomnessTestSuite {
 
         sb.append("\nИтого: ").append(passed).append("/").append(results.size()).append(" тестов пройдено");
         return sb.toString();
+    }
+
+    public List<TestResult> runAll(List<Long> numbers, double alpha) {
+        return tests.stream()
+                .map(test -> {
+                    try {
+                        return test.testWithDetails(numbers, alpha);
+                    } catch (Exception e) {
+                        return new TestResult(test.getTestName(), false, "error: " + e.getMessage());
+                    }
+                })
+                .toList();
     }
 
 }
