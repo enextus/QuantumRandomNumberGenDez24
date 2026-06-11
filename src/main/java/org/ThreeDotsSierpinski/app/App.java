@@ -10,6 +10,8 @@ import org.ThreeDotsSierpinski.stats.RandomnessTestSuite;
 import org.ThreeDotsSierpinski.stats.TestResult;
 import org.jetbrains.annotations.NotNull;
 
+import org.ThreeDotsSierpinski.mode.VisualizationCategory;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
@@ -23,6 +25,7 @@ import java.util.logging.Logger;
  * Запуск: диалог выбора режима → основное окно визуализации.
  */
 public class App {
+    private static VisualizationCategory lastSelectedCategory = null;
     private static final String LOG_APP_STARTED = "Application started.";
     private static final String LOG_GUI_STARTED = "GUI successfully launched.";
     private static final String LOG_APP_SHUTTING_DOWN = "Shutting down application.";
@@ -75,7 +78,11 @@ public class App {
 
     private static void showModeSelectionLoop(GraphicsConfiguration targetGraphicsConfiguration) {
         var selector = new ModeSelectionDialog();
-        var selectedMode = selector.showAndWait(null, targetGraphicsConfiguration);
+        var selectedMode = selector.showAndWait(
+                null,
+                targetGraphicsConfiguration,
+                lastSelectedCategory
+        );
 
         GraphicsConfiguration currentSelectionGraphicsConfiguration = selector.getLastDialogGraphicsConfiguration();
         if (currentSelectionGraphicsConfiguration == null) {
@@ -88,6 +95,8 @@ public class App {
             System.exit(0);
             return;
         }
+
+        lastSelectedCategory = selectedMode.getCategory();
 
         LOGGER.info(LOG_SELECTED_MODE_PREFIX + selectedMode.getName());
         LOGGER.info(LOG_SELECTION_SCREEN_BOUNDS_PREFIX + currentSelectionGraphicsConfiguration.getBounds());
@@ -232,8 +241,11 @@ public class App {
             if (!rngToggle.isEnabled()) {
                 JOptionPane.showMessageDialog(
                         frame,
-                        "API key not configured.\n\nQuantum random numbers require a valid API key.\n" +
-                                "Set QRNG_API_KEY environment variable or add it to .env file.",
+                        """
+                                API key not configured.
+                                
+                                Quantum random numbers require a valid API key.
+                                Set QRNG_API_KEY environment variable or add it to .env file.""",
                         "API Key Required",
                         JOptionPane.WARNING_MESSAGE
                 );
@@ -254,8 +266,11 @@ public class App {
                 // Пытаемся переключиться на QUANTUM, но rate limit активен
                 JOptionPane.showMessageDialog(
                         frame,
-                        "Daily API limit exceeded.\n\nQuantum random numbers are temporarily unavailable.\n" +
-                                "Please try again later or continue using PSEUDO mode.",
+                        """
+                                Daily API limit exceeded.
+                                
+                                Quantum random numbers are temporarily unavailable.
+                                Please try again later or continue using PSEUDO mode.""",
                         "Rate Limit Exceeded",
                         JOptionPane.WARNING_MESSAGE
                 );
@@ -434,7 +449,6 @@ public class App {
 
         SwingUtilities.invokeLater(() -> showModeSelectionLoop(returnGraphicsConfiguration));
     }
-
 
     /**
      * Возвращает монитор, на котором фактически находилось окно визуализации

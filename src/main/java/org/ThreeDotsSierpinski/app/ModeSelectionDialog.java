@@ -14,7 +14,6 @@ import java.util.Map;
 
 /**
  * Диалог выбора режима визуализации.
- *
  * Сначала показывает категории научных визуализаций, затем — режимы внутри
  * выбранной категории. Это удерживает меню компактным даже при большом
  * количестве режимов.
@@ -38,7 +37,7 @@ public class ModeSelectionDialog {
     private static final int DIALOG_LAYOUT_H_GAP = 0;
     private static final int DIALOG_LAYOUT_V_GAP = 0;
 
-    private static final int DIALOG_WIDTH = 1080;
+    private static final int DIALOG_WIDTH = 1200;
     private static final int DIALOG_MAX_HEIGHT = 900;
     private static final int DIALOG_MIN_WIDTH = 700;
     private static final int DIALOG_MIN_HEIGHT = 300;
@@ -136,6 +135,14 @@ public class ModeSelectionDialog {
             JFrame parent,
             GraphicsConfiguration targetGraphicsConfiguration
     ) {
+        return showAndWait(parent, targetGraphicsConfiguration, null);
+    }
+
+    public VisualizationMode showAndWait(
+            JFrame parent,
+            GraphicsConfiguration targetGraphicsConfiguration,
+            VisualizationCategory initialCategory
+    ) {
         selectedMode = null;
         lastDialogGraphicsConfiguration = targetGraphicsConfiguration;
 
@@ -155,7 +162,18 @@ public class ModeSelectionDialog {
 
         dialog.add(createFooterPanel(), BorderLayout.SOUTH);
 
-        showCategorySelection(contentPanel, modesByCategory, dialog, subtitleLabel);
+        if (initialCategory != null && !modesByCategory.getOrDefault(initialCategory, List.of()).isEmpty()) {
+            showModeSelection(
+                    initialCategory,
+                    modesByCategory.get(initialCategory),
+                    modesByCategory,
+                    contentPanel,
+                    dialog,
+                    subtitleLabel
+            );
+        } else {
+            showCategorySelection(contentPanel, modesByCategory, dialog, subtitleLabel);
+        }
 
         dialog.setSize(DIALOG_WIDTH, DIALOG_MAX_HEIGHT);
         dialog.setMinimumSize(new Dimension(DIALOG_MIN_WIDTH, DIALOG_MIN_HEIGHT));
