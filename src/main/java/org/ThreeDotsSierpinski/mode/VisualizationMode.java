@@ -151,6 +151,52 @@ public interface VisualizationMode {
         return !usesDarkBackground();
     }
 
+
+    /**
+     * High-level category used by the two-level mode selection dialog.
+     *
+     * Current modes are classified here so existing visualization classes do not
+     * need boilerplate category overrides. A new mode may still override this
+     * method when it belongs to a different category.
+     */
+    default VisualizationCategory getCategory() {
+        return switch (getClass().getSimpleName()) {
+            case "SierpinskiMode",
+                 "BarnsleyFernMode",
+                 "ChaosGameRepresentationMode",
+                 "DLAMode" -> VisualizationCategory.CHAOS_FRACTALS;
+
+            case "MonteCarloPiMode",
+                 "MonteCarloMandelbrotAreaMode",
+                 "MonteCarloMandelbrot3DAreaMode" -> VisualizationCategory.MONTE_CARLO;
+
+            case "RandomWalkHeatmapMode",
+                 "GaltonBoardMode",
+                 "VoronoiMode",
+                 "SpectralPlotMode" -> VisualizationCategory.RANDOM_PROCESSES;
+
+            case "PercolationMode",
+                 "ForestFireMode" -> VisualizationCategory.STATISTICAL_PHYSICS;
+
+            case "LissajousFrequencyMode",
+                 "LissajousOscilloscopeMode",
+                 "LissajousQuantumVsPseudoMode",
+                 "Lissajous3DMode",
+                 "LissajousSpectralAnalyzerMode",
+                 "ChaosLissajousMode" -> VisualizationCategory.LISSAJOUS;
+
+            case "LorenzAttractor3DMode",
+                 "AizawaAttractorMode",
+                 "ThomasAttractorMode",
+                 "RosslerAttractorMode",
+                 "HalvorsenAttractorMode",
+                 "DadrasAttractorMode",
+                 "BifurcationDiagramMode" -> VisualizationCategory.ATTRACTORS;
+
+            default -> VisualizationCategory.RANDOM_PROCESSES;
+        };
+    }
+
     /**
      * Реестр всех доступных режимов.
      * Для добавления нового — просто добавить в массив.
