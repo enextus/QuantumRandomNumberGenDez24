@@ -37,17 +37,20 @@ class VisualizationModeRegistryTest {
         assertTrue(ids.contains("Sierpinski"));
         assertTrue(ids.contains("voronoi"));
         assertTrue(ids.contains("barnsley-fern"));
+        assertTrue(ids.contains("fractal-flame"));
         assertTrue(ids.contains("random-walk-heatmap"));
         assertTrue(ids.contains("rule-30-automaton"));
         assertTrue(ids.contains("galton-board"));
         assertTrue(ids.contains("monte-carlo-pi"));
         assertTrue(ids.contains("buddhabrot"));
         assertTrue(ids.contains("percolation"));
+        assertTrue(ids.contains("abelian-sandpile"));
         assertTrue(ids.contains("forest-fire"));
         assertTrue(ids.contains("spectral-plot"));
         assertTrue(ids.contains("cgr-bitstream"));
         assertTrue(ids.contains("dla"));
         assertTrue(ids.contains("monte-carlo-mandelbrot-3d-area"));
+        assertTrue(ids.contains("chirikov-standard-map"));
     }
 
     @Test

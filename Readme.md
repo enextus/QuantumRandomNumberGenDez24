@@ -18,8 +18,8 @@ Java 25 / Swing-приложение для визуализации поток�
 | Метрика | Значение |
 |---|---:|
 | Java | 25 |
-| Main source classes | 53 |
-| Tests | 252 expected after Buddhabrot patch |
+| Main source classes | 56 |
+| Tests | 255 expected after Chirikov/Flame/Sandpile patch |
 | Last verified result | `BUILD SUCCESS` |
 | Test failures | 0 |
 | Test errors | 0 |
@@ -40,6 +40,7 @@ BUILD SUCCESS
 
 - **Sierpinski Triangle** — классический Chaos Game.
 - **Barnsley Fern** — IFS-фрактал папоротника Барнсли.
+- **Fractal Flame** — нелинейный IFS / chaos-game flame renderer с QRNG-driven transform selection.
 - **CGR Bit Stream** — Chaos Game Representation для битового потока.
 
 ### Monte Carlo
@@ -53,8 +54,10 @@ BUILD SUCCESS
 
 - **Lorenz Attractor 3D** — 3D-аттрактор Лоренца с ансамблем траекторий и QRNG-jitter.
 - **Bifurcation Diagram** — бифуркационная диаграмма логистического отображения.
+- **Chirikov Standard Map** — фазовое пространство Hamiltonian chaos: KAM-islands и chaotic sea.
 - **Percolation** — site percolation, top-connected clusters и spanning cluster.
 - **Forest Fire** — клеточная модель роста леса, молний и распространения огня.
+- **Abelian Sandpile** — self-organized criticality: случайные зёрна вызывают лавины toppling.
 
 ### Stochastic processes
 
@@ -142,6 +145,19 @@ BUILD SUCCESS
 ### CGR Bit Stream
 
 Chaos Game Representation переводит битовый поток в 2D-карту. Пустоты, полосы и симметрии помогают визуально заметить скрытую структуру или перекосы в последовательности.
+
+---
+
+### Fractal Flame
+
+Fractal Flame — нелинейный IFS / Chaos Game renderer. На каждом шаге очередное random number выбирает одно из нескольких нелинейных преобразований. Точки накапливаются как светящаяся density trail, и из случайного выбора transform постепенно появляется устойчивая flame-структура.
+
+Особенности:
+
+- QRNG/PSEUDO выбирает transform branch;
+- presets: **Swirl**, **Sinusoidal**, **Bubble**;
+- тёмный canvas и накопление полупрозрачных flame-pixels;
+- хорошо показывает принцип `random choices → nonlinear transforms → visible structure`.
 
 ---
 
@@ -236,6 +252,20 @@ xₙ₊₁ = r · xₙ · (1 - xₙ)
 
 ---
 
+### Chirikov Standard Map
+
+Chirikov Standard Map показывает Hamiltonian chaos на торе фазового пространства. QRNG/PSEUDO задаёт начальные точки `(x, p)`, а затем они детерминированно развиваются по standard map. При малых `K` видны invariant curves и острова порядка, при больших `K` появляется chaotic sea.
+
+Особенности:
+
+- фазовое пространство: `x` по горизонтали, `p` по вертикали;
+- параметр **K** переключается из mode-specific controls;
+- QRNG отвечает за sampling начальных условий;
+- режим хорошо демонстрирует сосуществование order и chaos;
+- нижний diagnostic strip показывает `x/p seed balance`, `quadrant balance`, `corrXP`, `64×64 cell occupancy`, coverage и normalized entropy для оценки качества initial phase sampling.
+
+---
+
 ### Percolation
 
 Site percolation на квадратной решётке. Каждая клетка получает случайное решение: открыта или закрыта. После каждого шага пересчитывается top-connected cluster. Если он достигает нижней границы, возникает **spanning cluster**.
@@ -252,6 +282,19 @@ Site percolation на квадратной решётке. Каждая клет
 ### Forest Fire
 
 Клеточная модель forest-fire dynamics. Деревья растут случайно, молнии поджигают клетки, огонь распространяется по соседям, а затем лес снова восстанавливается. Режим показывает self-organized patterns и динамику распространения.
+
+---
+
+### Abelian Sandpile
+
+Abelian Sandpile / Bak–Tang–Wiesenfeld model показывает self-organized criticality. QRNG/PSEUDO выбирает клетки, куда падают новые зёрна. Когда высота клетки достигает 4, она topples и отдаёт зёрна соседям, что может запустить avalanche cascade.
+
+Особенности:
+
+- lattice heights `0..3` окрашены разными цветами;
+- текущая avalanche подсвечивается;
+- metrics: grains, last/max avalanche, total topples, consumed random numbers;
+- controls позволяют менять batch size зёрен за animation step.
 
 ---
 
@@ -438,6 +481,7 @@ org.ThreeDotsSierpinski
 │   ├── chaos
 │   │   ├── SierpinskiMode
 │   │   ├── BarnsleyFernMode
+│   │   ├── FractalFlameMode
 │   │   └── ChaosGameRepresentationMode
 │   ├── montecarlo
 │   │   ├── MonteCarloPiMode
@@ -446,9 +490,11 @@ org.ThreeDotsSierpinski
 │   │   └── BuddhabrotMode
 │   ├── physics
 │   │   ├── LorenzAttractor3DMode
+│   │   ├── ChirikovStandardMapMode
 │   │   ├── BifurcationDiagramMode
 │   │   ├── PercolationMode
-│   │   └── ForestFireMode
+│   │   ├── ForestFireMode
+│   │   └── AbelianSandpileMode
 │   └── stochastic
 │       ├── GaltonBoardMode
 │       ├── RandomWalkHeatmapMode
@@ -738,6 +784,6 @@ mvn -Dtest=MonteCarloMandelbrotAreaModeTest test
 
 ## Краткое резюме
 
-`rep-qrng-chaos-game` — учебно-практический Java-проект, где поток случайных чисел превращается в живые визуальные структуры: фракталы, Monte Carlo-оценки, Buddhabrot density maps, 3D-рельефы, аттракторы, бифуркации, перколяционные кластеры, stochastic processes и statistical sanity checks.
+`rep-qrng-chaos-game` — учебно-практический Java-проект, где поток случайных чисел превращается в живые визуальные структуры: фракталы, Monte Carlo-оценки, Buddhabrot density maps, Fractal Flames, Hamiltonian chaos maps, sandpile criticality, 3D-рельефы, аттракторы, бифуркации, перколяционные кластеры, stochastic processes и statistical sanity checks.
 
 После последнего рефакторинга проект организован как небольшой scientific visualization framework с пакетами `app`, `mode`, `rng`, `stats`, `math`, `model` и `config`, а визуализации сгруппированы по научным доменам: `chaos`, `montecarlo`, `physics`, `stochastic`.

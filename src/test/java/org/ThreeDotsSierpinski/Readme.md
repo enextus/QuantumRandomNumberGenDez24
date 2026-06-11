@@ -71,10 +71,13 @@
 - Преобразование чисел в биты
 
 ### 8. VisualizationModeRegistryTest.java / VisualizationModesSmokeTest.java
-Проверяют registry и smoke-поведение визуализаций, включая `Rule30AutomatonMode` и `BuddhabrotMode`:
+Проверяют registry и smoke-поведение визуализаций, включая `Rule30AutomatonMode`, `BuddhabrotMode`, `FractalFlameMode`, `ChirikovStandardMapMode` и `AbelianSandpileMode`:
 - mode ids зарегистрированы как `rule-30-automaton` и `buddhabrot`
 - Rule 30 рисует строки automaton и raw RNG bit stream
 - Buddhabrot накапливает escaping orbits в histogram-density map
+- Fractal Flame рисует nonlinear IFS density
+- Chirikov Standard Map строит phase-space orbits
+- Abelian Sandpile сбрасывает grains и перерисовывает lattice
 - режимы не падают при временно пустом provider
 
 ## Установка
@@ -131,7 +134,7 @@ src/test/java/org/ThreeDotsSierpinski/
 ├── DotTest.java                       # Unit тесты Dot
 ├── SierpinskiAlgorithmTest.java       # Тесты алгоритма
 ├── VisualizationModeRegistryTest.java # Registry тесты visualization modes
-├── VisualizationModesSmokeTest.java   # Smoke тесты visualization modes
+├── VisualizationModesSmokeTest.java   # Smoke тесты visualization modes, including new chaos/physics modes
 └── NISTRandomnessTestUnitTest.java    # Unit тесты NISTRandomnessTest
 ```
 

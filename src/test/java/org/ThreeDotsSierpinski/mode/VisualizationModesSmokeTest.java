@@ -49,6 +49,24 @@ class VisualizationModesSmokeTest {
         assertFalse(mode.usesRecolorAnimation());
     }
 
+
+    @Test
+    @DisplayName("FractalFlameMode consumes transform choices and plots flame density")
+    void fractalFlameConsumesTransformChoices() {
+        FractalFlameMode mode = new FractalFlameMode();
+        BufferedImage canvas = newCanvas();
+
+        mode.initialize(canvas, CANVAS_WIDTH, CANVAS_HEIGHT);
+        mode.step(sequentialProvider(), canvas, DOT_SIZE);
+
+        assertTrue(mode.getPointCount() > 0);
+        assertTrue(mode.getRandomNumbersUsed() > 0);
+        assertTrue(mode.usesDarkBackground());
+        assertFalse(mode.usesRecolorAnimation());
+        assertFalse(mode.usesRandomNumbersStackOverlay());
+        assertDoesNotThrow(() -> mode.redraw(canvas, CANVAS_WIDTH, CANVAS_HEIGHT, DOT_SIZE));
+    }
+
     @Test
     @DisplayName("RandomWalkHeatmapMode consumes random directions")
     void randomWalkHeatmapConsumesDirections() {
@@ -181,6 +199,41 @@ class VisualizationModesSmokeTest {
         assertDoesNotThrow(() -> mode.redraw(canvas, CANVAS_WIDTH, CANVAS_HEIGHT, DOT_SIZE));
     }
 
+
+    @Test
+    @DisplayName("AbelianSandpileMode drops grains and redraws lattice")
+    void abelianSandpileDropsGrains() {
+        AbelianSandpileMode mode = new AbelianSandpileMode();
+        BufferedImage canvas = newCanvas();
+
+        mode.initialize(canvas, CANVAS_WIDTH, CANVAS_HEIGHT);
+        mode.step(sequentialProvider(), canvas, DOT_SIZE);
+
+        assertTrue(mode.getPointCount() > 0);
+        assertTrue(mode.getRandomNumbersUsed() > 0);
+        assertTrue(mode.usesDarkBackground());
+        assertFalse(mode.usesRecolorAnimation());
+        assertFalse(mode.usesRandomNumbersStackOverlay());
+        assertDoesNotThrow(() -> mode.redraw(canvas, CANVAS_WIDTH, CANVAS_HEIGHT, DOT_SIZE));
+    }
+
+    @Test
+    @DisplayName("ChirikovStandardMapMode seeds phase-space orbits")
+    void chirikovStandardMapSeedsPhaseSpaceOrbits() {
+        ChirikovStandardMapMode mode = new ChirikovStandardMapMode();
+        BufferedImage canvas = newCanvas();
+
+        mode.initialize(canvas, CANVAS_WIDTH, CANVAS_HEIGHT);
+        mode.step(sequentialProvider(), canvas, DOT_SIZE);
+
+        assertTrue(mode.getPointCount() > 0);
+        assertTrue(mode.getRandomNumbersUsed() > 0);
+        assertTrue(mode.usesDarkBackground());
+        assertFalse(mode.usesRecolorAnimation());
+        assertFalse(mode.usesRandomNumbersStackOverlay());
+        assertDoesNotThrow(() -> mode.redraw(canvas, CANVAS_WIDTH, CANVAS_HEIGHT, DOT_SIZE));
+    }
+
     @Test
     @DisplayName("PercolationMode consumes cell decisions and supports redraw")
     void percolationConsumesDecisionsAndRedraws() {
@@ -204,6 +257,7 @@ class VisualizationModesSmokeTest {
 
         List<VisualizationMode> modes = List.of(
                 new BarnsleyFernMode(),
+                new FractalFlameMode(),
                 new RandomWalkHeatmapMode(),
                 new Rule30AutomatonMode(),
                 new GaltonBoardMode(),
@@ -212,7 +266,9 @@ class VisualizationModesSmokeTest {
                 new MonteCarloMandelbrotAreaMode(),
                 new MonteCarloMandelbrot3DAreaMode(),
                 new LorenzAttractor3DMode(),
-                new PercolationMode()
+                new ChirikovStandardMapMode(),
+                new PercolationMode(),
+                new AbelianSandpileMode()
         );
 
         for (VisualizationMode mode : modes) {

@@ -187,6 +187,7 @@ public interface VisualizationMode {
         return switch (getClass().getSimpleName()) {
             case "SierpinskiMode",
                  "BarnsleyFernMode",
+                 "FractalFlameMode",
                  "ChaosGameRepresentationMode",
                  "DLAMode" -> VisualizationCategory.CHAOS_FRACTALS;
 
@@ -202,7 +203,8 @@ public interface VisualizationMode {
                  "SpectralPlotMode" -> VisualizationCategory.RANDOM_PROCESSES;
 
             case "PercolationMode",
-                 "ForestFireMode" -> VisualizationCategory.STATISTICAL_PHYSICS;
+                 "ForestFireMode",
+                 "AbelianSandpileMode" -> VisualizationCategory.STATISTICAL_PHYSICS;
 
             case "LissajousFrequencyMode",
                  "LissajousOscilloscopeMode",
@@ -212,6 +214,7 @@ public interface VisualizationMode {
                  "ChaosLissajousMode" -> VisualizationCategory.LISSAJOUS;
 
             case "LorenzAttractor3DMode",
+                 "ChirikovStandardMapMode",
                  "AizawaAttractorMode",
                  "ThomasAttractorMode",
                  "RosslerAttractorMode",
@@ -232,12 +235,14 @@ public interface VisualizationMode {
                 new SierpinskiMode(),
                 new VoronoiMode(),
                 new BarnsleyFernMode(),
+                new FractalFlameMode(),
                 new RandomWalkHeatmapMode(),
                 new Rule30AutomatonMode(),
                 new BuddhabrotMode(),
                 new MonteCarloMandelbrotAreaMode(),
                 new MonteCarloMandelbrot3DAreaMode(),
                 new LorenzAttractor3DMode(),
+                new ChirikovStandardMapMode(),
                 new AizawaAttractorMode(),
                 new ThomasAttractorMode(),
                 new RosslerAttractorMode(),
@@ -247,6 +252,7 @@ public interface VisualizationMode {
                 new GaltonBoardMode(),
                 new PercolationMode(),
                 new ForestFireMode(),
+                new AbelianSandpileMode(),
                 new SpectralPlotMode(),
                 new ChaosGameRepresentationMode(),
                 new DLAMode(),
