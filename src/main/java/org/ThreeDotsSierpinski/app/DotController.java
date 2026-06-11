@@ -366,12 +366,21 @@ public class DotController extends JPanel {
             drawAppleMacFrame(g2d);
         }
 
-        drawInfoText(g2d, dark, style);
+        if (mode.usesInfoTextOverlay()) {
+            drawInfoText(g2d, dark, style);
+        }
+
         if (style == VisualizationStyle.APPLE_MAC) {
-            drawAppleMacCounterBlock(g2d);
+            if (mode.usesPointCounterOverlay() || mode.usesRngModeIndicatorOverlay()) {
+                drawAppleMacCounterBlock(g2d);
+            }
         } else {
-            drawPointCounter(g2d, dark, style);
-            drawRngModeIndicator(g2d, dark, style);
+            if (mode.usesPointCounterOverlay()) {
+                drawPointCounter(g2d, dark, style);
+            }
+            if (mode.usesRngModeIndicatorOverlay()) {
+                drawRngModeIndicator(g2d, dark, style);
+            }
         }
         drawErrorMessage(g2d, dark, style);
 

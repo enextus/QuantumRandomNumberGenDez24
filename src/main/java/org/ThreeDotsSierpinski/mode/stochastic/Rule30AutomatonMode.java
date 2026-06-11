@@ -36,13 +36,19 @@ public class Rule30AutomatonMode implements VisualizationMode {
     private static final int ROWS_PER_STEP = 3;
     private static final int SIDE_MARGIN = 18;
     private static final int PANEL_GAP = 24;
-    private static final int TOP_MARGIN = 44;
-    private static final int BOTTOM_MARGIN = 34;
-    private static final int LABEL_X_PADDING = 4;
-    private static final int LABEL_BASELINE_OFFSET = 14;
-    private static final int METRICS_BASELINE_OFFSET = 16;
-    private static final int PANEL_BORDER_ALPHA = 120;
-    private static final int LABEL_ALPHA = 215;
+    private static final int TOP_HUD_HEIGHT = 34;
+    private static final int BOTTOM_HUD_HEIGHT = 30;
+    private static final int PANEL_TOP_GAP = 10;
+    private static final int PANEL_BOTTOM_GAP = 8;
+    private static final int TOP_MARGIN = TOP_HUD_HEIGHT + PANEL_TOP_GAP;
+    private static final int BOTTOM_MARGIN = BOTTOM_HUD_HEIGHT + PANEL_BOTTOM_GAP;
+    private static final int LABEL_X_PADDING = 8;
+    private static final int TITLE_BASELINE_Y = 22;
+    private static final int METRICS_BASELINE_OFFSET = 10;
+    private static final int PANEL_BORDER_ALPHA = 140;
+    private static final int LABEL_ALPHA = 240;
+    private static final int HUD_BACKGROUND_ALPHA = 225;
+    private static final int HUD_DIVIDER_ALPHA = 150;
     private static final int MUTATION_RATE_MASK = 0xFF;
     private static final int MIN_CANVAS_SIZE = 1;
     private static final int MIN_PANEL_WIDTH = 1;
@@ -62,8 +68,14 @@ public class Rule30AutomatonMode implements VisualizationMode {
     private static final String TOGGLE_MUTATIONS_TOOLTIP = "Toggle QRNG/PSEUDO-driven rare bit mutations";
     private static final String BUTTON_RANDOM_RULE_TOOLTIP = "Pick elementary CA rule 1..254 from the current RNG stream";
 
-    private static final Font LABEL_FONT = new Font("SansSerif", Font.BOLD, 12);
-    private static final Font METRIC_FONT = new Font("Monospaced", Font.PLAIN, 11);
+    private static final Font LABEL_FONT = new Font("SansSerif", Font.BOLD, 13);
+    private static final Font METRIC_FONT = new Font("Monospaced", Font.BOLD, 12);
+
+    private static final Color HUD_BACKGROUND_COLOR = new Color(8, 12, 18, HUD_BACKGROUND_ALPHA);
+    private static final Color HUD_DIVIDER_COLOR = new Color(150, 170, 205, HUD_DIVIDER_ALPHA);
+    private static final Color HUD_TITLE_COLOR = new Color(245, 248, 255, LABEL_ALPHA);
+    private static final Color HUD_METRIC_COLOR = new Color(205, 224, 255, LABEL_ALPHA);
+    private static final Color PANEL_BORDER_COLOR = new Color(210, 210, 210, PANEL_BORDER_ALPHA);
 
     private int width;
     private int height;
@@ -132,6 +144,21 @@ public class Rule30AutomatonMode implements VisualizationMode {
     }
 
     @Override
+    public boolean usesInfoTextOverlay() {
+        return false;
+    }
+
+    @Override
+    public boolean usesPointCounterOverlay() {
+        return false;
+    }
+
+    @Override
+    public boolean usesRngModeIndicatorOverlay() {
+        return false;
+    }
+
+    @Override
     public PointCounterOverlayPlacement getPointCounterOverlayPlacement() {
         return PointCounterOverlayPlacement.TOP_CENTER;
     }
@@ -193,6 +220,7 @@ public class Rule30AutomatonMode implements VisualizationMode {
             evolveRuleRow(provider, canvas, drawnPoints);
         }
 
+        drawHud(canvas);
         return drawnPoints;
     }
 
@@ -451,32 +479,63 @@ public class Rule30AutomatonMode implements VisualizationMode {
             g2d.setColor(Color.BLACK);
             g2d.fillRect(CANVAS_ORIGIN_X, CANVAS_ORIGIN_Y, width, height);
             g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-            drawPanelFrames(g2d);
-            drawLabels(g2d);
+            drawHud(g2d);
         } finally {
             g2d.dispose();
         }
     }
 
     private void drawPanelFrames(Graphics2D g2d) {
-        g2d.setColor(new Color(210, 210, 210, PANEL_BORDER_ALPHA));
+        g2d.setColor(PANEL_BORDER_COLOR);
         g2d.drawRect(rulePanelX, panelY, rulePanelWidth, panelHeight);
         g2d.drawRect(rawPanelX, panelY, rawPanelWidth, panelHeight);
     }
 
-    private void drawLabels(Graphics2D g2d) {
+    private void drawHud(BufferedImage canvas) {
+        Graphics2D g2d = canvas.createGraphics();
+        try {
+            g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            drawHud(g2d);
+        } finally {
+            g2d.dispose();
+        }
+    }
+
+    private void drawHud(Graphics2D g2d) {
+        drawHudStrips(g2d);
+        drawPanelFrames(g2d);
+        drawHudTitles(g2d);
+        drawHudMetrics(g2d);
+    }
+
+    private void drawHudStrips(Graphics2D g2d) {
+        g2d.setColor(HUD_BACKGROUND_COLOR);
+        g2d.fillRect(CANVAS_ORIGIN_X, CANVAS_ORIGIN_Y, width, TOP_HUD_HEIGHT);
+        g2d.fillRect(CANVAS_ORIGIN_X, Math.max(CANVAS_ORIGIN_Y, height - BOTTOM_HUD_HEIGHT), width, BOTTOM_HUD_HEIGHT);
+
+        g2d.setColor(HUD_DIVIDER_COLOR);
+        g2d.drawLine(CANVAS_ORIGIN_X, TOP_HUD_HEIGHT, width, TOP_HUD_HEIGHT);
+        g2d.drawLine(CANVAS_ORIGIN_X, Math.max(CANVAS_ORIGIN_Y, height - BOTTOM_HUD_HEIGHT),
+                width, Math.max(CANVAS_ORIGIN_Y, height - BOTTOM_HUD_HEIGHT));
+    }
+
+    private void drawHudTitles(Graphics2D g2d) {
         g2d.setFont(LABEL_FONT);
-        g2d.setColor(new Color(240, 240, 240, LABEL_ALPHA));
-        g2d.drawString("Rule " + ruleCode + " cellular automaton", rulePanelX + LABEL_X_PADDING, LABEL_BASELINE_OFFSET + 8);
-        g2d.drawString("Raw RNG bit stream", rawPanelX + LABEL_X_PADDING, LABEL_BASELINE_OFFSET + 8);
+        g2d.setColor(HUD_TITLE_COLOR);
+        g2d.drawString("Rule " + ruleCode + " cellular automaton", rulePanelX + LABEL_X_PADDING, TITLE_BASELINE_Y);
+        g2d.drawString("Raw RNG bit stream", rawPanelX + LABEL_X_PADDING, TITLE_BASELINE_Y);
+    }
+
+    private void drawHudMetrics(Graphics2D g2d) {
+        int baselineY = height - METRICS_BASELINE_OFFSET;
 
         g2d.setFont(METRIC_FONT);
-        g2d.setColor(new Color(185, 205, 235, LABEL_ALPHA));
+        g2d.setColor(HUD_METRIC_COLOR);
         String metrics = "seed=RNG  mutations=" + (mutationsEnabled ? mutationCount : "off")
                 + "  resets=" + resetCount
                 + "  numbers=" + randomNumbersUsed;
-        g2d.drawString(metrics, rulePanelX + LABEL_X_PADDING, height - METRICS_BASELINE_OFFSET);
-        g2d.drawString("left: deterministic chaos from seed    right: direct bits", rawPanelX + LABEL_X_PADDING,
-                height - METRICS_BASELINE_OFFSET);
+        g2d.drawString(metrics, rulePanelX + LABEL_X_PADDING, baselineY);
+        g2d.drawString("left: deterministic chaos from seed    right: direct RNG bits",
+                rawPanelX + LABEL_X_PADDING, baselineY);
     }
 }

@@ -145,6 +145,30 @@ public interface VisualizationMode {
     default boolean usesDarkBackground() { return false; }
 
     /**
+     * Нужно ли показывать верхний informational overlay DotController.
+     *
+     * <p>Режимы с плотной собственной HUD-разметкой могут отключить этот
+     * общий overlay, чтобы текст не накладывался на визуализацию.</p>
+     */
+    default boolean usesInfoTextOverlay() {
+        return true;
+    }
+
+    /**
+     * Нужно ли показывать общий overlay счётчика точек DotController.
+     */
+    default boolean usesPointCounterOverlay() {
+        return true;
+    }
+
+    /**
+     * Нужно ли показывать общий overlay текущего RNG-режима DotController.
+     */
+    default boolean usesRngModeIndicatorOverlay() {
+        return true;
+    }
+
+    /**
      * Нужно ли показывать overlay таблицы потреблённых random numbers.
      */
     default boolean usesRandomNumbersStackOverlay() {
@@ -154,6 +178,7 @@ public interface VisualizationMode {
 
     /**
      * High-level category used by the two-level mode selection dialog.
+     *
      * Current modes are classified here so existing visualization classes do not
      * need boilerplate category overrides. A new mode may still override this
      * method when it belongs to a different category.
