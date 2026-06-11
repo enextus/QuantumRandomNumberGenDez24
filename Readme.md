@@ -1,23 +1,66 @@
 # rep-qrng-chaos-game
 
-Java Swing-приложение для визуализации случайных чисел в нескольких режимах. Проект начинался как **Chaos Game / Sierpinski Triangle** на квантовых случайных числах, а сейчас превратился в маленькую лабораторию генеративной случайности.
-
-Поддерживаемые режимы визуализации:
-
-1. **Sierpinski Triangle** — классический Chaos Game;
-2. **DLA / Brownian Tree** — диффузионно-ограниченная агрегация;
-3. **Voronoi Mosaic** — диаграмма Вороного с Lloyd relaxation;
-4. **Barnsley Fern** — IFS-фрактал папоротника Барнсли;
-5. **Random Walk Heatmap** — тепловая карта случайного блуждания;
-6. **Galton Board** — доска Гальтона с анимированными цветными шариками;
-7. **Percolation** — случайная решётка связности и появление spanning cluster.
+Java 25 / Swing-приложение для визуализации потоков случайных чисел. Проект начинался как **Chaos Game / Sierpinski Triangle** на квантовых случайных числах, а сейчас стал небольшой лабораторией генеративной случайности, фракталов, Monte Carlo-оценок, динамических систем и stochastic processes.
 
 Проект использует два источника случайности:
 
 - **QUANTUM** — истинные случайные числа из **ANU Quantum Random Numbers API**;
 - **PSEUDO** — локальный fallback на `L128X256MixRandom`, если API недоступен, не задан ключ или исчерпан лимит.
 
-Важно: приложение **не доказывает** «истинную случайность» генератора. Оно даёт наглядную визуализацию и прикладные **statistical sanity checks** по тем числам, которые реально были использованы в текущей сессии.
+Важно: приложение **не доказывает** «истинную случайность» генератора. Оно визуализирует поток чисел и даёт прикладные **statistical sanity checks** по тем значениям, которые реально были использованы в текущей сессии.
+
+---
+
+## Current status
+
+Актуальное состояние после рефакторинга пакетов:
+
+| Метрика | Значение |
+|---|---:|
+| Java | 25 |
+| Main source classes | 52 |
+| Tests | 250 |
+| Last verified result | `BUILD SUCCESS` |
+| Test failures | 0 |
+| Test errors | 0 |
+| JaCoCo | enabled |
+
+Последний подтверждённый локальный прогон:
+
+```text
+Tests run: 250, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+```
+
+---
+
+## Visualization categories
+
+### Chaos & fractals
+
+- **Sierpinski Triangle** — классический Chaos Game.
+- **Barnsley Fern** — IFS-фрактал папоротника Барнсли.
+- **CGR Bit Stream** — Chaos Game Representation для битового потока.
+
+### Monte Carlo
+
+- **Monte Carlo π Dashboard** — оценка π через случайные точки в единичном квадрате.
+- **Monte Carlo Mandelbrot Area** — оценка площади множества Мандельброта методом Monte Carlo.
+- **Monte Carlo Mandelbrot 3D Area** — 3D-рельеф escape-time над комплексной плоскостью.
+
+### Physics / complex systems
+
+- **Lorenz Attractor 3D** — 3D-аттрактор Лоренца с ансамблем траекторий и QRNG-jitter.
+- **Bifurcation Diagram** — бифуркационная диаграмма логистического отображения.
+- **Percolation** — site percolation, top-connected clusters и spanning cluster.
+- **Forest Fire** — клеточная модель роста леса, молний и распространения огня.
+
+### Stochastic processes
+
+- **Galton Board** — биномиальное распределение из бинарных случайных решений.
+- **Random Walk Heatmap** — тепловая карта посещений случайного блуждания.
+- **Voronoi Mosaic** — диаграмма Вороного с Lloyd relaxation.
+- **DLA / Brownian Tree** — diffusion-limited aggregation.
 
 ---
 
@@ -25,26 +68,49 @@ Java Swing-приложение для визуализации случайны
 
 - показывает стартовое окно выбора режима визуализации;
 - поддерживает workflow loop: выбор режима → окно визуализации → **Выйти** → возврат к выбору режима;
-- корректно работает с несколькими мониторами:
-  - первое окно открывается на мониторе под курсором при запуске;
-  - если окно выбора режима перенести на другой монитор, визуализация откроется там же;
-  - после закрытия окна визуализации выбор режима возвращается на тот монитор, где была закрыта визуализация;
+- использует 3-колоночное меню выбора режимов;
+- корректно работает с несколькими мониторами;
 - рисует визуализации в реальном времени через Swing/AWT;
 - получает числа из ANU QRNG API по HTTP с заголовком `x-api-key`;
 - поддерживает локальный буфер случайных чисел и фоновую дозагрузку;
 - не блокирует EDT при получении новых чисел;
 - автоматически переключается в **PSEUDO** при недоступности API, отсутствии ключа или исчерпании лимита;
 - пытается вернуться в **QUANTUM** после восстановления внешнего источника;
-- показывает текущий режим генерации в статусной строке;
 - поддерживает **Play / Stop** для паузы и продолжения анимации;
 - поддерживает переключатель источника RNG: **QUANTUM / PSEUDO**;
-- отображает уже использованные числа в правой части окна для светлых режимов;
-- числовая таблица адаптируется к текущей высоте окна;
+- отображает уже использованные числа в правой части окна для светлых/AppleMac-режимов;
+- числовая таблица адаптируется к высоте окна;
 - запускает встроенные статистические тесты кнопкой **Test RNG**;
-- показывает результаты тестов в цветном диалоге с уровнями качества `STRONG / MARGINAL / FAIL`;
+- показывает результаты тестов с уровнями качества `STRONG / MARGINAL / FAIL`;
 - сохраняет текущую визуализацию в **PNG**;
-- поддерживает mode-specific controls, например **Метки ВКЛ./ВЫКЛ.** в Voronoi и управление вероятностью `p` в Percolation;
-- пишет логи в файл `logs/app.log` и в консоль.
+- поддерживает mode-specific controls;
+- поддерживает визуальный стиль **AppleMac** для Sierpinski UI;
+- пишет application logs в `logs/app.log`;
+- пишет TRUE RNG stream в `logs/rnds-true.log`.
+
+---
+
+## Visualization styles
+
+### Classic
+
+Базовый стиль приложения: светлые и тёмные режимы, цветные canvas-визуализации, dashboard-панели и mode-specific controls.
+
+### AppleMac
+
+Монохромный retro UI в духе classic Macintosh / System 6/7 для режима Sierpinski Triangle.
+
+Особенности:
+
+- 4:3-пропорции окна визуализации;
+- отдельная left plot area;
+- отдельная right sidebar для таблицы использованных чисел;
+- framed counter/status block слева;
+- reserved UI area для counter block, куда точки не рисуются;
+- bitmap-like fonts;
+- Mac-like table grid;
+- bevel-like bottom controls;
+- monochrome palette.
 
 ---
 
@@ -61,69 +127,100 @@ Java Swing-приложение для визуализации случайны
 3. новая точка ставится на середину отрезка между текущей точкой и выбранной вершиной;
 4. процесс повторяется много раз.
 
-В результате возникает треугольник Серпинского.
-
----
-
-### DLA / Brownian Tree
-
-Diffusion-Limited Aggregation.
-
-Частицы случайно блуждают по полю и прилипают к уже существующему кластеру. Получается структура, похожая на кораллы, молнии, кристаллы или рост колоний.
-
-Особенности режима:
-
-- чёрный фон;
-- параллельные walkers;
-- ограничение lifespan для блуждающих частиц;
-- spawn/teleport logic для экономии случайных чисел;
-- HSB-градиент от тёплого центра к холодной периферии;
-- размер точки уменьшается с расстоянием от центра.
-
----
-
-### Voronoi Mosaic
-
-Диаграмма Вороного с Lloyd's Relaxation.
-
-Случайные точки становятся центрами ячеек. Каждая новая точка меняет мозаику. Периодически запускается Lloyd relaxation, который сдвигает точки к центроидам ячеек и делает мозаику более равномерной и органичной.
-
-Особенности режима:
-
-- цветные многоугольные ячейки;
-- затемнённые границы между ячейками;
-- белые метки центров ячеек;
-- переключатель **Метки ВКЛ./ВЫКЛ.** для динамического скрытия/показа белых крестиков;
-- redraw текущего состояния без добавления новых random seeds.
+В результате возникает треугольник Серпинского. В AppleMac-style режим получает отдельную plot-area, counter/status block и right sidebar с таблицей использованных чисел.
 
 ---
 
 ### Barnsley Fern
 
-Папоротник Барнсли строится как **Iterated Function System**.
-
-Каждое случайное число выбирает одно из четырёх аффинных преобразований. Из последовательности таких решений постепенно появляется узнаваемая форма фрактального папоротника.
-
-Особенности режима:
-
-- чёрный фон;
-- зелёный depth-gradient;
-- много итераций за один tick;
-- отображает, как weighted randomness создаёт устойчивую органическую форму.
+Папоротник Барнсли строится как **Iterated Function System**. Каждое случайное число выбирает одно из четырёх аффинных преобразований. Из последовательности таких решений постепенно появляется узнаваемая форма фрактального папоротника.
 
 ---
 
-### Random Walk Heatmap
+### CGR Bit Stream
 
-Несколько walkers стартуют из центра. Каждое случайное число выбирает одно из 8 направлений движения. Чем чаще пиксель посещается, тем ярче и теплее становится его цвет.
+Chaos Game Representation переводит битовый поток в 2D-карту. Пустоты, полосы и симметрии помогают визуально заметить скрытую структуру или перекосы в последовательности.
 
-Особенности режима:
+---
 
-- 8-направленное случайное блуждание;
-- несколько walkers одновременно;
-- heatmap через счётчик посещений;
-- цветовой переход от холодного синего к горячему красному;
-- redraw текущей heatmap без потребления новых чисел.
+### Monte Carlo π Dashboard
+
+Случайные точки бросаются в квадрат `[0,1] × [0,1]`. Доля точек внутри четверти окружности даёт оценку π:
+
+```text
+π ≈ 4 × inside / total
+```
+
+Dashboard показывает sample space, convergence chart, absolute error и метрики `TOTAL SAMPLES`, `POINTS INSIDE`, `POINTS OUTSIDE`, `ESTIMATE OF π`, `ABSOLUTE ERROR`, `RELATIVE ERROR`.
+
+---
+
+### Monte Carlo Mandelbrot Area
+
+Случайные точки выбираются в комплексной плоскости. Для каждой точки выполняется bounded/escaped test для множества Мандельброта. Доля bounded-точек даёт оценку площади множества в выбранном окне.
+
+Особенности:
+
+- окно комплексной плоскости примерно `Re [-2.0, 1.0]`, `Im [-1.5, 1.5]`;
+- настраиваемое число `max iterations`;
+- отображение bounded/inside и escaped-точек;
+- dashboard с area estimate и error vs reference.
+
+---
+
+### Monte Carlo Mandelbrot 3D Area
+
+3D-вариант Mandelbrot Monte Carlo: escape-time превращается в высоту над комплексной плоскостью. Вращающееся облако показывает relief множества, ridge-зоны и fast escape области.
+
+---
+
+### Lorenz Attractor 3D
+
+Ансамбль близких траекторий интегрируется методом RK4 в системе Лоренца. QRNG/PSEUDO-числа дают микроджиттер параметров `σ / ρ / β`, поэтому режим показывает чувствительную зависимость от начальных условий и параметров.
+
+Dashboard показывает:
+
+- trace points;
+- particles;
+- spread;
+- current parameters;
+- jitter;
+- trail length.
+
+---
+
+### Bifurcation Diagram
+
+Бифуркационная диаграмма логистического отображения:
+
+```text
+xₙ₊₁ = r · xₙ · (1 - xₙ)
+```
+
+Параметр `r` идёт по горизонтали. После warmup-итераций рисуются устойчивые значения `x`. Режим показывает переход:
+
+```text
+стабильная точка → 2-cycle → 4-cycle → каскад бифуркаций → хаос → окна порядка
+```
+
+---
+
+### Percolation
+
+Site percolation на квадратной решётке. Каждая клетка получает случайное решение: открыта или закрыта. После каждого шага пересчитывается top-connected cluster. Если он достигает нижней границы, возникает **spanning cluster**.
+
+Особенности:
+
+- стартовая вероятность открытия клетки около `p≈0.59`;
+- cyan показывает top-connected cluster;
+- gold показывает spanning state;
+- mode-specific controls позволяют менять `p` и сбрасывать решётку.
+
+---
+
+### Forest Fire
+
+Клеточная модель forest-fire dynamics. Деревья растут случайно, молнии поджигают клетки, огонь распространяется по соседям, а затем лес снова восстанавливается. Режим показывает self-organized patterns и динамику распространения.
 
 ---
 
@@ -131,39 +228,42 @@ Diffusion-Limited Aggregation.
 
 Доска Гальтона показывает, как из множества бинарных случайных решений возникает биномиальное распределение.
 
-Каждый шарик проходит через несколько уровней. На каждом уровне одно случайное число решает направление:
-
 ```text
 bit 0 → left
 bit 1 → right
 ```
 
-Особенности режима:
+Особенности:
 
 - анимированные падающие шарики;
-- цвет шарика зависит от текущего path bias:
-  - синий/голубой — больше уходов влево;
-  - жёлтый — сбалансированный путь;
-  - розово-красный — больше уходов вправо;
+- цвет шарика зависит от path bias;
 - нижняя гистограмма показывает реальные bucket counts;
-- жёлтая линия показывает ожидаемую биномиальную форму;
-- histogram обновляется только после того, как шарик достиг низа.
+- ожидаемая биномиальная форма накладывается как reference.
 
 ---
 
-### Percolation
+### Random Walk Heatmap
 
-Site percolation на квадратной решётке.
+Несколько walkers стартуют из центра. Каждое случайное число выбирает одно из 8 направлений движения. Чем чаще пиксель посещается, тем ярче и теплее становится его цвет.
 
-Каждая клетка получает случайное решение: открыть её или оставить закрытой. После каждого шага пересчитывается кластер, связанный с верхней границей. Если этот кластер достигает нижней границы, возникает **spanning cluster** — путь через всю решётку.
+---
 
-Особенности режима:
+### Voronoi Mosaic
 
-- чёрный фон и сетка клеток;
-- `p≈0.59` как стартовая вероятность открытия клетки;
-- cyan показывает top-connected cluster;
-- gold показывает spanning state, когда путь сверху вниз уже появился;
-- mode-specific controls позволяют менять `p` и сбрасывать решётку.
+Случайные точки становятся центрами ячеек диаграммы Вороного. Lloyd relaxation сдвигает точки к центроидам ячеек и делает мозаику более равномерной.
+
+Особенности:
+
+- цветные многоугольные ячейки;
+- затемнённые границы между ячейками;
+- белые метки центров;
+- переключатель **Метки ВКЛ./ВЫКЛ.**.
+
+---
+
+### DLA / Brownian Tree
+
+Diffusion-Limited Aggregation. Частицы случайно блуждают по полю и прилипают к уже существующему кластеру. Получается структура, похожая на кораллы, молнии, кристаллы или рост колоний.
 
 ---
 
@@ -172,12 +272,14 @@ Site percolation на квадратной решётке.
 - **Java 25**
 - **Swing / AWT**
 - **Maven**
-- **Jackson Databind** для разбора JSON
-- **FlatLaf** для внешнего вида Swing UI
+- **Jackson Databind** для JSON
+- **FlatLaf** для Swing UI
 - **JUnit 5** для тестов
-- **Mockito** для тестовой инфраструктуры
+- **JaCoCo** для coverage report
 - встроенный `com.sun.net.httpserver.HttpServer` для integration-тестов `RNProvider`
 - **ANU Quantum Random Numbers API** как внешний источник данных
+
+Примечание: Mockito-зависимости могут оставаться в `pom.xml` как legacy dependency, но активные smoke-тесты используют lightweight test doubles вместо Mockito/ByteBuddy.
 
 ---
 
@@ -192,22 +294,28 @@ Site percolation на квадратной решётке.
 - минимальный локальный буфер: `100`;
 - максимум запросов за сессию: `100`.
 
-При временных ошибках используется retry с exponential backoff:
-
-- 1 секунда;
-- 2 секунды;
-- 4 секунды;
-- 8 секунд;
-- 16 секунд;
-- верхняя граница задержки: 30 секунд.
-
-Если загрузка не удалась, API key не задан или лимит запросов исчерпан, `RNProvider` не останавливает приложение. Он переключается в `PSEUDO` и начинает выдавать числа из локального генератора `L128X256MixRandom`.
+При временных ошибках используется retry с exponential backoff. Если загрузка не удалась, API key не задан или лимит запросов исчерпан, `RNProvider` переключается в `PSEUDO` и начинает выдавать числа из локального генератора `L128X256MixRandom`.
 
 После нескольких pseudo-batch-циклов провайдер пытается снова обратиться к ANU API. Если загрузка успешна, приложение возвращается в `QUANTUM`.
 
 ---
 
-### 2. Абстракция режимов визуализации
+### 2. Логгирование случайных чисел
+
+Проект ведёт отдельное логгирование случайных чисел:
+
+```text
+logs/rnds-true.log
+logs/rnds-pseudo.log
+```
+
+Текущая рабочая политика: TRUE random numbers пишутся в `logs/rnds-true.log`. PSEUDO logging инфраструктурно поддержан отдельно, но pseudo-числа не должны смешиваться с true-логом.
+
+Каждый новый lifecycle `RNProvider` / запуск режима отделяется пустой строкой.
+
+---
+
+### 3. Абстракция режимов визуализации
 
 Все режимы реализуют интерфейс `VisualizationMode`.
 
@@ -221,10 +329,11 @@ Site percolation на квадратной решётке.
 - один шаг анимации;
 - количество нарисованных точек;
 - количество использованных случайных чисел;
-- признак recolor-анимации;
-- признак тёмного фона;
-- при необходимости — собственные UI controls;
-- при необходимости — redraw текущего состояния.
+- dark/light background flag;
+- point counter placement;
+- mode-specific controls;
+- redraw текущего состояния без потребления новых чисел;
+- optional reserved drawing areas.
 
 Реестр доступных режимов находится в:
 
@@ -234,27 +343,25 @@ VisualizationMode.allModes()
 
 ---
 
-### 3. Отрисовка
+### 4. Отрисовка
 
 `DotController` работает как Swing-панель, которая:
 
 - хранит `offscreenImage`;
 - обновляет изображение через `javax.swing.Timer`;
 - делегирует шаг визуализации выбранному `VisualizationMode`;
-- выполняет работу с `offscreenImage` только на EDT;
-- поддерживает краткую recolor-анимацию для режимов, которым она нужна;
+- выполняет работу с canvas на EDT;
 - показывает счётчик точек;
 - показывает текущий режим RNG;
-- отображает стек использованных чисел для светлых режимов;
-- адаптирует таблицу чисел под реальную высоту окна;
-- поддерживает `refreshVisualization()` для перерисовки текущего режима без добавления новых чисел;
-- останавливает внутренние timers через `shutdown()`.
+- отображает стек использованных чисел;
+- поддерживает `refreshVisualization()`;
+- поддерживает AppleMac plot/sidebar separation;
+- поддерживает reserved UI areas;
+- останавливает timers через `shutdown()`.
 
 ---
 
-### 4. Workflow приложения
-
-Стартовый flow:
+### 5. Workflow приложения
 
 ```text
 App.main()
@@ -276,111 +383,99 @@ ModeSelectionDialog
 - status bar;
 - кнопками управления;
 - RNG toggle;
+- style selector;
 - запуском статистических тестов;
 - сохранением PNG;
-- кнопкой **Выйти**;
 - multi-monitor positioning;
-- возвратом к выбору режима после завершения визуализации;
-- shutdown `DotController` и `RNProvider` при выходе из текущей визуализации.
-
-Закрытие окна через `X` обрабатывается так же, как кнопка **Выйти**: визуализация останавливается, ресурсы очищаются, приложение возвращается к выбору режима.
-
----
-
-### 5. Проверка выборки
-
-После накопления хотя бы 10 чисел можно запустить статистические проверки кнопкой **Test RNG**.
-
-Tooltip кнопки:
-
-```text
-Test values quality
-```
-
-Результаты выводятся в цветном диалоге:
-
-- **зелёный** — `STRONG`;
-- **жёлтый** — `MARGINAL`;
-- **красный** — `FAIL`.
-
-Для p-value тестов высокий запас до порога помечается как `STRONG`, близость к порогу — как `MARGINAL`. Для K-S и χ² логика аналогична, но ориентируется на расстояние до критического значения.
+- shutdown `DotController` и `RNProvider`.
 
 ---
 
 ## Архитектура проекта
 
+### Package structure
+
+```text
+org.ThreeDotsSierpinski
+├── app
+│   ├── App
+│   ├── ModeSelectionDialog
+│   └── DotController
+├── mode
+│   ├── VisualizationMode
+│   ├── VisualizationStyle
+│   ├── chaos
+│   │   ├── SierpinskiMode
+│   │   ├── BarnsleyFernMode
+│   │   └── ChaosGameRepresentationMode
+│   ├── montecarlo
+│   │   ├── MonteCarloPiMode
+│   │   ├── MonteCarloMandelbrotAreaMode
+│   │   └── MonteCarloMandelbrot3DAreaMode
+│   ├── physics
+│   │   ├── LorenzAttractor3DMode
+│   │   ├── BifurcationDiagramMode
+│   │   ├── PercolationMode
+│   │   └── ForestFireMode
+│   └── stochastic
+│       ├── GaltonBoardMode
+│       ├── RandomWalkHeatmapMode
+│       ├── VoronoiMode
+│       ├── SpectralPlotMode
+│       └── DLAMode
+├── rng
+│   ├── RNProvider
+│   ├── RNLoadListener
+│   ├── RNLoadListenerImpl
+│   ├── RandomNumberProcessor
+│   └── RandomNumbersLog
+├── stats
+│   ├── RandomnessTest
+│   ├── RandomnessTestSuite
+│   ├── TestResult
+│   ├── ChiSquareUniformityTest
+│   ├── FrequencyBitTest
+│   ├── KolmogorovSmirnovTest
+│   └── RunsBitTest
+├── model
+│   └── Dot
+├── math
+│   ├── SierpinskiAlgorithm
+│   └── MathUtils
+└── config
+    ├── Config
+    └── LoggerConfig
+```
+
 ### Основные классы
 
-- **`App`** — точка входа, сборка GUI, mode workflow loop, multi-monitor логика, кнопки управления, статистические тесты, сохранение PNG.
-- **`ModeSelectionDialog`** — окно выбора режима визуализации с карточками доступных режимов.
-- **`VisualizationMode`** — общий интерфейс режимов визуализации и registry всех доступных режимов.
-- **`DotController`** — центральная панель визуализации; управляет timer-отрисовкой, offscreen-буфером, счётчиками, числовым стеком и refresh/redraw.
-- **`SierpinskiMode`** — режим Chaos Game / Sierpinski Triangle.
-- **`DLAMode`** — режим Diffusion-Limited Aggregation / Brownian Tree.
-- **`VoronoiMode`** — режим Voronoi Mosaic с Lloyd relaxation и toggle-метками.
-- **`BarnsleyFernMode`** — режим IFS-фрактала Barnsley Fern.
-- **`RandomWalkHeatmapMode`** — режим тепловой карты случайного блуждания.
-- **`GaltonBoardMode`** — режим доски Гальтона с анимированными цветными шариками.
-- **`PercolationMode`** — режим site percolation и top-connected clusters.
-- **`Dot`** — immutable `record`, безопасно копирующий `Point`.
-- **`SierpinskiAlgorithm`** — чистая математическая логика Chaos Game без зависимости от Swing.
-- **`RNProvider`** — сетевой клиент и буфер случайных чисел из ANU API с fallback-режимом `QUANTUM → PSEUDO → QUANTUM`.
-- **`RandomNumberProcessor`** — преобразование входных чисел/HEX в целевой диапазон.
-- **`Config`** — загрузка конфигурации из environment, `.env` и `config.properties`.
-- **`LoggerConfig`** — настройка файлового и консольного логирования.
-- **`RNLoadListener`** / **`RNLoadListenerImpl`** — уведомления о начале загрузки, успешном завершении, ошибках, смене режима и сырых данных API.
-- **`TestResult`** — record результата теста с уровнем качества `STRONG / MARGINAL / FAIL`.
-
-### Runtime-тесты случайности
-
-`RandomnessTestSuite` запускает 4 теста:
-
-- **`KolmogorovSmirnovTest`** — проверка отклонения эмпирического распределения от равномерного;
-- **`FrequencyBitTest`** — битовый частотный тест, оценивающий баланс `0/1`;
-- **`ChiSquareUniformityTest`** — χ²-проверка равномерности по корзинам;
-- **`RunsBitTest`** — тест серий по битовой последовательности.
+- **`App`** — точка входа, GUI workflow loop, multi-monitor logic, кнопки управления, статистические тесты, PNG export.
+- **`ModeSelectionDialog`** — 3-колоночное окно выбора режима.
+- **`DotController`** — центральная Swing-панель визуализации.
+- **`VisualizationMode`** — общий контракт и registry всех режимов.
+- **`VisualizationStyle`** — стиль визуализации, включая `APPLE_MAC`.
+- **`RNProvider`** — сетевой клиент, буфер случайных чисел, fallback `QUANTUM → PSEUDO → QUANTUM`.
+- **`RandomNumbersLog`** — файловое логгирование потоков случайных чисел.
+- **`RandomnessTestSuite`** — runtime sanity checks.
+- **`Config`** — загрузка настроек из environment, `.env`, `config.properties`.
+- **`LoggerConfig`** — файловое и консольное логирование.
 
 ---
 
-## Структура проекта
+## Runtime-тесты случайности
 
-```text
-rep-qrng-chaos-game/
-├── Readme.md
-├── pom.xml
-├── logs/
-│   └── app.log
-└── src/
-    ├── main/
-    │   ├── java/org/ThreeDotsSierpinski/
-    │   │   ├── App.java
-    │   │   ├── BarnsleyFernMode.java
-    │   │   ├── ChiSquareUniformityTest.java
-    │   │   ├── Config.java
-    │   │   ├── DLAMode.java
-    │   │   ├── Dot.java
-    │   │   ├── DotController.java
-    │   │   ├── FrequencyBitTest.java
-    │   │   ├── GaltonBoardMode.java
-    │   │   ├── KolmogorovSmirnovTest.java
-    │   │   ├── LoggerConfig.java
-    │   │   ├── MathUtils.java
-    │   │   ├── ModeSelectionDialog.java
-    │   │   ├── PercolationMode.java
-    │   │   ├── RandomWalkHeatmapMode.java
-    │   │   ├── RNProvider.java
-    │   │   ├── SierpinskiMode.java
-    │   │   ├── TestResult.java
-    │   │   ├── VisualizationMode.java
-    │   │   └── VoronoiMode.java
-    │   └── resources/
-    │       └── config.properties
-    └── test/
-        └── java/org/ThreeDotsSierpinski/
-            ├── VisualizationModeRegistryTest.java
-            ├── VisualizationModesSmokeTest.java
-            └── ... existing unit/integration tests
-```
+`RandomnessTestSuite` запускает 4 теста:
+
+- **`KolmogorovSmirnovTest`** — отклонение эмпирического распределения от равномерного;
+- **`FrequencyBitTest`** — баланс битов `0/1`;
+- **`ChiSquareUniformityTest`** — χ²-проверка равномерности по корзинам;
+- **`RunsBitTest`** — тест серий по битовой последовательности.
+
+Кнопка **Test RNG** показывает диалог с уровнями качества:
+
+- `STRONG`;
+- `MARGINAL`;
+- `FAIL`.
 
 ---
 
@@ -388,17 +483,17 @@ rep-qrng-chaos-game/
 
 - **JDK 25**
 - **Maven 3.8+**
-- действующий API key для **ANU Quantum Random Numbers API** для работы в режиме `QUANTUM`
+- API key для **ANU Quantum Random Numbers API** для режима `QUANTUM`
 - доступ в интернет для живого источника квантовых чисел
 
-В `pom.xml` указаны:
+В `pom.xml`:
 
 ```xml
 <maven.compiler.source>25</maven.compiler.source>
 <maven.compiler.target>25</maven.compiler.target>
 ```
 
-Даже без рабочего API приложение способно стартовать в режиме `PSEUDO`, но в этом случае источник данных уже не будет квантовым, пока не восстановится доступ к ANU API.
+Даже без API key приложение стартует в `PSEUDO`.
 
 ---
 
@@ -412,9 +507,11 @@ rep-qrng-chaos-game/
 
 Правило преобразования имён:
 
-- `api.key` → `QRNG_API_KEY`
-- `api.url` → `QRNG_API_URL`
-- `panel.size.width` → `QRNG_PANEL_SIZE_WIDTH`
+```text
+api.key → QRNG_API_KEY
+api.url → QRNG_API_URL
+panel.size.width → QRNG_PANEL_SIZE_WIDTH
+```
 
 Linux/macOS:
 
@@ -440,13 +537,13 @@ mvn clean package
 mvn clean package
 ```
 
-После сборки Maven Assembly Plugin создаёт fat JAR вида:
+После сборки Maven Assembly Plugin создаёт fat JAR:
 
 ```text
 target/rep-qrng-chaos-game-1.0-SNAPSHOT-jar-with-dependencies.jar
 ```
 
-### Запуск собранного JAR
+### Запуск JAR
 
 ```bash
 java -jar target/rep-qrng-chaos-game-1.0-SNAPSHOT-jar-with-dependencies.jar
@@ -457,7 +554,7 @@ java -jar target/rep-qrng-chaos-game-1.0-SNAPSHOT-jar-with-dependencies.jar
 Main class:
 
 ```text
-org.ThreeDotsSierpinski.App
+org.ThreeDotsSierpinski.app.App
 ```
 
 ---
@@ -478,94 +575,84 @@ org.ThreeDotsSierpinski.App
 | `random.queue.min.size` | `100` | Порог дозагрузки буфера |
 | `random.min.value` | `0` | Нижняя граница диапазона |
 | `random.max.value` | `65535` | Верхняя граница диапазона |
-| `panel.size.width` | `600` | Ширина области рисования |
-| `panel.size.height` | `600` | Высота области рисования |
+| `panel.size.width` | `600` | Базовая ширина области рисования |
+| `panel.size.height` | `600` | Базовая высота области рисования |
 | `dot.size` | `2` | Размер точки |
 | `timer.delay` | `150` | Интервал таймера, мс |
 | `dots.per.update` | `5` | Число новых точек за тик Sierpinski |
 | `window.scale.width` | `1.5` | Масштаб окна по ширине |
 | `window.scale.height` | `1.1` | Масштаб окна по высоте |
-| `column.width` | `52` | Ширина колонки в числовом стеке |
-| `row.height` | `14` | Высота строки |
-| `column.spacing` | `8` | Отступ между колонками |
-| `max.columns` | `5` | Максимум колонок со значениями |
-| `log.file.name` | `logs/app.log` | Путь к лог-файлу |
+| `log.file.name` | `logs/app.log` | Application log |
 | `log.level` | `INFO` | Уровень логирования |
-
 
 ---
 
 ## ZIP-контекст для ChatGPT
 
-Для быстрой передачи актуального состояния проекта в ChatGPT добавлены скрипты:
+Для быстрой передачи актуального состояния проекта в ChatGPT используются скрипты:
 
 ```text
-make-chatgpt-context-zip.ps1
-make-chatgpt-context-zip.cmd
-make-chatgpt-context-zip.sh
+scripts/make-chatgpt-context-zip.ps1
+scripts/make-chatgpt-context-zip.cmd
+scripts/make-chatgpt-context-zip.sh
 ```
 
 Они создают архив только с полезным проектным контекстом:
 
 ```text
 pom.xml
-Readme.md / README.md, если есть
-TEST_STATUS.md, если есть
+Readme.md / README.md
 src/
-сами context-zip скрипты
+scripts/
 ```
 
-В архив намеренно не попадают `target/`, `.git/`, `logs/` и уже созданные `.zip`-архивы.
-
-### Запуск из Git Bash
-
-```bash
-./make-chatgpt-context-zip.sh
-```
-
-### Запуск из Windows CMD
-
-```cmd
-make-chatgpt-context-zip.cmd
-```
-
-### Запуск напрямую через PowerShell
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\make-chatgpt-context-zip.ps1
-```
-
-По умолчанию будет создан файл вида:
+В архив намеренно не попадают:
 
 ```text
-rep-qrng-chaos-game_context_YYYY-MM-DD_HH-mm-ss.zip
+target/
+.git/
+logs/
+*.zip
 ```
 
-Можно задать имя архива явно:
+Запуск из Git Bash:
 
 ```bash
-./make-chatgpt-context-zip.sh rep-qrng-chaos-game_current.zip
+./scripts/make-chatgpt-context-zip.sh
+```
+
+Запуск из Windows CMD:
+
+```cmd
+scripts\make-chatgpt-context-zip.cmd
+```
+
+Запуск через PowerShell:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\make-chatgpt-context-zip.ps1
 ```
 
 ---
 
 ## Тесты
 
-В проекте есть unit-, component- и integration-тесты на **JUnit 5**.
+Проект содержит unit-, component- и integration-тесты на **JUnit 5**.
 
 ### Что покрыто
 
 - конфигурация и преобразование ключей;
 - immutable `Dot` record;
-- преобразование чисел и HEX;
-- K-S, Frequency, Chi-Square и Runs тесты;
+- математика Sierpinski Chaos Game;
+- обработка чисел и HEX;
+- K-S, Frequency, Chi-Square и Runs tests;
 - `RandomnessTestSuite`;
 - `TestResult` и quality-семантика;
 - `LoggerConfig`;
-- математика Sierpinski Chaos Game;
 - `RNProviderIntegrationTest` с локальным mock HTTP-сервером;
 - registry режимов визуализации;
-- smoke-тесты для `BarnsleyFernMode`, `RandomWalkHeatmapMode`, `GaltonBoardMode`, `VoronoiMode` и `PercolationMode`.
+- smoke-тесты режимов визуализации;
+- dedicated tests для Lorenz и Mandelbrot modes.
 
 ### Запуск
 
@@ -582,6 +669,8 @@ mvn test -DexcludedGroups=slow
 mvn -Dtest=VisualizationModeRegistryTest test
 mvn -Dtest=VisualizationModesSmokeTest test
 mvn -Dtest=RNProviderIntegrationTest test
+mvn -Dtest=LorenzAttractor3DModeTest test
+mvn -Dtest=MonteCarloMandelbrotAreaModeTest test
 ```
 
 ---
@@ -591,28 +680,31 @@ mvn -Dtest=RNProviderIntegrationTest test
 - для реального квантового режима нужен рабочий **ANU API key**;
 - работа в `QUANTUM` зависит от сети и доступности внешнего API;
 - лимиты ANU по запросам и битам влияют на длительность непрерывной сессии;
-- fallback-режим сохраняет непрерывность работы приложения, но в этот момент используются уже не квантовые, а псевдослучайные числа;
+- fallback-режим сохраняет непрерывность приложения, но в этот момент используются псевдослучайные числа;
 - статистические тесты встроены для практической оценки конкретной выборки, а не как строгая криптографическая сертификация;
-- визуальные режимы показывают разные свойства случайности: фрактальность, блуждание, агрегацию, связность, распределение и spatial partitioning;
-- в репозитории не стоит хранить `target/` и временные build artifacts.
+- визуальные режимы показывают разные свойства случайности: фрактальность, блуждание, агрегацию, связность, распределение, spatial partitioning, chaos, bifurcation и Monte Carlo convergence;
+- в репозитории не стоит хранить `target/`, `logs/`, временные build artifacts и generated reports.
 
 ---
 
 ## Типовой сценарий использования
 
 1. получить API key от ANU;
-2. положить его в `.env` или в переменную окружения `QRNG_API_KEY`;
+2. положить его в `.env` или в `QRNG_API_KEY`;
 3. собрать проект;
-4. запустить `org.ThreeDotsSierpinski.App`;
+4. запустить `org.ThreeDotsSierpinski.app.App`;
 5. выбрать режим визуализации;
 6. наблюдать, как random stream формирует структуру;
 7. при необходимости переключить `QUANTUM / PSEUDO`;
-8. при необходимости нажать **Test RNG** и посмотреть цветные результаты тестов;
-9. при необходимости сохранить изображение кнопкой **Save PNG**;
-10. нажать **Выйти**, чтобы вернуться к выбору режима.
+8. при необходимости выбрать style, например `AppleMac` для Sierpinski;
+9. нажать **Test RNG** для runtime sanity checks;
+10. сохранить изображение кнопкой **Save PNG**;
+11. нажать **Выйти**, чтобы вернуться к выбору режима.
 
 ---
 
 ## Краткое резюме
 
-`rep-qrng-chaos-game` — это учебно-практический Java-проект, где поток случайных чисел превращается в живые визуальные структуры: от фракталов и мозаик до тепловых карт, распределений и перколяционных кластеров. Проект поддерживает внешний QRNG API, локальный fallback, multi-monitor Swing workflow, mode-specific controls, статистические sanity checks и расширяемую архитектуру `VisualizationMode` для добавления новых визуализаций.
+`rep-qrng-chaos-game` — учебно-практический Java-проект, где поток случайных чисел превращается в живые визуальные структуры: фракталы, Monte Carlo-оценки, 3D-рельефы, аттракторы, бифуркации, перколяционные кластеры, stochastic processes и statistical sanity checks.
+
+После последнего рефакторинга проект организован как небольшой scientific visualization framework с пакетами `app`, `mode`, `rng`, `stats`, `math`, `model` и `config`, а визуализации сгруппированы по научным доменам: `chaos`, `montecarlo`, `physics`, `stochastic`.
