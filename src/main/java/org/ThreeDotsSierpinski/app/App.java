@@ -16,7 +16,9 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
@@ -26,6 +28,8 @@ import java.util.logging.Logger;
  */
 public class App {
     private static VisualizationCategory lastSelectedCategory = null;
+    private static final Set<String> visitedModeIds = new HashSet<>();
+    private static String lastSelectedModeId = null;
     private static final String LOG_APP_STARTED = "Application started.";
     private static final String LOG_GUI_STARTED = "GUI successfully launched.";
     private static final String LOG_APP_SHUTTING_DOWN = "Shutting down application.";
@@ -81,7 +85,9 @@ public class App {
         var selectedMode = selector.showAndWait(
                 null,
                 targetGraphicsConfiguration,
-                lastSelectedCategory
+                lastSelectedCategory,
+                visitedModeIds,
+                lastSelectedModeId
         );
 
         GraphicsConfiguration currentSelectionGraphicsConfiguration = selector.getLastDialogGraphicsConfiguration();
@@ -97,6 +103,8 @@ public class App {
         }
 
         lastSelectedCategory = selectedMode.getCategory();
+        visitedModeIds.add(selectedMode.getId());
+        lastSelectedModeId = selectedMode.getId();
 
         LOGGER.info(LOG_SELECTED_MODE_PREFIX + selectedMode.getName());
         LOGGER.info(LOG_SELECTION_SCREEN_BOUNDS_PREFIX + currentSelectionGraphicsConfiguration.getBounds());

@@ -11,9 +11,11 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Диалог выбора режима визуализации.
+ *
  * Сначала показывает категории научных визуализаций, затем — режимы внутри
  * выбранной категории. Это удерживает меню компактным даже при большом
  * количестве режимов.
@@ -28,6 +30,7 @@ public class ModeSelectionDialog {
             "Powered by ANU Quantum Random Numbers API + L128X256MixRandom fallback";
     private static final String DESCRIPTION_LINE_SEPARATOR = "\\n";
     private static final String CARD_ARROW_TEXT = "→";
+    private static final String CARD_CHECKED_TEXT = "✓";
     private static final String BACK_BUTTON_TEXT = "← Back to categories";
     private static final String CATEGORY_COUNT_SUFFIX_ONE = " mode";
     private static final String CATEGORY_COUNT_SUFFIX_MANY = " modes";
@@ -100,8 +103,13 @@ public class ModeSelectionDialog {
     private static final Color BACK_BAR_BACKGROUND = Color.WHITE;
     private static final Color CARD_BACKGROUND = Color.WHITE;
     private static final Color CARD_HOVER_BACKGROUND = new Color(240, 245, 255);
+    private static final Color CARD_SELECTED_BACKGROUND = new Color(232, 240, 255);
+    private static final Color CARD_VISITED_BACKGROUND = new Color(232, 250, 235);
     private static final Color CARD_BORDER_COLOR = new Color(220, 220, 215);
     private static final Color CARD_HOVER_BORDER_COLOR = new Color(100, 140, 200);
+    private static final Color CARD_SELECTED_BORDER_COLOR = new Color(120, 150, 210);
+    private static final Color CARD_VISITED_BORDER_COLOR = new Color(115, 170, 130);
+    private static final Color CARD_LAST_VISITED_BORDER_COLOR = new Color(210, 70, 70);
     private static final Color SUBTITLE_COLOR = new Color(120, 120, 120);
     private static final Color FOOTER_COLOR = new Color(160, 160, 160);
     private static final Color DESCRIPTION_COLOR = new Color(100, 100, 100);
@@ -118,6 +126,9 @@ public class ModeSelectionDialog {
     private static final Font ARROW_FONT = new Font(FONT_SANS_SERIF, Font.PLAIN, ARROW_FONT_SIZE);
 
     private VisualizationMode selectedMode = null;
+    private VisualizationCategory highlightedCategory = null;
+    private Set<String> visitedModeIds = Set.of();
+    private String lastSelectedModeId = null;
     private GraphicsConfiguration lastDialogGraphicsConfiguration = null;
 
     public GraphicsConfiguration getLastDialogGraphicsConfiguration() {
@@ -133,17 +144,15 @@ public class ModeSelectionDialog {
      */
     public VisualizationMode showAndWait(
             JFrame parent,
-            GraphicsConfiguration targetGraphicsConfiguration
-    ) {
-        return showAndWait(parent, targetGraphicsConfiguration, null);
-    }
-
-    public VisualizationMode showAndWait(
-            JFrame parent,
             GraphicsConfiguration targetGraphicsConfiguration,
-            VisualizationCategory initialCategory
+            VisualizationCategory initialCategory,
+            Set<String> visitedModeIds,
+            String lastSelectedModeId
     ) {
         selectedMode = null;
+        highlightedCategory = initialCategory;
+        this.visitedModeIds = visitedModeIds == null ? Set.of() : Set.copyOf(visitedModeIds);
+        this.lastSelectedModeId = lastSelectedModeId;
         lastDialogGraphicsConfiguration = targetGraphicsConfiguration;
 
         VisualizationMode[] modes = VisualizationMode.allModes();
@@ -183,6 +192,23 @@ public class ModeSelectionDialog {
         lastDialogGraphicsConfiguration = resolveDialogGraphicsConfiguration(dialog);
 
         return selectedMode;
+    }
+
+    public VisualizationMode showAndWait(
+            JFrame parent,
+            GraphicsConfiguration targetGraphicsConfiguration,
+            VisualizationCategory initialCategory,
+            Set<String> visitedModeIds
+    ) {
+        return showAndWait(parent, targetGraphicsConfiguration, initialCategory, visitedModeIds, null);
+    }
+
+    public VisualizationMode showAndWait(
+            JFrame parent,
+            GraphicsConfiguration targetGraphicsConfiguration,
+            VisualizationCategory initialCategory
+    ) {
+        return showAndWait(parent, targetGraphicsConfiguration, initialCategory, Set.of(), null);
     }
 
     private static Map<VisualizationCategory, List<VisualizationMode>> groupModesByCategory(VisualizationMode[] modes) {
@@ -264,6 +290,7 @@ public class ModeSelectionDialog {
                 cardsPanel.add(createCategoryCard(
                         category,
                         categoryModes,
+                        category == highlightedCategory,
                         modesByCategory,
                         contentPanel,
                         dialog,
@@ -279,7 +306,9 @@ public class ModeSelectionDialog {
         var cardsPanel = createCardsPanel();
 
         for (var mode : modes) {
-            cardsPanel.add(createModeCard(mode, dialog));
+            boolean visited = visitedModeIds.contains(mode.getId());
+            boolean lastVisited = mode.getId().equals(lastSelectedModeId);
+            cardsPanel.add(createModeCard(mode, visited, lastVisited, dialog));
         }
 
         return createCardsScrollPane(cardsPanel);
@@ -511,12 +540,14 @@ public class ModeSelectionDialog {
     private JPanel createCategoryCard(
             VisualizationCategory category,
             List<VisualizationMode> modes,
+            boolean highlighted,
             Map<VisualizationCategory, List<VisualizationMode>> modesByCategory,
             JPanel contentPanel,
             JDialog dialog,
             JLabel subtitleLabel
     ) {
-        var card = createBaseCard();
+        var card = createBaseCard(highlighted, false, false);
+
 
         var icon = new JLabel(category.getIcon());
         icon.setFont(ICON_FONT);
@@ -531,14 +562,17 @@ public class ModeSelectionDialog {
         arrow.setForeground(ARROW_COLOR);
         card.add(arrow, BorderLayout.EAST);
 
-        attachCardHoverAndClick(card, () -> showModeSelection(
-                category,
-                modes,
-                modesByCategory,
-                contentPanel,
-                dialog,
-                subtitleLabel
-        ));
+        attachCardHoverAndClick(card, highlighted, false, false, () -> {
+            highlightedCategory = category;
+            showModeSelection(
+                    category,
+                    modes,
+                    modesByCategory,
+                    contentPanel,
+                    dialog,
+                    subtitleLabel
+            );
+        });
 
         return card;
     }
@@ -546,8 +580,8 @@ public class ModeSelectionDialog {
     /**
      * Создаёт карточку одного режима.
      */
-    private JPanel createModeCard(VisualizationMode mode, JDialog dialog) {
-        var card = createBaseCard();
+    private JPanel createModeCard(VisualizationMode mode, boolean visited, boolean lastVisited, JDialog dialog) {
+        var card = createBaseCard(false, visited, lastVisited);
 
         var icon = new JLabel(mode.getIcon());
         icon.setFont(ICON_FONT);
@@ -558,12 +592,12 @@ public class ModeSelectionDialog {
         var textPanel = createModeTextPanel(mode);
         card.add(textPanel, BorderLayout.CENTER);
 
-        var arrow = new JLabel(CARD_ARROW_TEXT);
+        var arrow = new JLabel(visited ? CARD_CHECKED_TEXT : CARD_ARROW_TEXT);
         arrow.setFont(ARROW_FONT);
-        arrow.setForeground(ARROW_COLOR);
+        arrow.setForeground(visited ? CARD_VISITED_BORDER_COLOR : ARROW_COLOR);
         card.add(arrow, BorderLayout.EAST);
 
-        attachCardHoverAndClick(card, () -> {
+        attachCardHoverAndClick(card, false, visited, lastVisited, () -> {
             selectedMode = mode;
             dialog.dispose();
         });
@@ -571,16 +605,22 @@ public class ModeSelectionDialog {
         return card;
     }
 
-    private static JPanel createBaseCard() {
+    private static JPanel createBaseCard(boolean highlighted, boolean visited, boolean lastVisited) {
         var card = new JPanel(new BorderLayout(CARD_LAYOUT_H_GAP, CARD_LAYOUT_V_GAP));
-        card.setBorder(createCardBorder(CARD_BORDER_COLOR));
-        card.setBackground(CARD_BACKGROUND);
+        card.setBorder(createCardBorder(resolveCardBorderColor(highlighted, visited, lastVisited)));
+        card.setBackground(resolveCardBackground(highlighted, visited));
         card.setPreferredSize(new Dimension(CARD_MIN_WIDTH, CARD_PREF_HEIGHT));
         card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         return card;
     }
 
-    private static void attachCardHoverAndClick(JPanel card, Runnable onClick) {
+    private static void attachCardHoverAndClick(
+            JPanel card,
+            boolean highlighted,
+            boolean visited,
+            boolean lastVisited,
+            Runnable onClick
+    ) {
         card.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
@@ -590,8 +630,8 @@ public class ModeSelectionDialog {
 
             @Override
             public void mouseExited(MouseEvent e) {
-                card.setBackground(CARD_BACKGROUND);
-                card.setBorder(createCardBorder(CARD_BORDER_COLOR));
+                card.setBackground(resolveCardBackground(highlighted, visited));
+                card.setBorder(createCardBorder(resolveCardBorderColor(highlighted, visited, lastVisited)));
             }
 
             @Override
@@ -599,6 +639,23 @@ public class ModeSelectionDialog {
                 onClick.run();
             }
         });
+    }
+
+    private static Color resolveCardBackground(boolean highlighted, boolean visited) {
+        if (highlighted) {
+            return CARD_SELECTED_BACKGROUND;
+        }
+        return visited ? CARD_VISITED_BACKGROUND : CARD_BACKGROUND;
+    }
+
+    private static Color resolveCardBorderColor(boolean highlighted, boolean visited, boolean lastVisited) {
+        if (lastVisited) {
+            return CARD_LAST_VISITED_BORDER_COLOR;
+        }
+        if (visited) {
+            return CARD_VISITED_BORDER_COLOR;
+        }
+        return highlighted ? CARD_SELECTED_BORDER_COLOR : CARD_BORDER_COLOR;
     }
 
     private static JPanel createCategoryTextPanel(VisualizationCategory category, int modeCount) {
