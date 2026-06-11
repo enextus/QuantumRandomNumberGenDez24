@@ -38,6 +38,7 @@ class VisualizationModeRegistryTest {
         assertTrue(ids.contains("voronoi"));
         assertTrue(ids.contains("barnsley-fern"));
         assertTrue(ids.contains("random-walk-heatmap"));
+        assertTrue(ids.contains("rule-30-automaton"));
         assertTrue(ids.contains("galton-board"));
         assertTrue(ids.contains("monte-carlo-pi"));
         assertTrue(ids.contains("percolation"));

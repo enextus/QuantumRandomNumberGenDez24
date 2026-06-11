@@ -64,6 +64,23 @@ class VisualizationModesSmokeTest {
         assertFalse(mode.usesRecolorAnimation());
     }
 
+
+    @Test
+    @DisplayName("Rule30AutomatonMode draws CA rows and raw RNG stream")
+    void rule30AutomatonDrawsRowsAndRawStream() {
+        Rule30AutomatonMode mode = new Rule30AutomatonMode();
+        BufferedImage canvas = newCanvas();
+        mode.initialize(canvas, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+        mode.step(sequentialProvider(), canvas, DOT_SIZE);
+
+        assertTrue(mode.getPointCount() > 0);
+        assertTrue(mode.getRandomNumbersUsed() > 0);
+        assertTrue(mode.usesDarkBackground());
+        assertFalse(mode.usesRecolorAnimation());
+        assertFalse(mode.usesRandomNumbersStackOverlay());
+    }
+
     @Test
     @DisplayName("GaltonBoardMode animates active balls and eventually completes balls")
     void galtonBoardEventuallyCompletesBalls() {
@@ -170,6 +187,7 @@ class VisualizationModesSmokeTest {
         List<VisualizationMode> modes = List.of(
                 new BarnsleyFernMode(),
                 new RandomWalkHeatmapMode(),
+                new Rule30AutomatonMode(),
                 new GaltonBoardMode(),
                 new MonteCarloPiMode(),
                 new MonteCarloMandelbrotAreaMode(),

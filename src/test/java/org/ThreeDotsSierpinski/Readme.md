@@ -1,163 +1,156 @@
-# Tests — rep-qrng-chaos-game
+# Тесты для Quantum Sierpinski Triangle
 
-Этот README описывает актуальный ISTZUSTAND тестового набора проекта.
+## Обзор
 
----
+Создан полноценный набор JUnit 5 тестов для проекта. Старые тесты были удалены, так как имели серьёзные проблемы:
 
-## Current status
+### Проблемы старых тестов:
+| Файл | Проблема |
+|------|----------|
+| `KolmogorovSmirnovTest.java` | Не JUnit тест (main класс), конфликт имён с main классом |
+| `ChiSquareTest.java` | Использует `java.util.Random` вместо `RNProvider` |
+| `RunsTest.java` | Делит на 255 (uint8) вместо 65535 (uint16) |
+| `KolmogorovTest.java` | Не JUnit тест (main класс) |
+| `RandomnessTester.java` | GUI приложение, не тест |
+| `NISTRandomnessTest.java` | Утилитный класс без тестов |
+| `RandomNumberGeneratorTest.java` | Тестирует `Math.random()` вместо `RNProvider` |
 
-| Метрика | Значение |
-|---|---:|
-| Test framework | JUnit 5.13.4 |
-| Test Java files | 21 |
-| Last locally verified tests | 250 |
-| Last locally verified failures/errors/skipped | 0 / 0 / 0 |
-| Last locally verified result | `BUILD SUCCESS` |
-| JaCoCo | enabled |
+## Новые тесты
 
-Последний подтверждённый локальный прогон пользователя:
+### 1. ConfigTest.java
+Тестирует класс `Config`:
+- Загрузка строковых, числовых параметров
+- API конфигурация (url, key, timeouts)
+- Panel параметры
+- Обработка ошибок для несуществующих ключей
 
-```text
-Tests run: 250, Failures: 0, Errors: 0, Skipped: 0
-BUILD SUCCESS
-Finished at: 2026-06-11T09:34:07+02:00
+### 2. RandomNumberProcessorTest.java
+Тестирует класс `RandomNumberProcessor`:
+- Преобразование HEX в числа
+- Генерация чисел в диапазоне
+- Граничные значения (0, 65535)
+- Работа с uint8/uint16
+- Равномерность распределения
+
+### 3. KolmogorovSmirnovTestUnitTest.java
+Тестирует класс `KolmogorovSmirnovTest`:
+- Конструкторы (default, параметризованный)
+- Валидация входных данных (null, пустой список, некорректный alpha)
+- Статистические тесты (равномерное, смещённое распределение)
+- Интеграция с интерфейсом `RandomnessTest`
+
+### 4. StatisticalRandomnessTest.java
+Комплексные статистические тесты:
+- **Частотный тест** - равномерность битов и чисел
+- **Тест на серии (Runs)** - отсутствие паттернов
+- **Хи-квадрат тест** - равномерность по интервалам
+- **Автокорреляция** - независимость последовательных чисел
+- **Монотонность** - отсутствие длинных возрастающих/убывающих серий
+- **Покрытие диапазона** - использование всего диапазона значений
+
+### 5. DotTest.java
+Тестирует record `Dot`:
+- Создание с координатами
+- Равенство и hashCode
+- Граничные координаты
+
+### 6. SierpinskiAlgorithmTest.java
+Тестирует алгоритм Chaos Game:
+- Перемещение к вершинам A, B, C
+- Точки остаются внутри треугольника
+- Сходимость к фрактальной структуре
+- Равномерность выбора вершин
+- Центральная пустая область
+- Воспроизводимость
+
+### 7. NISTRandomnessTestUnitTest.java
+Тестирует утилитный класс `NISTRandomnessTest`:
+- frequencyTest() - частотный тест
+- runsTest() - тест на серии
+- Обработка некорректных входных данных
+- Преобразование чисел в биты
+
+### 8. VisualizationModeRegistryTest.java / VisualizationModesSmokeTest.java
+Проверяют registry и smoke-поведение визуализаций, включая новый `Rule30AutomatonMode`:
+- mode id зарегистрирован как `rule-30-automaton`
+- режим рисует строки Rule 30 и raw RNG bit stream
+- режим не падает при временно пустом provider
+
+## Установка
+
+Скопируйте все файлы в:
+```
+src/test/java/org/ThreeDotsSierpinski/
 ```
 
----
-
-## Test tags
-
-В проекте используются JUnit tags:
-
-- `fast` — быстрые unit/component/smoke tests;
-- `integration` — тесты с локальным HTTP-сервером для `RNProvider`;
-- `slow` — более тяжёлые статистические/алгоритмические проверки.
-
-Запуск:
+## Запуск тестов
 
 ```bash
+# Все тесты
 mvn test
-mvn test -Dgroups=fast
-mvn test -Dgroups=integration
-mvn test -DexcludedGroups=slow
+
+# Конкретный тест
+mvn test -Dtest=ConfigTest
+
+# С подробным выводом
+mvn test -Dtest=StatisticalRandomnessTest -X
 ```
 
----
-
-## Актуальная структура тестов
-
-```text
-src/test/java/org/ThreeDotsSierpinski
-├── README.md
-├── config
-│   ├── ConfigTest.java
-│   └── LoggerConfigTest.java
-├── math
-│   └── SierpinskiAlgorithmTest.java
-├── mode
-│   ├── VisualizationModeRegistryTest.java
-│   ├── VisualizationModesSmokeTest.java
-│   ├── montecarlo
-│   │   ├── MonteCarloMandelbrotAreaModeTest.java
-│   │   └── MonteCarloMandelbrot3DAreaModeTest.java
-│   └── physics
-│       └── LorenzAttractor3DModeTest.java
-├── model
-│   └── DotTest.java
-├── rng
-│   ├── RandomNumberProcessorTest.java
-│   ├── RandomNumbersLogTest.java
-│   └── RNProviderIntegrationTest.java
-└── stats
-    ├── ChiSquareUniformityTestTest.java
-    ├── FrequencyBitTestTest.java
-    ├── KolmogorovSmirnovTestUnitTest.java
-    ├── NISTRandomnessTest.java
-    ├── NISTRandomnessTestUnitTest.java
-    ├── RandomnessTestSuiteTest.java
-    ├── RunsBitTestTest.java
-    ├── StatisticalRandomnessTest.java
-    └── TestResultTest.java
-```
-
----
-
-## Что покрыто
-
-### Config / logging
-
-- загрузка параметров из `config.properties`;
-- приоритет environment / `.env` / classpath config;
-- преобразование `dot.notation` ключей в `QRNG_UPPER_SNAKE_CASE`;
-- обработка отсутствующих и некорректных значений;
-- `LoggerConfig` initialization.
-
-### RNG
-
-- `RandomNumberProcessor`: HEX parsing, диапазоны, uint16 semantics;
-- `RNProviderIntegrationTest`: локальный mock HTTP-сервер, успешные загрузки, HTTP request details, retry/backoff, error handling, API key validation, buffer behavior, listener callbacks, shutdown/thread-safety;
-- `RandomNumbersLog`: TRUE/PSEUDO logging policy, batch separation, flushing/closing behavior.
-
-### Statistics
-
-- `KolmogorovSmirnovTest`;
-- `FrequencyBitTest`;
-- `ChiSquareUniformityTest`;
-- `RunsBitTest`;
-- `RandomnessTestSuite`;
-- `TestResult` quality semantics;
-- `NISTRandomnessTest` utility;
-- более широкие statistical checks в `StatisticalRandomnessTest`.
-
-### Math / model
-
-- immutable `Dot` record;
-- `SierpinskiAlgorithm`: выбор вершин, движение точки, свойства фрактала, воспроизводимость, центральная пустая область.
-
-### Visualization modes
-
-- `VisualizationModeRegistryTest`: наличие ключевых режимов и уникальность ids;
-- `VisualizationModesSmokeTest`: smoke-проверки основных режимов без Mockito/ByteBuddy;
-- dedicated tests для `LorenzAttractor3DMode`;
-- dedicated tests для `MonteCarloMandelbrotAreaMode` и `MonteCarloMandelbrot3DAreaMode`.
-
----
-
-## Важное про Mockito / Java 25
-
-Mockito остаётся в `pom.xml` как test dependency:
+## Зависимости (уже в pom.xml)
 
 ```xml
-<mockito.version>5.23.0</mockito.version>
+<dependency>
+    <groupId>org.junit.jupiter</groupId>
+    <artifactId>junit-jupiter</artifactId>
+    <version>5.10.3</version>
+    <scope>test</scope>
+</dependency>
+<dependency>
+    <groupId>org.mockito</groupId>
+    <artifactId>mockito-junit-jupiter</artifactId>
+    <version>5.12.0</version>
+    <scope>test</scope>
+</dependency>
+<dependency>
+    <groupId>org.assertj</groupId>
+    <artifactId>assertj-core</artifactId>
+    <version>3.27.2</version>
+    <scope>test</scope>
+</dependency>
 ```
 
-Но mode smoke tests сейчас используют lightweight test doubles (`TestRNProvider`, `CountingDotController`) вместо Mockito/ByteBuddy. Это сделано, чтобы избежать проблем inline mock maker / ByteBuddy на Java 25.
+## Структура тестов
 
----
-
-## Запуск конкретных тестов
-
-```bash
-mvn -Dtest=ConfigTest test
-mvn -Dtest=RNProviderIntegrationTest test
-mvn -Dtest=VisualizationModeRegistryTest test
-mvn -Dtest=VisualizationModesSmokeTest test
-mvn -Dtest=LorenzAttractor3DModeTest test
-mvn -Dtest=MonteCarloMandelbrotAreaModeTest test
-mvn -Dtest=MonteCarloMandelbrot3DAreaModeTest test
+```
+src/test/java/org/ThreeDotsSierpinski/
+├── ConfigTest.java                    # Unit тесты Config
+├── RandomNumberProcessorTest.java     # Unit тесты RandomNumberProcessor
+├── KolmogorovSmirnovTestUnitTest.java # Unit тесты KolmogorovSmirnovTest
+├── StatisticalRandomnessTest.java     # Статистические тесты
+├── DotTest.java                       # Unit тесты Dot
+├── SierpinskiAlgorithmTest.java       # Тесты алгоритма
+├── VisualizationModeRegistryTest.java # Registry тесты visualization modes
+├── VisualizationModesSmokeTest.java   # Smoke тесты visualization modes
+└── NISTRandomnessTestUnitTest.java    # Unit тесты NISTRandomnessTest
 ```
 
----
+## Покрытие
 
-## Coverage
+| Класс | Покрытие |
+|-------|----------|
+| Config | ✅ Полное |
+| RandomNumberProcessor | ✅ Полное |
+| KolmogorovSmirnovTest | ✅ Полное |
+| Dot | ✅ Полное |
+| NISTRandomnessTest | ✅ Полное |
+| Алгоритм Серпинского | ✅ Полное |
+| RNProvider | ⚠️ Требует интеграционных тестов с API |
+| DotController | ⚠️ GUI компоненты сложно тестировать |
 
-JaCoCo включён в `pom.xml`:
+## Примечания
 
-- `prepare-agent` перед тестами;
-- `report` на фазе `test`.
-
-Локальный Maven output последнего подтверждённого запуска сообщил:
-
-```text
-Analyzed bundle 'rep-qrng-chaos-game' with 67 classes
-```
+1. **Тесты не требуют реального API** - используют `SecureRandom` для генерации тестовых данных
+2. **Избежан конфликт имён** - `KolmogorovSmirnovTestUnitTest` вместо `KolmogorovSmirnovTest`
+3. **Диапазон uint16** - все тесты используют правильный диапазон 0-65535
+4. **Статистические тесты** - используют стандартные методы проверки случайности (Chi-Square, Runs, K-S)
+5. **Visualization smoke tests** - покрывают новые режимы без Mockito/ByteBuddy-зависимости, через лёгкие test doubles

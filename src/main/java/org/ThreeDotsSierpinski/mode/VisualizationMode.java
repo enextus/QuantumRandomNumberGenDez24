@@ -154,7 +154,6 @@ public interface VisualizationMode {
 
     /**
      * High-level category used by the two-level mode selection dialog.
-     *
      * Current modes are classified here so existing visualization classes do not
      * need boilerplate category overrides. A new mode may still override this
      * method when it belongs to a different category.
@@ -171,6 +170,7 @@ public interface VisualizationMode {
                  "MonteCarloMandelbrot3DAreaMode" -> VisualizationCategory.MONTE_CARLO;
 
             case "RandomWalkHeatmapMode",
+                 "Rule30AutomatonMode",
                  "GaltonBoardMode",
                  "VoronoiMode",
                  "SpectralPlotMode" -> VisualizationCategory.RANDOM_PROCESSES;
@@ -207,6 +207,7 @@ public interface VisualizationMode {
                 new VoronoiMode(),
                 new BarnsleyFernMode(),
                 new RandomWalkHeatmapMode(),
+                new Rule30AutomatonMode(),
                 new MonteCarloMandelbrotAreaMode(),
                 new MonteCarloMandelbrot3DAreaMode(),
                 new LorenzAttractor3DMode(),
