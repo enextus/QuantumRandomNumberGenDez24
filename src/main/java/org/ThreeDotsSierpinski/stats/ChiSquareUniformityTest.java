@@ -1,17 +1,5 @@
 package org.ThreeDotsSierpinski.stats;
 
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
-
 import java.util.List;
 
 /**
@@ -42,7 +30,7 @@ public class ChiSquareUniformityTest implements RandomnessTest {
             "Требуется минимум %d чисел";
 
     private static final String STAT_FORMAT =
-            "\u03c7\u00b2=%.2f (crit=%.2f)";
+            "χ²=%.2f (crit=%.2f)";
 
     private static double getCriticalValue(double alpha) {
         if (alpha <= ALPHA_01) {

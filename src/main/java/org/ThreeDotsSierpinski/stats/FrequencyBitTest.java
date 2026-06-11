@@ -10,13 +10,11 @@ import org.ThreeDotsSierpinski.mode.physics.*;
 import org.ThreeDotsSierpinski.mode.stochastic.*;
 import org.ThreeDotsSierpinski.model.*;
 import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
 
 import java.util.List;
 
 /**
  * NIST Frequency (Monobit) Test.
- *
  * Проверяет баланс нулей и единиц в битовом представлении чисел.
  */
 public class FrequencyBitTest implements RandomnessTest {

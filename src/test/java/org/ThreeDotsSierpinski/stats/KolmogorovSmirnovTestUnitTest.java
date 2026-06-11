@@ -1,17 +1,5 @@
 package org.ThreeDotsSierpinski.stats;
 
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -54,16 +42,16 @@ class KolmogorovSmirnovTestUnitTest {
         @DisplayName("Конструктор по умолчанию использует uint16 диапазон")
         void testDefaultConstructor() {
             KolmogorovSmirnovTest test = new KolmogorovSmirnovTest();
-            assertEquals(0, test.getMinRange());
-            assertEquals(65535, test.getMaxRange());
+            assertEquals(0, test.minRange());
+            assertEquals(65535, test.maxRange());
         }
 
         @Test
         @DisplayName("Конструктор с параметрами устанавливает диапазон")
         void testParameterizedConstructor() {
             KolmogorovSmirnovTest test = new KolmogorovSmirnovTest(100, 200);
-            assertEquals(100, test.getMinRange());
-            assertEquals(200, test.getMaxRange());
+            assertEquals(100, test.minRange());
+            assertEquals(200, test.maxRange());
         }
 
         @Test

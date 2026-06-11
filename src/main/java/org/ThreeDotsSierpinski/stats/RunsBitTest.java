@@ -1,16 +1,6 @@
 package org.ThreeDotsSierpinski.stats;
 
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
+import org.ThreeDotsSierpinski.math.MathUtils;
 
 import java.util.List;
 
@@ -65,8 +55,8 @@ public class RunsBitTest implements RandomnessTest {
         double pValue = MathUtils.erfc(numerator / denominator);
 
         var quality = pValue >= 2 * alpha ? TestResult.Quality.STRONG
-                    : pValue >= alpha     ? TestResult.Quality.MARGINAL
-                    :                       TestResult.Quality.FAIL;
+                : pValue >= alpha ? TestResult.Quality.MARGINAL
+                  : TestResult.Quality.FAIL;
 
         String stat = String.format("p=%.4f", pValue);
         return new TestResult(getTestName(), quality != TestResult.Quality.FAIL, stat, quality);

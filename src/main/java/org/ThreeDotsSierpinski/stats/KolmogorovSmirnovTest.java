@@ -1,34 +1,17 @@
 package org.ThreeDotsSierpinski.stats;
 
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
-
 import java.util.List;
 import java.util.Objects;
 
 /**
  * Реализация теста Колмогорова-Смирнова для проверки равномерности распределения.
  */
-public class KolmogorovSmirnovTest implements RandomnessTest {
+public record KolmogorovSmirnovTest(long minRange, long maxRange) implements RandomnessTest {
 
-    private final long minRange;
-    private final long maxRange;
-
-    public KolmogorovSmirnovTest(long minRange, long maxRange) {
+    public KolmogorovSmirnovTest {
         if (minRange >= maxRange) {
             throw new IllegalArgumentException("minRange должен быть меньше maxRange");
         }
-        this.minRange = minRange;
-        this.maxRange = maxRange;
     }
 
     public KolmogorovSmirnovTest() {
@@ -55,15 +38,15 @@ public class KolmogorovSmirnovTest implements RandomnessTest {
         for (int i = 0; i < n; i++) {
             double empiricalCDF = (double) (i + 1) / n;
             double theoreticalCDF = (double) (sample[i] - minRange) / (maxRange - minRange);
-            theoreticalCDF = Math.max(0.0, Math.min(1.0, theoreticalCDF));
+            theoreticalCDF = Math.clamp(theoreticalCDF, 0.0, 1.0);
             maxDeviation = Math.max(maxDeviation, Math.abs(empiricalCDF - theoreticalCDF));
         }
 
         double criticalValue = Math.sqrt(-0.5 * Math.log(alpha / 2)) / Math.sqrt(n);
 
         var quality = maxDeviation < criticalValue * 0.6 ? TestResult.Quality.STRONG
-                    : maxDeviation <= criticalValue       ? TestResult.Quality.MARGINAL
-                    :                                       TestResult.Quality.FAIL;
+                : maxDeviation <= criticalValue ? TestResult.Quality.MARGINAL
+                  : TestResult.Quality.FAIL;
 
         String stat = String.format("D=%.4f (crit=%.4f)", maxDeviation, criticalValue);
         return new TestResult(getTestName(), quality != TestResult.Quality.FAIL, stat, quality);
@@ -73,8 +56,5 @@ public class KolmogorovSmirnovTest implements RandomnessTest {
     public String getTestName() {
         return "Тест Колмогорова-Смирнова";
     }
-
-    public long getMinRange() { return minRange; }
-    public long getMaxRange() { return maxRange; }
 
 }
