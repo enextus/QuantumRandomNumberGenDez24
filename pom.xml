@@ -83,7 +83,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>org.ThreeDotsSierpinski.App</mainClass>
+                            <mainClass>org.ThreeDotsSierpinski.app.App</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>
@@ -109,7 +109,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>org.ThreeDotsSierpinski.App</mainClass>
+                            <mainClass>org.ThreeDotsSierpinski.app.App</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
