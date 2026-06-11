@@ -15,7 +15,7 @@ import java.util.OptionalInt;
  * Каждое 16-битное случайное число разбивается на 8 двухбитных символов.
  * Символы 00, 01, 10, 11 соответствуют четырём углам квадрата. Текущая
  * точка каждый раз смещается на половину расстояния к выбранному углу.
- * Для равномерного потока рисунок заполняется почти равномерно; устойчивые
+ * Для равномерного потока, рисунок заполняется почти равномерно; устойчивые
  * пустоты, полосы или симметрии могут указывать на структуру в последовательности.
  */
 public class ChaosGameRepresentationMode implements VisualizationMode {
@@ -130,7 +130,7 @@ public class ChaosGameRepresentationMode implements VisualizationMode {
 
     @Override
     public List<Point> step(RNProvider provider, BufferedImage canvas, int dotSize) {
-        int safeDotSize = Math.max(MIN_DOT_SIZE, Math.min(MAX_DOT_SIZE, dotSize));
+        int safeDotSize = Math.clamp(dotSize, MIN_DOT_SIZE, MAX_DOT_SIZE);
         var newPoints = new ArrayList<Point>(RANDOM_VALUES_PER_STEP * SYMBOLS_PER_VALUE);
 
         Graphics2D g2d = canvas.createGraphics();

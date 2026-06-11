@@ -71,10 +71,11 @@
 - Преобразование чисел в биты
 
 ### 8. VisualizationModeRegistryTest.java / VisualizationModesSmokeTest.java
-Проверяют registry и smoke-поведение визуализаций, включая новый `Rule30AutomatonMode`:
-- mode id зарегистрирован как `rule-30-automaton`
-- режим рисует строки Rule 30 и raw RNG bit stream
-- режим не падает при временно пустом provider
+Проверяют registry и smoke-поведение визуализаций, включая `Rule30AutomatonMode` и `BuddhabrotMode`:
+- mode ids зарегистрированы как `rule-30-automaton` и `buddhabrot`
+- Rule 30 рисует строки automaton и raw RNG bit stream
+- Buddhabrot накапливает escaping orbits в histogram-density map
+- режимы не падают при временно пустом provider
 
 ## Установка
 

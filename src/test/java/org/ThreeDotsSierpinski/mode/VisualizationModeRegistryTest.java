@@ -41,6 +41,7 @@ class VisualizationModeRegistryTest {
         assertTrue(ids.contains("rule-30-automaton"));
         assertTrue(ids.contains("galton-board"));
         assertTrue(ids.contains("monte-carlo-pi"));
+        assertTrue(ids.contains("buddhabrot"));
         assertTrue(ids.contains("percolation"));
         assertTrue(ids.contains("forest-fire"));
         assertTrue(ids.contains("spectral-plot"));

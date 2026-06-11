@@ -100,6 +100,24 @@ class VisualizationModesSmokeTest {
     }
 
 
+
+    @Test
+    @DisplayName("BuddhabrotMode accumulates escaping orbits")
+    void buddhabrotAccumulatesEscapingOrbits() {
+        BuddhabrotMode mode = new BuddhabrotMode();
+        BufferedImage canvas = new BufferedImage(320, 260, BufferedImage.TYPE_INT_ARGB);
+
+        mode.initialize(canvas, canvas.getWidth(), canvas.getHeight());
+        mode.step(spreadProvider(), canvas, DOT_SIZE);
+
+        assertTrue(mode.getPointCount() > 0);
+        assertTrue(mode.getRandomNumbersUsed() > 0);
+        assertTrue(mode.usesDarkBackground());
+        assertFalse(mode.usesRecolorAnimation());
+        assertFalse(mode.usesRandomNumbersStackOverlay());
+        assertDoesNotThrow(() -> mode.redraw(canvas, CANVAS_WIDTH, CANVAS_HEIGHT, DOT_SIZE));
+    }
+
     @Test
     @DisplayName("MonteCarloPiMode consumes pairs and supports reset control")
     void monteCarloPiModeConsumesPairsAndSupportsReset() {
@@ -190,6 +208,7 @@ class VisualizationModesSmokeTest {
                 new Rule30AutomatonMode(),
                 new GaltonBoardMode(),
                 new MonteCarloPiMode(),
+                new BuddhabrotMode(),
                 new MonteCarloMandelbrotAreaMode(),
                 new MonteCarloMandelbrot3DAreaMode(),
                 new LorenzAttractor3DMode(),
@@ -257,6 +276,14 @@ class VisualizationModesSmokeTest {
     private static RNProvider sequentialProvider() {
         AtomicInteger value = new AtomicInteger();
         return new TestRNProvider(() -> OptionalInt.of(value.getAndIncrement()));
+    }
+
+    private static RNProvider spreadProvider() {
+        AtomicInteger value = new AtomicInteger(1);
+        return new TestRNProvider(() -> {
+            int current = value.getAndUpdate(previous -> previous * 1103515245 + 12345);
+            return OptionalInt.of(current & 0xFFFF);
+        });
     }
 
     private static RNProvider emptyProvider() {

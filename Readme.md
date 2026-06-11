@@ -18,17 +18,17 @@ Java 25 / Swing-приложение для визуализации поток�
 | Метрика | Значение |
 |---|---:|
 | Java | 25 |
-| Main source classes | 52 |
-| Tests | 251 expected after Rule 30 patch |
+| Main source classes | 53 |
+| Tests | 252 expected after Buddhabrot patch |
 | Last verified result | `BUILD SUCCESS` |
 | Test failures | 0 |
 | Test errors | 0 |
 | JaCoCo | enabled |
 
-Последний подтверждённый локальный прогон:
+Последний подтверждённый локальный прогон перед Buddhabrot patch:
 
 ```text
-Tests run: 250, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 251, Failures: 0, Errors: 0, Skipped: 0
 BUILD SUCCESS
 ```
 
@@ -47,6 +47,7 @@ BUILD SUCCESS
 - **Monte Carlo π Dashboard** — оценка π через случайные точки в единичном квадрате.
 - **Monte Carlo Mandelbrot Area** — оценка площади множества Мандельброта методом Monte Carlo.
 - **Monte Carlo Mandelbrot 3D Area** — 3D-рельеф escape-time над комплексной плоскостью.
+- **Buddhabrot** — histogram accumulation escaping Mandelbrot orbits: бело-сине-золотая density nebula.
 
 ### Physics / complex systems
 
@@ -185,6 +186,22 @@ Dashboard показывает sample space, convergence chart, absolute error �
 ### Monte Carlo Mandelbrot 3D Area
 
 3D-вариант Mandelbrot Monte Carlo: escape-time превращается в высоту над комплексной плоскостью. Вращающееся облако показывает relief множества, ridge-зоны и fast escape области.
+
+---
+
+### Buddhabrot
+
+Buddhabrot строится не по bounded/inside-точкам, а по траекториям **escaping orbits**. Случайная точка `c` в комплексной плоскости запускает орбиту `zₙ₊₁ = zₙ² + c`; если орбита убегает, её путь накапливается в histogram-buffer. Из такой плотности постепенно проявляется туманная "призрачная" фигура.
+
+Особенности:
+
+- Monte Carlo sampling точек `c` в окне Мандельброта;
+- аналитический skip главной кардиоиды и period-2 bulb для ускорения;
+- log-scaled density rendering;
+- палитра **white → blue → gold** на чёрном фоне;
+- встроенный help overlay через кнопку **(?)** рядом с заголовком;
+- diagnostic strip: `x-balance`, `y-balance`, `quadrant balance`, `serial correlation`, `accepted ratio`, `symmetry score`;
+- mode-specific controls: **Reset** и выбор числа итераций.
 
 ---
 
@@ -425,7 +442,8 @@ org.ThreeDotsSierpinski
 │   ├── montecarlo
 │   │   ├── MonteCarloPiMode
 │   │   ├── MonteCarloMandelbrotAreaMode
-│   │   └── MonteCarloMandelbrot3DAreaMode
+│   │   ├── MonteCarloMandelbrot3DAreaMode
+│   │   └── BuddhabrotMode
 │   ├── physics
 │   │   ├── LorenzAttractor3DMode
 │   │   ├── BifurcationDiagramMode
@@ -720,6 +738,6 @@ mvn -Dtest=MonteCarloMandelbrotAreaModeTest test
 
 ## Краткое резюме
 
-`rep-qrng-chaos-game` — учебно-практический Java-проект, где поток случайных чисел превращается в живые визуальные структуры: фракталы, Monte Carlo-оценки, 3D-рельефы, аттракторы, бифуркации, перколяционные кластеры, stochastic processes и statistical sanity checks.
+`rep-qrng-chaos-game` — учебно-практический Java-проект, где поток случайных чисел превращается в живые визуальные структуры: фракталы, Monte Carlo-оценки, Buddhabrot density maps, 3D-рельефы, аттракторы, бифуркации, перколяционные кластеры, stochastic processes и statistical sanity checks.
 
 После последнего рефакторинга проект организован как небольшой scientific visualization framework с пакетами `app`, `mode`, `rng`, `stats`, `math`, `model` и `config`, а визуализации сгруппированы по научным доменам: `chaos`, `montecarlo`, `physics`, `stochastic`.
