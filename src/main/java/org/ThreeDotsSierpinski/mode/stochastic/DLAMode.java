@@ -1,5 +1,6 @@
 package org.ThreeDotsSierpinski.mode.stochastic;
 
+import org.ThreeDotsSierpinski.mode.RngStepBudget;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 
@@ -48,6 +49,7 @@ public class DLAMode implements VisualizationMode {
 
     private static final int PARALLEL_WALKERS = 160;
     private static final int MAX_STEPS_PER_TICK = 30_000;
+    private static final int QUANTUM_MAX_STEPS_PER_TICK = 96;
     private static final int MAX_STICKS_PER_TICK = 80;
     private static final int WALKER_LIFESPAN = 3_000;
 
@@ -292,7 +294,7 @@ public class DLAMode implements VisualizationMode {
             );
 
             int sticksThisTick = 0;
-            int stepsLeft = MAX_STEPS_PER_TICK;
+            int stepsLeft = RngStepBudget.forProvider(provider, MAX_STEPS_PER_TICK, QUANTUM_MAX_STEPS_PER_TICK);
 
             while (stepsLeft > 0 && sticksThisTick < MAX_STICKS_PER_TICK) {
                 boolean bufferEmpty = false;

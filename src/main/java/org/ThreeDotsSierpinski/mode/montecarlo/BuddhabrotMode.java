@@ -1,6 +1,7 @@
 package org.ThreeDotsSierpinski.mode.montecarlo;
 
 import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.mode.RngStepBudget;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 
@@ -43,6 +44,7 @@ public class BuddhabrotMode implements VisualizationMode {
     private static final int DEFAULT_MAX_ITERATIONS = 240;
     private static final int MIN_ORBIT_LENGTH_TO_DRAW = 12;
     private static final int SAMPLES_PER_STEP = 140;
+    private static final int QUANTUM_SAMPLES_PER_STEP = 16;
 
     private static final int OUTER_PADDING = 18;
     private static final int HEADER_HEIGHT = 72;
@@ -221,7 +223,9 @@ public class BuddhabrotMode implements VisualizationMode {
 
         int processedSamples = 0;
 
-        for (int i = 0; i < SAMPLES_PER_STEP; i++) {
+        int samplesThisStep = RngStepBudget.forProvider(provider, SAMPLES_PER_STEP, QUANTUM_SAMPLES_PER_STEP);
+
+        for (int i = 0; i < samplesThisStep; i++) {
             OptionalInt rawReal = provider.getNextRandomNumber();
             if (rawReal.isEmpty()) {
                 break;

@@ -1,6 +1,7 @@
 package org.ThreeDotsSierpinski.mode.physics;
 
 import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.mode.RngStepBudget;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 
@@ -29,6 +30,7 @@ public class ChirikovStandardMapMode implements VisualizationMode {
     private static final double RANDOM_MAX = 65_535.0;
     private static final double TWO_PI = Math.PI * 2.0;
     private static final int ORBITS_PER_STEP = 18;
+    private static final int QUANTUM_ORBITS_PER_STEP = 8;
     private static final int ITERATIONS_PER_ORBIT = 80;
 
     private static final int OUTER_PADDING = 18;
@@ -182,7 +184,9 @@ public class ChirikovStandardMapMode implements VisualizationMode {
             graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
             graphics.setComposite(AlphaComposite.SrcOver);
 
-            for (int orbit = 0; orbit < ORBITS_PER_STEP; orbit++) {
+            int orbitsThisStep = RngStepBudget.forProvider(provider, ORBITS_PER_STEP, QUANTUM_ORBITS_PER_STEP);
+
+            for (int orbit = 0; orbit < orbitsThisStep; orbit++) {
                 OptionalInt rawX = provider.getNextRandomNumber();
                 if (rawX.isEmpty()) {
                     break;

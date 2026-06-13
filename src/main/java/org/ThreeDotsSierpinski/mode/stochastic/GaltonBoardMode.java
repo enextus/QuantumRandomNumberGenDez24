@@ -1,5 +1,6 @@
 package org.ThreeDotsSierpinski.mode.stochastic;
 
+import org.ThreeDotsSierpinski.mode.RngStepBudget;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 
@@ -31,6 +32,7 @@ public class GaltonBoardMode implements VisualizationMode {
     private static final int BUCKETS = LEVELS + 1;
     private static final int BALLS_TO_SPAWN_PER_STEP = 8;
     private static final int MAX_ACTIVE_BALLS = 180;
+    private static final int QUANTUM_ACTIVE_BALL_STEPS_PER_TICK = 48;
 
     private static final int BACKGROUND_RGB = 0xFF000000;
     private static final Color BACKGROUND_COLOR = Color.BLACK;
@@ -152,8 +154,10 @@ public class GaltonBoardMode implements VisualizationMode {
 
     private void advanceActiveBalls(RNProvider provider, List<Point> completedBalls) {
         Iterator<ActiveBall> iterator = activeBalls.iterator();
+        int maxBallSteps = RngStepBudget.forProvider(provider, activeBalls.size(), QUANTUM_ACTIVE_BALL_STEPS_PER_TICK);
+        int processedBallSteps = 0;
 
-        while (iterator.hasNext()) {
+        while (iterator.hasNext() && processedBallSteps < maxBallSteps) {
             ActiveBall ball = iterator.next();
             OptionalInt randomValue = provider.getNextRandomNumber();
 
@@ -161,6 +165,7 @@ public class GaltonBoardMode implements VisualizationMode {
                 return;
             }
 
+            processedBallSteps++;
             randomNumbersUsed++;
 
             if ((randomValue.getAsInt() & 1) != 0) {

@@ -1,5 +1,6 @@
 package org.ThreeDotsSierpinski.mode.stochastic;
 
+import org.ThreeDotsSierpinski.mode.RngStepBudget;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 
@@ -31,6 +32,7 @@ public class SpectralPlotMode implements VisualizationMode {
     private static final float RANDOM_MAX = 65_535.0f;
 
     private static final int TRIPLES_PER_STEP = 320;
+    private static final int QUANTUM_TRIPLES_PER_STEP = 16;
     private static final int VALUES_PER_TRIPLE = 3;
 
     private static final int MIN_CANVAS_SIZE = 1;
@@ -125,14 +127,15 @@ public class SpectralPlotMode implements VisualizationMode {
 
     @Override
     public List<Point> step(RNProvider provider, BufferedImage canvas, int dotSize) {
-        var newPoints = new ArrayList<Point>(TRIPLES_PER_STEP);
+        int triplesThisStep = RngStepBudget.forProvider(provider, TRIPLES_PER_STEP, QUANTUM_TRIPLES_PER_STEP);
+        var newPoints = new ArrayList<Point>(triplesThisStep);
         Graphics2D g2d = canvas.createGraphics();
 
         try {
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g2d.setComposite(AlphaComposite.SrcOver.derive(0.92f));
 
-            for (int i = 0; i < TRIPLES_PER_STEP; i++) {
+            for (int i = 0; i < triplesThisStep; i++) {
                 OptionalInt xValue = provider.getNextRandomNumber();
                 if (xValue.isEmpty()) {
                     break;

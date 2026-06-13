@@ -1,6 +1,7 @@
 package org.ThreeDotsSierpinski.mode.montecarlo;
 
 import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.mode.RngStepBudget;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 
@@ -72,6 +73,7 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
 
     private static final double ESCAPE_RADIUS_SQUARED = 4.0;
     private static final int SAMPLES_PER_STEP = 220;
+    private static final int QUANTUM_SAMPLES_PER_STEP = 16;
 
     private static final int FAST_ESCAPE_THRESHOLD = 4;
 
@@ -290,7 +292,9 @@ public class MonteCarloMandelbrotAreaMode implements VisualizationMode {
             sampleGraphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             sampleGraphics.setComposite(AlphaComposite.SrcOver);
 
-            for (int i = 0; i < SAMPLES_PER_STEP; i++) {
+            int samplesThisStep = RngStepBudget.forProvider(provider, SAMPLES_PER_STEP, QUANTUM_SAMPLES_PER_STEP);
+
+            for (int i = 0; i < samplesThisStep; i++) {
                 OptionalInt rawX = provider.getNextRandomNumber();
                 if (rawX.isEmpty()) {
                     break;

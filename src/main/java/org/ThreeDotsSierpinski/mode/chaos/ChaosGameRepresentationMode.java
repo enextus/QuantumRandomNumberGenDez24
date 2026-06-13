@@ -1,5 +1,6 @@
 package org.ThreeDotsSierpinski.mode.chaos;
 
+import org.ThreeDotsSierpinski.mode.RngStepBudget;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 
@@ -29,6 +30,7 @@ public class ChaosGameRepresentationMode implements VisualizationMode {
 
     private static final int RANDOM_RANGE = 65_536;
     private static final int RANDOM_VALUES_PER_STEP = 96;
+    private static final int QUANTUM_RANDOM_VALUES_PER_STEP = 24;
     private static final int SYMBOL_BITS = 2;
     private static final int SYMBOLS_PER_VALUE = 8;
     private static final int HIGHEST_SYMBOL_SHIFT = 14;
@@ -131,12 +133,13 @@ public class ChaosGameRepresentationMode implements VisualizationMode {
     @Override
     public List<Point> step(RNProvider provider, BufferedImage canvas, int dotSize) {
         int safeDotSize = Math.clamp(dotSize, MIN_DOT_SIZE, MAX_DOT_SIZE);
-        var newPoints = new ArrayList<Point>(RANDOM_VALUES_PER_STEP * SYMBOLS_PER_VALUE);
+        int valuesThisStep = RngStepBudget.forProvider(provider, RANDOM_VALUES_PER_STEP, QUANTUM_RANDOM_VALUES_PER_STEP);
+        var newPoints = new ArrayList<Point>(valuesThisStep * SYMBOLS_PER_VALUE);
 
         Graphics2D g2d = canvas.createGraphics();
 
         try {
-            for (int i = 0; i < RANDOM_VALUES_PER_STEP; i++) {
+            for (int i = 0; i < valuesThisStep; i++) {
                 OptionalInt valueOpt = provider.getNextRandomNumber();
                 if (valueOpt.isEmpty()) {
                     break;

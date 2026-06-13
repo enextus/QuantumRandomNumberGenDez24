@@ -1,6 +1,7 @@
 package org.ThreeDotsSierpinski.mode.stochastic;
 
 import org.ThreeDotsSierpinski.config.Config;
+import org.ThreeDotsSierpinski.mode.RngStepBudget;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 
@@ -26,6 +27,7 @@ public class RandomWalkHeatmapMode implements VisualizationMode {
 
     private static final int WALKER_COUNT = 32;
     private static final int STEPS_PER_WALKER_PER_TICK = 32;
+    private static final int QUANTUM_STEPS_PER_TICK = 48;
     private static final int HEAT_SATURATION_VISITS = 64;
     private static final int MIN_CANVAS_SIZE = 1;
     private static final int CENTER_DIVISOR = 2;
@@ -127,13 +129,18 @@ public class RandomWalkHeatmapMode implements VisualizationMode {
 
         int drawSize = Math.max(MIN_DRAW_SIZE, dotSize);
 
-        for (int walkerIndex = 0; walkerIndex < WALKER_COUNT; walkerIndex++) {
-            for (int step = 0; step < STEPS_PER_WALKER_PER_TICK; step++) {
+        int pseudoStepsPerTick = WALKER_COUNT * STEPS_PER_WALKER_PER_TICK;
+        int stepsThisTick = RngStepBudget.forProvider(provider, pseudoStepsPerTick, QUANTUM_STEPS_PER_TICK);
+        int processedSteps = 0;
+
+        for (int step = 0; step < STEPS_PER_WALKER_PER_TICK && processedSteps < stepsThisTick; step++) {
+            for (int walkerIndex = 0; walkerIndex < WALKER_COUNT && processedSteps < stepsThisTick; walkerIndex++) {
                 OptionalInt randomDirection = provider.getNextRandomNumber();
                 if (randomDirection.isEmpty()) {
                     return List.of();
                 }
 
+                processedSteps++;
                 int directionIndex = Math.floorMod(randomDirection.getAsInt(), WALK_DIRECTIONS.length);
                 randomNumbersUsed++;
 

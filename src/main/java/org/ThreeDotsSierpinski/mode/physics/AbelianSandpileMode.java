@@ -1,6 +1,7 @@
 package org.ThreeDotsSierpinski.mode.physics;
 
 import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.mode.RngStepBudget;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 
@@ -28,6 +29,7 @@ public class AbelianSandpileMode implements VisualizationMode {
 
     private static final double RANDOM_MAX = 65_535.0;
     private static final int DEFAULT_BATCH_SIZE = 20;
+    private static final int QUANTUM_BATCH_SIZE = 8;
     private static final int[] BATCH_PRESETS = {10, 20, 50};
     private static final int TOPPLE_THRESHOLD = 4;
     private static final int MAX_TOPPLES_PER_STEP = 8_000;
@@ -169,8 +171,9 @@ public class AbelianSandpileMode implements VisualizationMode {
         clearAvalancheMask();
         lastAvalancheSize = 0;
         int droppedThisStep = 0;
+        int grainsThisStep = RngStepBudget.forProvider(provider, batchSize, QUANTUM_BATCH_SIZE);
 
-        for (int i = 0; i < batchSize; i++) {
+        for (int i = 0; i < grainsThisStep; i++) {
             OptionalInt rawX = provider.getNextRandomNumber();
             if (rawX.isEmpty()) {
                 break;

@@ -31,6 +31,12 @@ README намеренно не фиксирует ожидаемое число 
 mvn test
 ```
 
+### RNG budget policy
+
+Heavy visual modes keep their rich animation speed in **PSEUDO** mode, but use a conservative per-frame budget in **QUANTUM** mode. This prevents Monte Carlo dashboards, density maps, random walks and other high-throughput modes from consuming ANU API quota too quickly.
+
+The budget is intentionally simple: each heavy mode declares its normal local/PSEUDO batch size and a smaller QUANTUM batch size via `RngStepBudget`. `SierpinskiMode` still uses the global `dots.per.update` setting from `config.properties`.
+
 ---
 
 ## Visualization categories

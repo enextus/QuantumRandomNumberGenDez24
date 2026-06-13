@@ -1,6 +1,7 @@
 package org.ThreeDotsSierpinski.mode.chaos;
 
 import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.mode.RngStepBudget;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 
@@ -27,6 +28,7 @@ public class FractalFlameMode implements VisualizationMode {
 
     private static final double RANDOM_MAX = 65_535.0;
     private static final int SAMPLES_PER_STEP = 1_200;
+    private static final int QUANTUM_SAMPLES_PER_STEP = 32;
     private static final int WARMUP_STEPS = 20;
 
     private static final int OUTER_PADDING = 18;
@@ -168,7 +170,9 @@ public class FractalFlameMode implements VisualizationMode {
             graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
             graphics.setComposite(AlphaComposite.SrcOver);
 
-            for (int sample = 0; sample < SAMPLES_PER_STEP; sample++) {
+            int samplesThisStep = RngStepBudget.forProvider(provider, SAMPLES_PER_STEP, QUANTUM_SAMPLES_PER_STEP);
+
+            for (int sample = 0; sample < samplesThisStep; sample++) {
                 OptionalInt raw = provider.getNextRandomNumber();
                 if (raw.isEmpty()) {
                     break;

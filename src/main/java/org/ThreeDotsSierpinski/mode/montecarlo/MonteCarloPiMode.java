@@ -1,6 +1,7 @@
 package org.ThreeDotsSierpinski.mode.montecarlo;
 
 import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.mode.RngStepBudget;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 import org.jetbrains.annotations.NotNull;
@@ -39,6 +40,7 @@ public class MonteCarloPiMode implements VisualizationMode {
     private static final int RANDOM_RANGE = 65_536;
     private static final double RANDOM_MAX = 65_535.0;
     private static final int SAMPLES_PER_STEP = 180;
+    private static final int QUANTUM_SAMPLES_PER_STEP = 16;
 
     private static final int PANEL_RADIUS = 22;
     private static final int OUTER_PADDING = 18;
@@ -201,18 +203,18 @@ public class MonteCarloPiMode implements VisualizationMode {
     }
 
     private static String formatWithGrouping(int value) {
-        return String.format(java.util.Locale.US, "%,d", value);
+        return String.format(Locale.US, "%,d", value);
     }
 
     private static String percent(double value) {
-        return String.format(java.util.Locale.US, "%.5f%%", value * 100.0);
+        return String.format(Locale.US, "%.5f%%", value * 100.0);
     }
 
     private static String formatScientific(double value) {
         if (value == 0.0) {
             return "0";
         }
-        return String.format(java.util.Locale.US, "%.2e", value);
+        return String.format(Locale.US, "%.2e", value);
     }
 
     private static void drawAxisValue(Graphics2D g, String text, int x, int y) {
@@ -382,7 +384,9 @@ public class MonteCarloPiMode implements VisualizationMode {
             sampleGraphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             sampleGraphics.setComposite(AlphaComposite.SrcOver);
 
-            for (int i = 0; i < SAMPLES_PER_STEP; i++) {
+            int samplesThisStep = RngStepBudget.forProvider(provider, SAMPLES_PER_STEP, QUANTUM_SAMPLES_PER_STEP);
+
+            for (int i = 0; i < samplesThisStep; i++) {
                 OptionalInt rawX = provider.getNextRandomNumber();
                 if (rawX.isEmpty()) {
                     break;
@@ -663,7 +667,7 @@ public class MonteCarloPiMode implements VisualizationMode {
         double currentEstimate = currentEstimate();
         String valueText = pointCount == 0
                 ? "π ≈ —"
-                : String.format(java.util.Locale.US, "π ≈ %.8f", currentEstimate);
+                : String.format(Locale.US, "π ≈ %.8f", currentEstimate);
 
         g.setFont(PANEL_META_FONT);
         g.setColor(TEXT_MUTED);
@@ -737,7 +741,7 @@ public class MonteCarloPiMode implements VisualizationMode {
                 pointCount == 0 ? "0.00000%" : percent(insideRatio), CARD_VALUE_GREEN);
         drawMetricCard(g, metricCardBounds.get(2), HelpTopic.POINTS_OUTSIDE, "POINTS OUTSIDE", formatWithGrouping(outsideCount),
                 pointCount == 0 ? "0.00000%" : percent(outsideRatio), CARD_VALUE_ORANGE);
-        drawMetricCard(g, metricCardBounds.get(3), HelpTopic.ESTIMATE_PI, "ESTIMATE OF π", pointCount == 0 ? "—" : String.format(java.util.Locale.US, "%.8f", estimate),
+        drawMetricCard(g, metricCardBounds.get(3), HelpTopic.ESTIMATE_PI, "ESTIMATE OF π", pointCount == 0 ? "—" : String.format(Locale.US, "%.8f", estimate),
                 "π = 4 × inside / total", CARD_VALUE_CYAN);
         drawMetricCard(g, metricCardBounds.get(4), HelpTopic.ABSOLUTE_ERROR_METRIC, "ABSOLUTE ERROR", pointCount == 0 ? "—" : formatScientific(absoluteError),
                 "|πestimate − πtrue|", CARD_VALUE_YELLOW);

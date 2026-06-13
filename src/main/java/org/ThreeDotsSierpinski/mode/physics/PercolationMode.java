@@ -1,6 +1,7 @@
 package org.ThreeDotsSierpinski.mode.physics;
 
 import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.mode.RngStepBudget;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 
@@ -33,6 +34,7 @@ public class PercolationMode implements VisualizationMode {
     private static final int MAX_GRID_COLUMNS = 180;
     private static final int MAX_GRID_ROWS = 140;
     private static final int CELLS_PER_STEP = 180;
+    private static final int QUANTUM_CELLS_PER_STEP = 32;
 
     private static final int PROBABILITY_SCALE = 10_000;
     private static final int DEFAULT_OPEN_PROBABILITY = 5_927;
@@ -163,7 +165,9 @@ public class PercolationMode implements VisualizationMode {
         int cellsTotal = columns * rows;
         int processedThisStep = 0;
 
-        while (processedThisStep < CELLS_PER_STEP && nextCellIndex < cellsTotal) {
+        int cellsThisStep = RngStepBudget.forProvider(provider, CELLS_PER_STEP, QUANTUM_CELLS_PER_STEP);
+
+        while (processedThisStep < cellsThisStep && nextCellIndex < cellsTotal) {
             OptionalInt randomValue = provider.getNextRandomNumber();
             if (randomValue.isEmpty()) {
                 break;

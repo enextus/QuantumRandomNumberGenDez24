@@ -1,5 +1,6 @@
 package org.ThreeDotsSierpinski.mode.chaos;
 
+import org.ThreeDotsSierpinski.mode.RngStepBudget;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 
@@ -27,6 +28,7 @@ public class BarnsleyFernMode implements VisualizationMode {
     private static final String ICON = "🌿";
 
     private static final int ITERATIONS_PER_STEP = 250;
+    private static final int QUANTUM_ITERATIONS_PER_STEP = 32;
     private static final int PROBABILITY_SCALE = 10_000;
 
     private static final int STEM_THRESHOLD = 100;          // 1%
@@ -120,7 +122,9 @@ public class BarnsleyFernMode implements VisualizationMode {
 
         int renderDotSize = Math.clamp(dotSize, MIN_DOT_SIZE, MAX_DOT_SIZE);
 
-        for (int i = 0; i < ITERATIONS_PER_STEP; i++) {
+        int iterationsThisStep = RngStepBudget.forProvider(provider, ITERATIONS_PER_STEP, QUANTUM_ITERATIONS_PER_STEP);
+
+        for (int i = 0; i < iterationsThisStep; i++) {
             OptionalInt randomValue = provider.getNextRandomNumber();
             if (randomValue.isEmpty()) {
                 break;

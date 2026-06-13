@@ -1,6 +1,7 @@
 package org.ThreeDotsSierpinski.mode.physics;
 
 import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.mode.RngStepBudget;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 
@@ -45,6 +46,7 @@ public class ForestFireMode implements VisualizationMode {
 
     private static final int GROWTH_ATTEMPTS_MIN = 120;
     private static final int GROWTH_AREA_DIVISOR = 120;
+    private static final int QUANTUM_GROWTH_ATTEMPTS = 16;
 
     private static final int LIGHTNING_CHANCE_PERCENT = 9;
     private static final int LIGHTNING_CHANCE_WHEN_QUIET_PERCENT = 28;
@@ -326,7 +328,8 @@ public class ForestFireMode implements VisualizationMode {
     }
 
     private void growTrees(RNProvider provider, List<Point> newPoints) {
-        int growthAttempts = Math.max(GROWTH_ATTEMPTS_MIN, cellCount / GROWTH_AREA_DIVISOR);
+        int pseudoGrowthAttempts = Math.max(GROWTH_ATTEMPTS_MIN, cellCount / GROWTH_AREA_DIVISOR);
+        int growthAttempts = RngStepBudget.forProvider(provider, pseudoGrowthAttempts, QUANTUM_GROWTH_ATTEMPTS);
 
         for (int i = 0; i < growthAttempts; i++) {
             OptionalInt rx = provider.getNextRandomNumber();
