@@ -1,7 +1,6 @@
 package org.ThreeDotsSierpinski.app;
 
 import com.formdev.flatlaf.FlatLightLaf;
-import org.ThreeDotsSierpinski.config.Config;
 import org.ThreeDotsSierpinski.config.LoggerConfig;
 import org.ThreeDotsSierpinski.mode.VisualizationCategory;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
@@ -9,7 +8,6 @@ import org.ThreeDotsSierpinski.rng.RNLoadListenerImpl;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 import org.ThreeDotsSierpinski.stats.RandomnessTestSuite;
 import org.ThreeDotsSierpinski.stats.TestResult;
-import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
@@ -41,23 +39,6 @@ public class App {
     private static final String LOG_SELECTION_SCREEN_BOUNDS_PREFIX = "Mode selection screen bounds: ";
     private static final String BUTTON_PLAY = "► Play";
     private static final String BUTTON_STOP = "Stop";
-    private static final String BUTTON_TEST_VALUES_QUALITY = "Test RNG";
-    private static final String BUTTON_TEST_VALUES_QUALITY_TOOLTIP = "Test values quality";
-    private static final String BUTTON_FINISH_VISUALIZATION = "Выйти";
-    private static final int STATUS_PANEL_HORIZONTAL_GAP = 10;
-    private static final int STATUS_PANEL_VERTICAL_GAP = 5;
-    private static final int STATUS_LABEL_WIDTH = 250;
-    private static final int STATUS_LABEL_HEIGHT = 20;
-    private static final int RNG_FONT_SIZE = 11;
-    private static final int RNG_SPACER_WIDTH = 5;
-    private static final int TEST_BUTTON_WIDTH = 95;
-    private static final int SAVE_BUTTON_WIDTH = 100;
-    private static final int FINISH_BUTTON_WIDTH = 78;
-    private static final int STATUS_BUTTON_HEIGHT = 28;
-    private static final int VISUALIZATION_WINDOW_EXTRA_WIDTH = 100;
-    private static final double VISUALIZATION_WINDOW_ASPECT_WIDTH = 4.0;
-    private static final double VISUALIZATION_WINDOW_ASPECT_HEIGHT = 3.0;
-    private static final int STATUS_SCROLL_UNIT_INCREMENT = 16;
     private static final int INITIAL_DATA_TIMEOUT_MS = 15_000;
     private static final Logger LOGGER = LoggerConfig.getLogger();
     private static VisualizationCategory lastSelectedCategory = null;
@@ -115,21 +96,18 @@ public class App {
         JLabel statusLabel = new JLabel("Initializing...");
         AtomicBoolean visualizationFinished = new AtomicBoolean(false);
 
-        String windowTitle = "Quantum Visualizer — " + mode.getName();
-        var frame = new JFrame(windowTitle, targetGraphicsConfiguration);
-        frame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
-        frame.setLayout(new BorderLayout());
-
-        int basePanelWidth = Config.getInt("panel.size.width");
-        double scaleWidth = Config.getDouble("window.scale.width");
-
-        int finalWidth = (int) Math.round(basePanelWidth * scaleWidth) + VISUALIZATION_WINDOW_EXTRA_WIDTH;
-        int finalHeight = (int) Math.round(
-                finalWidth * VISUALIZATION_WINDOW_ASPECT_HEIGHT / VISUALIZATION_WINDOW_ASPECT_WIDTH
-        );
-
+        var frame = VisualizationFrameFactory.createFrame(mode, targetGraphicsConfiguration);
         var dotController = new DotController(randomNumberProvider, mode, statusLabel);
         frame.add(dotController, BorderLayout.CENTER);
+
+        var controls = VisualizationControlsPanel.create(statusLabel, mode, dotController);
+        var playStopButton = controls.playStopButton();
+        var rngToggle = controls.rngToggle();
+        var testButton = controls.testButton();
+        var saveButton = controls.saveButton();
+        var finishButton = controls.finishButton();
+        var syncToggleLabel = controls.syncToggleLabel();
+        frame.add(controls.bottomPanel(), BorderLayout.SOUTH);
 
         frame.addWindowListener(new WindowAdapter() {
             @Override
@@ -138,89 +116,6 @@ public class App {
             }
         });
 
-        // Панель статуса
-        var statusPanel = new JPanel(new FlowLayout(
-                FlowLayout.LEFT,
-                STATUS_PANEL_HORIZONTAL_GAP,
-                STATUS_PANEL_VERTICAL_GAP
-        ));
-
-        statusLabel.setPreferredSize(new Dimension(STATUS_LABEL_WIDTH, STATUS_LABEL_HEIGHT));
-        statusPanel.add(statusLabel);
-
-        var playStopButton = new JButton(BUTTON_PLAY);
-        playStopButton.setEnabled(false);
-        statusPanel.add(playStopButton);
-
-// === TOGGLE: selected=true → QUANTUM, selected=false → PSEUDO ===
-        var rngLabel = new JLabel("...");
-        rngLabel.setFont(new Font("SansSerif", Font.PLAIN, RNG_FONT_SIZE));
-        statusPanel.add(rngLabel);
-
-        statusPanel.add(Box.createHorizontalStrut(RNG_SPACER_WIDTH));
-
-        var rngToggle = new JToggleButton("RNG");
-        rngToggle.putClientProperty("JToggleButton.buttonType", "toggle");
-        rngToggle.setSelected(false);
-        rngToggle.setEnabled(false); // Неактивна до загрузки данных
-        statusPanel.add(rngToggle);
-
-// Добавляем tooltip для ясности
-        rngToggle.setToolTipText("Toggle between QUANTUM and PSEUDO random number sources");
-
-// Синхронизация label с toggle
-        Runnable syncToggleLabel = () -> {
-            if (rngToggle.isSelected()) {
-                rngLabel.setText("QUANTUM (API)");
-                rngToggle.setText("QUANTUM");
-            } else {
-                rngLabel.setText("PSEUDO (Local)");
-                rngToggle.setText("PSEUDO");
-            }
-        };
-
-        rngToggle.addChangeListener(e -> syncToggleLabel.run());
-        syncToggleLabel.run();
-
-        var testButton = new JButton(BUTTON_TEST_VALUES_QUALITY);
-        testButton.setToolTipText(BUTTON_TEST_VALUES_QUALITY_TOOLTIP);
-        testButton.setPreferredSize(new Dimension(TEST_BUTTON_WIDTH, STATUS_BUTTON_HEIGHT));
-        statusPanel.add(testButton);
-
-        var saveButton = new JButton("Save PNG");
-        saveButton.setPreferredSize(new Dimension(SAVE_BUTTON_WIDTH, STATUS_BUTTON_HEIGHT));
-        statusPanel.add(saveButton);
-
-        for (JComponent modeControl : mode.createModeControls(dotController)) {
-            statusPanel.add(modeControl);
-        }
-
-        var finishButton = new JButton(BUTTON_FINISH_VISUALIZATION);
-        finishButton.setPreferredSize(new Dimension(FINISH_BUTTON_WIDTH, STATUS_BUTTON_HEIGHT));
-
-        var controlsScrollPane = new JScrollPane(
-                statusPanel,
-                ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER,
-                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED
-        );
-        controlsScrollPane.setBorder(null);
-        controlsScrollPane.getHorizontalScrollBar().setUnitIncrement(STATUS_SCROLL_UNIT_INCREMENT);
-
-        var exitPanel = new JPanel(new FlowLayout(
-                FlowLayout.RIGHT,
-                STATUS_PANEL_HORIZONTAL_GAP,
-                STATUS_PANEL_VERTICAL_GAP
-        ));
-        exitPanel.add(finishButton);
-
-        var bottomPanel = new JPanel(new BorderLayout());
-        bottomPanel.add(controlsScrollPane, BorderLayout.CENTER);
-        bottomPanel.add(exitPanel, BorderLayout.EAST);
-
-        frame.add(bottomPanel, BorderLayout.SOUTH);
-
-        frame.setSize(finalWidth, finalHeight);
-        centerWindowOnGraphicsConfiguration(frame, targetGraphicsConfiguration);
         frame.setVisible(true);
         LOGGER.info(LOG_GUI_STARTED);
 
@@ -555,40 +450,6 @@ public class App {
         }
 
         return null;
-    }
-
-    private static void centerWindowOnGraphicsConfiguration(
-            Window window,
-            GraphicsConfiguration graphicsConfiguration
-    ) {
-        if (graphicsConfiguration == null) {
-            window.setLocationRelativeTo(null);
-            return;
-        }
-
-        Rectangle usableBounds = getUsableScreenBounds(graphicsConfiguration);
-
-        int x = usableBounds.x + Math.max(0, (usableBounds.width - window.getWidth()) / 2);
-        int y = usableBounds.y + Math.max(0, (usableBounds.height - window.getHeight()) / 2);
-
-        window.setLocation(x, y);
-    }
-
-    private static Rectangle getUsableScreenBounds(GraphicsConfiguration graphicsConfiguration) {
-        return getRectangle(graphicsConfiguration);
-    }
-
-    @NotNull
-    static Rectangle getRectangle(GraphicsConfiguration graphicsConfiguration) {
-        Rectangle bounds = graphicsConfiguration.getBounds();
-        Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(graphicsConfiguration);
-
-        return new Rectangle(
-                bounds.x + insets.left,
-                bounds.y + insets.top,
-                bounds.width - insets.left - insets.right,
-                bounds.height - insets.top - insets.bottom
-        );
     }
 
     private static JPanel getJPanel(TestResult result) {
