@@ -1,5 +1,6 @@
 package org.ThreeDotsSierpinski.mode.physics;
 
+import org.ThreeDotsSierpinski.mode.VisualizationCategory;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 
@@ -107,6 +108,11 @@ public class BifurcationDiagramMode implements VisualizationMode {
     @Override
     public String getIcon() {
         return ICON;
+    }
+
+    @Override
+    public VisualizationCategory getCategory() {
+        return VisualizationCategory.ATTRACTORS;
     }
 
     @Override

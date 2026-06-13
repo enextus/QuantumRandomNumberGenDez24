@@ -1,5 +1,6 @@
 package org.ThreeDotsSierpinski.mode.physics;
 
+import org.ThreeDotsSierpinski.mode.VisualizationCategory;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 
@@ -40,6 +41,13 @@ abstract class AbstractLissajousMode implements VisualizationMode {
     protected int pointCount;
     protected int randomNumbersUsed;
     protected int frame;
+
+
+
+    @Override
+    public VisualizationCategory getCategory() {
+        return VisualizationCategory.LISSAJOUS;
+    }
 
     @Override
     public boolean usesDarkBackground() {

@@ -1,5 +1,6 @@
 package org.ThreeDotsSierpinski.mode.physics;
 
+import org.ThreeDotsSierpinski.mode.VisualizationCategory;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 
@@ -76,6 +77,13 @@ abstract class AbstractStrangeAttractorMode implements VisualizationMode {
             builder.append(String.format(java.util.Locale.US, "%.2f", parameters[i]));
         }
         return builder.toString();
+    }
+
+
+
+    @Override
+    public VisualizationCategory getCategory() {
+        return VisualizationCategory.ATTRACTORS;
     }
 
     @Override

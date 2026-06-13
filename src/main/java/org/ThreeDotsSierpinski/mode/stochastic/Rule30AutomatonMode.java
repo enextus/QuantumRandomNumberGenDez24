@@ -1,6 +1,7 @@
 package org.ThreeDotsSierpinski.mode.stochastic;
 
 import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.mode.VisualizationCategory;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 
@@ -126,6 +127,11 @@ public class Rule30AutomatonMode implements VisualizationMode {
     @Override
     public String getIcon() {
         return ICON;
+    }
+
+    @Override
+    public VisualizationCategory getCategory() {
+        return VisualizationCategory.RANDOM_PROCESSES;
     }
 
     @Override

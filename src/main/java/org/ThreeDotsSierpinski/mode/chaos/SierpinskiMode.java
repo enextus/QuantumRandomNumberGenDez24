@@ -3,6 +3,7 @@ package org.ThreeDotsSierpinski.mode.chaos;
 import org.ThreeDotsSierpinski.app.DotController;
 import org.ThreeDotsSierpinski.config.Config;
 import org.ThreeDotsSierpinski.math.SierpinskiAlgorithm;
+import org.ThreeDotsSierpinski.mode.VisualizationCategory;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.mode.VisualizationStyle;
 import org.ThreeDotsSierpinski.rng.RNProvider;
@@ -86,6 +87,11 @@ public class SierpinskiMode implements VisualizationMode {
     @Override
     public String getIcon() {
         return ICON;
+    }
+
+    @Override
+    public VisualizationCategory getCategory() {
+        return VisualizationCategory.CHAOS_FRACTALS;
     }
 
     @Override

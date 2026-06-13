@@ -170,51 +170,9 @@ public interface VisualizationMode {
     /**
      * High-level category used by the two-level mode selection dialog.
      *
-     * Current modes are classified here so existing visualization classes do not
-     * need boilerplate category overrides. A new mode may still override this
-     * method when it belongs to a different category.
+     * Implementations declare their category explicitly instead of relying on
+     * interface-level class-name matching.
      */
-    default VisualizationCategory getCategory() {
-        return switch (getClass().getSimpleName()) {
-            case "SierpinskiMode",
-                 "BarnsleyFernMode",
-                 "FractalFlameMode",
-                 "ChaosGameRepresentationMode",
-                 "DLAMode" -> VisualizationCategory.CHAOS_FRACTALS;
-
-            case "MonteCarloPiMode",
-                 "MonteCarloMandelbrotAreaMode",
-                 "MonteCarloMandelbrot3DAreaMode",
-                 "BuddhabrotMode" -> VisualizationCategory.MONTE_CARLO;
-
-            case "RandomWalkHeatmapMode",
-                 "Rule30AutomatonMode",
-                 "GaltonBoardMode",
-                 "VoronoiMode",
-                 "SpectralPlotMode" -> VisualizationCategory.RANDOM_PROCESSES;
-
-            case "PercolationMode",
-                 "ForestFireMode",
-                 "AbelianSandpileMode" -> VisualizationCategory.STATISTICAL_PHYSICS;
-
-            case "LissajousFrequencyMode",
-                 "LissajousOscilloscopeMode",
-                 "LissajousQuantumVsPseudoMode",
-                 "Lissajous3DMode",
-                 "LissajousSpectralAnalyzerMode",
-                 "ChaosLissajousMode" -> VisualizationCategory.LISSAJOUS;
-
-            case "LorenzAttractor3DMode",
-                 "ChirikovStandardMapMode",
-                 "AizawaAttractorMode",
-                 "ThomasAttractorMode",
-                 "RosslerAttractorMode",
-                 "HalvorsenAttractorMode",
-                 "DadrasAttractorMode",
-                 "BifurcationDiagramMode" -> VisualizationCategory.ATTRACTORS;
-
-            default -> VisualizationCategory.RANDOM_PROCESSES;
-        };
-    }
+    VisualizationCategory getCategory();
 
 }

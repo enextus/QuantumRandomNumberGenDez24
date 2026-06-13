@@ -1,6 +1,7 @@
 package org.ThreeDotsSierpinski.mode.chaos;
 
 import org.ThreeDotsSierpinski.mode.RngStepBudget;
+import org.ThreeDotsSierpinski.mode.VisualizationCategory;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 
@@ -96,6 +97,11 @@ public class ChaosGameRepresentationMode implements VisualizationMode {
     @Override
     public String getIcon() {
         return ICON;
+    }
+
+    @Override
+    public VisualizationCategory getCategory() {
+        return VisualizationCategory.CHAOS_FRACTALS;
     }
 
     @Override

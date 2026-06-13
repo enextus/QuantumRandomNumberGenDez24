@@ -1,6 +1,7 @@
 package org.ThreeDotsSierpinski.mode.stochastic;
 
 import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.mode.VisualizationCategory;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.RNProvider;
 
@@ -61,6 +62,11 @@ public class VoronoiMode implements VisualizationMode {
     @Override
     public String getIcon() {
         return "🌐";
+    }
+
+    @Override
+    public VisualizationCategory getCategory() {
+        return VisualizationCategory.RANDOM_PROCESSES;
     }
 
     @Override
