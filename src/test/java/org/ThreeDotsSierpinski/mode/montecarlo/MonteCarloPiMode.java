@@ -204,18 +204,18 @@ public class MonteCarloPiMode implements VisualizationMode {
     }
 
     private static String formatWithGrouping(int value) {
-        return String.format(Locale.US, "%,d", value);
+        return String.format(java.util.Locale.US, "%,d", value);
     }
 
     private static String percent(double value) {
-        return String.format(Locale.US, "%.5f%%", value * 100.0);
+        return String.format(java.util.Locale.US, "%.5f%%", value * 100.0);
     }
 
     private static String formatScientific(double value) {
         if (value == 0.0) {
             return "0";
         }
-        return String.format(Locale.US, "%.2e", value);
+        return String.format(java.util.Locale.US, "%.2e", value);
     }
 
     private static void drawAxisValue(Graphics2D g, String text, int x, int y) {
@@ -673,7 +673,7 @@ public class MonteCarloPiMode implements VisualizationMode {
         double currentEstimate = currentEstimate();
         String valueText = pointCount == 0
                 ? "π ≈ —"
-                : String.format(Locale.US, "π ≈ %.8f", currentEstimate);
+                : String.format(java.util.Locale.US, "π ≈ %.8f", currentEstimate);
 
         g.setFont(PANEL_META_FONT);
         g.setColor(TEXT_MUTED);
@@ -747,7 +747,7 @@ public class MonteCarloPiMode implements VisualizationMode {
                 pointCount == 0 ? "0.00000%" : percent(insideRatio), CARD_VALUE_GREEN);
         drawMetricCard(g, metricCardBounds.get(2), HelpTopic.POINTS_OUTSIDE, "POINTS OUTSIDE", formatWithGrouping(outsideCount),
                 pointCount == 0 ? "0.00000%" : percent(outsideRatio), CARD_VALUE_ORANGE);
-        drawMetricCard(g, metricCardBounds.get(3), HelpTopic.ESTIMATE_PI, "ESTIMATE OF π", pointCount == 0 ? "—" : String.format(Locale.US, "%.8f", estimate),
+        drawMetricCard(g, metricCardBounds.get(3), HelpTopic.ESTIMATE_PI, "ESTIMATE OF π", pointCount == 0 ? "—" : String.format(java.util.Locale.US, "%.8f", estimate),
                 "π = 4 × inside / total", CARD_VALUE_CYAN);
         drawMetricCard(g, metricCardBounds.get(4), HelpTopic.ABSOLUTE_ERROR_METRIC, "ABSOLUTE ERROR", pointCount == 0 ? "—" : formatScientific(absoluteError),
                 "|πestimate − πtrue|", CARD_VALUE_YELLOW);

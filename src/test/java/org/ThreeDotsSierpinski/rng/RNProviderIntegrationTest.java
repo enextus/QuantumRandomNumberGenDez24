@@ -434,6 +434,7 @@ class RNProviderIntegrationTest {
 
             assertEquals(RNProvider.Mode.PSEUDO, provider.getMode(),
                     "При API error должен уйти в PSEUDO");
+            assertEquals(FallbackReason.RATE_LIMIT, provider.getFallbackReasonCode());
             assertNull(provider.getLastError());
             provider.shutdown(); // Останавливаем фоновый reconnect-monitor
         }
@@ -531,13 +532,17 @@ class RNProviderIntegrationTest {
                 assertTrue(provider.waitForInitialData(5000));
 
                 // 0 → min диапазона, 32768 → середина диапазона
+                assertEquals(0, provider.getConsumedCount());
+
                 long result1 = provider.getNextRandomNumberInRange(0, 100);
                 assertEquals(0, result1, "0 должен маппиться в начало диапазона");
+                assertEquals(1, provider.getConsumedCount());
 
                 OptionalLong result2 = provider.tryGetNextRandomNumberInRange(0, 100);
                 assertTrue(result2.isPresent(), "tryGetNextRandomNumberInRange() должен вернуть значение при наличии числа");
                 assertTrue(result2.getAsLong() >= 49 && result2.getAsLong() <= 51,
                         "32768 (~середина) должен маппиться в ~50, получено: " + result2.getAsLong());
+                assertEquals(2, provider.getConsumedCount());
             }
         }
 
@@ -663,6 +668,7 @@ class RNProviderIntegrationTest {
                 RNProvider provider = new RNProvider(settings, true, INSTANT_SLEEPER);
 
                 assertEquals(RNProvider.Mode.PSEUDO, provider.getMode(), "Должен перейти в PSEUDO");
+                assertEquals(FallbackReason.NO_API_KEY, provider.getFallbackReasonCode());
                 assertNull(provider.getLastError(), "Ошибка должна быть сброшена, приложение работает");
             }
 
@@ -675,6 +681,7 @@ class RNProviderIntegrationTest {
                 RNProvider provider = new RNProvider(settings, true, INSTANT_SLEEPER);
 
                 assertEquals(RNProvider.Mode.PSEUDO, provider.getMode());
+                assertEquals(FallbackReason.NO_API_KEY, provider.getFallbackReasonCode());
                 assertNull(provider.getLastError());
             }
 
@@ -687,6 +694,7 @@ class RNProviderIntegrationTest {
                 RNProvider provider = new RNProvider(settings, true, INSTANT_SLEEPER);
 
                 assertEquals(RNProvider.Mode.PSEUDO, provider.getMode());
+                assertEquals(FallbackReason.NO_API_KEY, provider.getFallbackReasonCode());
                 assertNull(provider.getLastError());
             }
 
