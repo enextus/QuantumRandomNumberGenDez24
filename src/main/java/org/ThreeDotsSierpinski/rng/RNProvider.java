@@ -1,16 +1,8 @@
 package org.ThreeDotsSierpinski.rng;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.ThreeDotsSierpinski.config.Config;
 import org.ThreeDotsSierpinski.config.LoggerConfig;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalInt;
@@ -18,6 +10,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.random.RandomGenerator;
@@ -56,14 +49,8 @@ public class RNProvider {
     // ========================================================================
     // Настройки экземпляра
     // ========================================================================
-    private final String apiUrl;
     private final String apiKey;
-    private final String dataType;
-    private final int arrayLength;
-    private final int blockSize;
     private final int maxApiRequests;
-    private final int connectTimeout;
-    private final int readTimeout;
     private final int queueMinSize;
     private final int maxRetries;
     private final long initialBackoffMs;
@@ -74,10 +61,9 @@ public class RNProvider {
     // HTTP клиент, fallback PRNG и состояние
     // ========================================================================
 
-    private final HttpClient httpClient;
+    private final QuantumNumbersApiClient quantumNumbersApiClient;
     private final RandomGenerator fallbackRng;
     private final BlockingQueue<RandomNumberEntry> randomNumbersQueue;
-    private final ObjectMapper objectMapper;
     private final RandomNumberProcessor numberProcessor;
     private final RandomNumbersLog randomNumbersLog;
     private final List<RNLoadListener> listeners = new CopyOnWriteArrayList<>();
@@ -102,7 +88,8 @@ public class RNProvider {
      */
     private int totalConsumed = 0;
     private volatile boolean isLoading = false;
-    private volatile boolean isReconnecting = false;
+    private final AtomicBoolean reconnecting = new AtomicBoolean(false);
+    private volatile boolean shutdownRequested = false;
     private volatile boolean initialLoadComplete = false;
     private volatile String lastError = null;
     private volatile String fallbackReason = null;
@@ -117,30 +104,21 @@ public class RNProvider {
     }
 
     public RNProvider(ProviderSettings settings, boolean autoLoadOnStart, Sleeper sleeper) {
-        this.apiUrl = settings.apiUrl();
         this.apiKey = settings.apiKey();
-        this.dataType = settings.dataType();
-        this.arrayLength = settings.arrayLength();
-        this.blockSize = settings.blockSize();
         this.maxApiRequests = settings.maxApiRequests();
-        this.connectTimeout = settings.connectTimeout();
-        this.readTimeout = settings.readTimeout();
         this.queueMinSize = settings.queueMinSize();
         this.maxRetries = settings.maxRetries();
         this.initialBackoffMs = settings.initialBackoffMs();
         this.maxBackoffMs = settings.maxBackoffMs();
         this.sleeper = sleeper;
 
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofMillis(connectTimeout))
-                .build();
+        this.quantumNumbersApiClient = new QuantumNumbersApiClient(settings);
 
         // L128X256MixRandom: LXM family, период 2^384, 4-equidistributed
         // Самый качественный PRNG в стандартной Java (JEP 356)
         this.fallbackRng = RandomGenerator.of("L128X256MixRandom");
 
         randomNumbersQueue = new LinkedBlockingQueue<>();
-        objectMapper = new ObjectMapper();
         numberProcessor = new RandomNumberProcessor();
         randomNumbersLog = new RandomNumbersLog();
 
@@ -168,11 +146,15 @@ public class RNProvider {
      * Принудительно переключает в локальный режим (без запросов к API).
      */
     public void setForcedPseudo(boolean forced) {
+        if (shutdownRequested) {
+            return;
+        }
+
         this.isForcedPseudo = forced;
         if (forced) {
             currentMode = Mode.PSEUDO;
             fallbackReason = "Manually forced to PSEUDO";
-            isReconnecting = false;
+            reconnecting.set(false);
             notifyModeChanged(Mode.PSEUDO);
         } else {
             // Юзер кликнул ВПРАВО (QUANTUM)
@@ -184,7 +166,7 @@ public class RNProvider {
 
             fallbackReason = null;
             currentMode = Mode.QUANTUM;
-            isReconnecting = false;
+            reconnecting.set(false);
             loadInitialDataAsync(); // Попытка подключиться
         }
     }
@@ -347,34 +329,44 @@ public class RNProvider {
      * Если успешно — переключает обратно в QUANTUM и разблокирует UI.
      */
     private void startReconnectMonitor() {
-        if (isReconnecting) return; // Если уже пингуем - не создаем еще один поток
-        isReconnecting = true;
+        if (shutdownRequested || !reconnecting.compareAndSet(false, true)) {
+            return;
+        }
 
         Thread.startVirtualThread(() -> {
-            while (isReconnecting && currentMode == Mode.PSEUDO) {
-                try {
-                    Thread.sleep(15000); // Ждем 15 секунд
-                } catch (InterruptedException e) {
-                    break;
+            try {
+                while (!shutdownRequested && reconnecting.get() && currentMode == Mode.PSEUDO) {
+                    try {
+                        Thread.sleep(15_000);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+
+                    if (shutdownRequested || !reconnecting.get()) {
+                        break;
+                    }
+
+                    LOGGER.info("Background reconnect attempt...");
+                    try {
+                        loadInitialData();
+
+                        if (shutdownRequested) {
+                            break;
+                        }
+
+                        consecutiveFailures = 0;
+                        switchToQuantumMode();
+                        notifyApiAvailability(true);
+                        break;
+                    } catch (RateLimitException e) {
+                        break;
+                    } catch (Exception e) {
+                        LOGGER.fine("Reconnect failed, will retry in 15s: " + e.getMessage());
+                    }
                 }
-
-                if (!isReconnecting) break;
-
-                LOGGER.info("Background reconnect attempt...");
-                try {
-                    loadInitialData();
-
-                    isReconnecting = false;
-                    consecutiveFailures = 0;
-                    switchToQuantumMode();
-                    notifyApiAvailability(true);
-                    break;
-                } catch (RateLimitException e) {
-                    isReconnecting = false; // Суточный лимит - нечего пинговать
-                    break;
-                } catch (Exception e) {
-                    LOGGER.fine("Reconnect failed, will retry in 15s: " + e.getMessage());
-                }
+            } finally {
+                reconnecting.set(false);
             }
         });
     }
@@ -385,7 +377,11 @@ public class RNProvider {
     }
 
     public void shutdown() {
-        isReconnecting = false;
+        shutdownRequested = true;
+        reconnecting.set(false);
+        synchronized (this) {
+            isLoading = false;
+        }
         randomNumbersLog.finishBatch();
         randomNumbersLog.close();
         LOGGER.info("RNProvider shutting down. Mode: " + currentMode
@@ -420,6 +416,10 @@ public class RNProvider {
             }
         }
 
+        if (shutdownRequested) {
+            return;
+        }
+
         if (sourceMode == Mode.QUANTUM) {
             randomNumbersLog.writeTrueNumber(value);
         } else {
@@ -428,6 +428,10 @@ public class RNProvider {
     }
 
     private void activatePseudoMode(String reason) {
+        if (shutdownRequested) {
+            return;
+        }
+
         // Всегда обновляем причину, даже если уже в PSEUDO
         this.fallbackReason = reason;
 
@@ -456,6 +460,10 @@ public class RNProvider {
     // ========================================================================
 
     private void fillQueueWithPseudo() {
+        if (shutdownRequested) {
+            return;
+        }
+
         for (int i = 0; i < PSEUDO_BATCH_SIZE; i++) {
             randomNumbersQueue.add(new RandomNumberEntry(fallbackRng.nextInt(65536), Mode.PSEUDO));
         }
@@ -484,6 +492,10 @@ public class RNProvider {
     }
 
     private void switchToQuantumMode() {
+        if (shutdownRequested) {
+            return;
+        }
+
         // Кнопка активна по умолчанию (если есть ключ), замораживается только при handleLoadFailure.
         // Successful API loading ends the default-local startup phase.
         // Without this, getNextRandomNumber() would keep generating PSEUDO
@@ -503,8 +515,12 @@ public class RNProvider {
     // ========================================================================
 
     private void loadInitialDataAsync() {
+        if (shutdownRequested) {
+            return;
+        }
+
         synchronized (this) {
-            if (isLoading || apiRequestCount >= maxApiRequests) {
+            if (shutdownRequested || isLoading || apiRequestCount >= maxApiRequests) {
                 if (apiRequestCount >= maxApiRequests && currentMode == Mode.QUANTUM) {
                     activatePseudoMode("API request limit reached");
                 }
@@ -522,8 +538,10 @@ public class RNProvider {
 
         CompletableFuture.runAsync(this::loadWithRetry, Thread::startVirtualThread)
                 .exceptionally(ex -> {
-                    LOGGER.log(Level.SEVERE, "Exception during data loading", ex);
-                    handleLoadFailure("Exception: " + ex.getMessage());
+                    if (!shutdownRequested) {
+                        LOGGER.log(Level.SEVERE, "Exception during data loading", ex);
+                        handleLoadFailure("Exception: " + ex.getMessage());
+                    }
                     synchronized (this) {
                         isLoading = false;
                     }
@@ -539,9 +557,13 @@ public class RNProvider {
         int retryCount = 0;
 
         try {
-            while (retryCount <= maxRetries) {
+            while (!shutdownRequested && retryCount <= maxRetries) {
                 try {
                     loadInitialData();
+
+                    if (shutdownRequested) {
+                        return;
+                    }
 
                     consecutiveFailures = 0;
                     switchToQuantumMode();
@@ -568,6 +590,10 @@ public class RNProvider {
                             retryCount, maxRetries, backoffMs, e.getMessage()));
                     notifyError("Retry " + retryCount + "/" + maxRetries + ": " + e.getMessage());
 
+                    if (shutdownRequested) {
+                        return;
+                    }
+
                     try {
                         sleeper.sleep(backoffMs);
                     } catch (InterruptedException ie) {
@@ -585,10 +611,16 @@ public class RNProvider {
     }
 
     private void handleLoadFailure(String reason) {
+        if (shutdownRequested) {
+            return;
+        }
+
         boolean isNetworkDown = reason.contains("Connection refused")
                 || reason.contains("timed out")
                 || reason.contains("UnknownHostException");
-        boolean isRateLimit = reason.contains("429") || reason.contains("limit") || reason.contains("Limit Exceeded");
+        boolean isRateLimit = reason.contains("429")
+                || reason.toLowerCase(java.util.Locale.ROOT).contains("limit")
+                || reason.toLowerCase(java.util.Locale.ROOT).contains("лимит");
 
         // Rate limit = особый случай. Не пингуем бесконечно, но оставляем toggle enabled.
         if (isRateLimit) {
@@ -620,90 +652,50 @@ public class RNProvider {
         return Math.min(backoff, maxBackoffMs);
     }
 
-    private String buildRequestUrl() {
-        var url = new StringBuilder(apiUrl);
-        url.append("?length=").append(Math.min(arrayLength, 1024));
-        url.append("&type=").append(dataType);
-        if ("hex16".equals(dataType)) {
-            url.append("&size=").append(Math.min(blockSize, 1024));
-        }
-        return url.toString();
-    }
-
     // ========================================================================
     // Внутренняя логика загрузки
     // ========================================================================
 
     private void loadInitialData() throws Exception {
+        if (shutdownRequested) {
+            return;
+        }
+
         notifyLoadingStarted();
 
-        var requestUrl = buildRequestUrl();
-        LOGGER.info("Sending request: " + requestUrl);
-
-        var request = HttpRequest.newBuilder()
-                .uri(URI.create(requestUrl))
-                .header("x-api-key", apiKey)
-                .timeout(Duration.ofMillis(readTimeout))
-                .GET()
-                .build();
-
-        var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        int statusCode = response.statusCode();
-
-        if (statusCode != 200) {
-            var errorBody = response.body();
-            LOGGER.severe("HTTP error: " + statusCode + " - " + errorBody);
-
-            if (statusCode == 429) {
-                throw new RateLimitException(errorBody);
-            }
-            throw new IOException("HTTP error code: " + statusCode + " - " + errorBody);
+        QuantumNumbersApiResponse response = quantumNumbersApiClient.fetchNumbers();
+        if (shutdownRequested) {
+            return;
         }
 
-        var responseBody = response.body();
-        LOGGER.info("Received response: " +
-                responseBody.substring(0, Math.min(200, responseBody.length())) + "...");
+        removePseudoEntriesFromQueue();
 
-        var rootNode = objectMapper.readTree(responseBody);
-
-        if (rootNode.has("data")) {
-            var dataNode = rootNode.get("data");
-
-            if (!dataNode.isArray()) {
-                throw new IOException("Invalid response format: 'data' is not an array.");
+        int loadedCount = 0;
+        for (int number : response.numbers()) {
+            if (shutdownRequested) {
+                return;
             }
-
-            removePseudoEntriesFromQueue();
-
-            int loadedCount = 0;
-            for (JsonNode element : dataNode) {
-                if ("hex16".equals(dataType)) {
-                    randomNumbersQueue.add(new RandomNumberEntry(Integer.parseInt(element.asText(), 16), Mode.QUANTUM));
-                } else {
-                    randomNumbersQueue.add(new RandomNumberEntry(element.asInt(), Mode.QUANTUM));
-                }
-                loadedCount++;
-            }
-
-            LOGGER.info("Loaded " + loadedCount + " quantum random numbers. Queue: " + randomNumbersQueue.size());
-
-            synchronized (this) {
-                apiRequestCount++;
-                initialLoadComplete = true;
-                lastError = null;
-            }
-
-            notifyRawDataReceived(responseBody);
-            notifyLoadingCompleted();
-
-        } else if (rootNode.has("message")) {
-            throw new IOException("API Error: " + rootNode.get("message").asText());
-        } else {
-            throw new IOException("Unexpected response from server.");
+            randomNumbersQueue.add(new RandomNumberEntry(number, Mode.QUANTUM));
+            loadedCount++;
         }
+
+        LOGGER.info("Loaded " + loadedCount + " quantum random numbers. Queue: " + randomNumbersQueue.size());
+
+        synchronized (this) {
+            apiRequestCount++;
+            initialLoadComplete = true;
+            lastError = null;
+        }
+
+        notifyRawDataReceived(response.rawData());
+        notifyLoadingCompleted();
     }
 
     private void checkAndLoadMore() {
+        if (shutdownRequested) {
+            return;
+        }
+
         if (randomNumbersQueue.size() < queueMinSize && apiRequestCount < maxApiRequests && !isLoading) {
             loadInitialDataAsync();
         } else if (randomNumbersQueue.size() < queueMinSize && currentMode == Mode.PSEUDO) {
@@ -712,22 +704,42 @@ public class RNProvider {
     }
 
     private void notifyLoadingStarted() {
+        if (shutdownRequested) {
+            return;
+        }
+
         listeners.forEach(RNLoadListener::onLoadingStarted);
     }
 
     private void notifyLoadingCompleted() {
+        if (shutdownRequested) {
+            return;
+        }
+
         listeners.forEach(RNLoadListener::onLoadingCompleted);
     }
 
     private void notifyError(String errorMessage) {
+        if (shutdownRequested) {
+            return;
+        }
+
         listeners.forEach(listener -> listener.onError(errorMessage));
     }
 
     private void notifyRawDataReceived(String rawData) {
+        if (shutdownRequested) {
+            return;
+        }
+
         listeners.forEach(listener -> listener.onRawDataReceived(rawData));
     }
 
     private void notifyModeChanged(Mode mode) {
+        if (shutdownRequested) {
+            return;
+        }
+
         listeners.forEach(listener -> listener.onModeChanged(mode));
     }
 
@@ -736,6 +748,10 @@ public class RNProvider {
     // ========================================================================
 
     private void notifyApiAvailability(boolean isAvailable) {
+        if (shutdownRequested) {
+            return;
+        }
+
         listeners.forEach(listener -> listener.onApiAvailabilityChanged(isAvailable));
     }
 
@@ -756,15 +772,6 @@ public class RNProvider {
     @FunctionalInterface
     public interface Sleeper {
         void sleep(long ms) throws InterruptedException;
-    }
-
-    /**
-     * Исключение-маркер для мгновенного переключения в PSEUDO без ретраев.
-     */
-    private static class RateLimitException extends RuntimeException {
-        RateLimitException(String message) {
-            super(message);
-        }
     }
 
     /**
