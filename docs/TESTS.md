@@ -35,6 +35,7 @@ mvn test -Dtest=MonteCarloMandelbrot3DAreaModeTest
 - `RandomNumberProcessorTest` — HEX/uint processing and range mapping.
 - `RNProviderIntegrationTest` — `RNProvider` behavior with a local mock HTTP server.
 - `RngStepBudgetTest` — adaptive RNG step-budget policy for PSEUDO/QUANTUM/forced-pseudo providers.
+- `RngSamplerTest` — mode-local RNG sampling counter and uint16 normalization helpers.
 
 `RNProviderIntegrationTest` does not require the real ANU API. It starts a local `com.sun.net.httpserver.HttpServer`, verifies request headers such as `x-api-key`, simulates success/error/rate-limit responses, and checks fallback behavior.
 

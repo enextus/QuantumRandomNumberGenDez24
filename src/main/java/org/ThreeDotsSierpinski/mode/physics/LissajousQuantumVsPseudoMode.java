@@ -127,6 +127,6 @@ public class LissajousQuantumVsPseudoMode extends AbstractLissajousMode {
     private double pseudoSigned() {
         lcgState = (lcgState * 25214903917L + 11L) & ((1L << 48) - 1L);
         int value = (int) ((lcgState >>> 16) & 0xFFFF);
-        return value / RANDOM_MAX * 2.0 - 1.0;
+        return org.ThreeDotsSierpinski.mode.RngSampler.toSignedUnit(value);
     }
 }

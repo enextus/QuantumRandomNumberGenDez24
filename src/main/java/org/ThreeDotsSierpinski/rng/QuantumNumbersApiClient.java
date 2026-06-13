@@ -20,20 +20,21 @@ import java.util.logging.Logger;
 final class QuantumNumbersApiClient {
 
     private static final Logger LOGGER = LoggerConfig.getLogger();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final String API_KEY_HEADER = "x-api-key";
+    private static final String DATA_NODE = "data";
+    private static final String MESSAGE_NODE = "message";
     private static final int MAX_API_LENGTH = 1024;
     private static final int MAX_API_BLOCK_SIZE = 1024;
 
     private final RNProvider.ProviderSettings settings;
     private final HttpClient httpClient;
-    private final ObjectMapper objectMapper;
-    private static final String API_KEY_HEADER = "x-api-key";
 
     QuantumNumbersApiClient(RNProvider.ProviderSettings settings) {
         this.settings = settings;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(settings.connectTimeout()))
                 .build();
-        this.objectMapper = new ObjectMapper();
     }
 
     QuantumNumbersApiResponse fetchNumbers() throws IOException, InterruptedException {
@@ -64,10 +65,10 @@ final class QuantumNumbersApiClient {
         LOGGER.info("Received response: "
                 + responseBody.substring(0, Math.min(200, responseBody.length())) + "...");
 
-        JsonNode rootNode = objectMapper.readTree(responseBody);
+        JsonNode rootNode = OBJECT_MAPPER.readTree(responseBody);
 
-        if (rootNode.has("data")) {
-            JsonNode dataNode = rootNode.get("data");
+        if (rootNode.has(DATA_NODE)) {
+            JsonNode dataNode = rootNode.get(DATA_NODE);
 
             if (!dataNode.isArray()) {
                 throw new IOException("Invalid response format: 'data' is not an array.");
@@ -76,8 +77,8 @@ final class QuantumNumbersApiClient {
             return new QuantumNumbersApiResponse(responseBody, parseNumbers(dataNode));
         }
 
-        if (rootNode.has("message")) {
-            throw new IOException("API Error: " + rootNode.get("message").asText());
+        if (rootNode.has(MESSAGE_NODE)) {
+            throw new IOException("API Error: " + rootNode.get(MESSAGE_NODE).asText());
         }
 
         throw new IOException("Unexpected response from server.");

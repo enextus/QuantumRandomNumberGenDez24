@@ -66,6 +66,7 @@ public class RNProvider {
 
     private final QuantumNumbersApiClient quantumNumbersApiClient;
     private final RandomGenerator fallbackRng;
+    private final Object fallbackRngLock = new Object();
     private final BlockingQueue<RandomNumberEntry> randomNumbersQueue;
     private final RandomNumberProcessor numberProcessor;
     private final RandomNumbersLog randomNumbersLog;
@@ -96,6 +97,7 @@ public class RNProvider {
     private volatile boolean initialLoadComplete = false;
     private volatile String lastError = null;
     private volatile String fallbackReason = null;
+    private volatile FallbackReason fallbackReasonCode = null;
     private volatile int consecutiveFailures = 0;
     private volatile Mode currentMode = Mode.QUANTUM;
     private volatile boolean isForcedPseudo = true; // По умолчанию всегда стартуем локально
@@ -129,11 +131,11 @@ public class RNProvider {
         if (apiKey == null || apiKey.isEmpty() || apiKey.startsWith("YOUR_")) {
             LOGGER.warning("API key is not configured. Falling back to pseudo-random mode (L128X256MixRandom).");
             apiKeyConfigured = false;
-            activatePseudoMode("no API key"); // более короткий, консистентный текст
+            activatePseudoMode(FallbackReason.NO_API_KEY, "no API key");
         } else if (autoLoadOnStart) {
             // Ключ есть!
             if (isForcedPseudo) {
-                activatePseudoMode("Default local mode"); // Стартуем визуально как PSEUDO
+                activatePseudoMode(FallbackReason.DEFAULT_LOCAL, "Default local mode"); // Стартуем визуально как PSEUDO
                 loadInitialDataAsync(); // Запускаем фоновую загрузку
             } else {
                 loadInitialDataAsync();
@@ -156,6 +158,7 @@ public class RNProvider {
         this.isForcedPseudo = forced;
         if (forced) {
             currentMode = Mode.PSEUDO;
+            fallbackReasonCode = FallbackReason.MANUAL;
             fallbackReason = "Manually forced to PSEUDO";
             reconnecting.set(false);
             notifyModeChanged(Mode.PSEUDO);
@@ -167,6 +170,7 @@ public class RNProvider {
                 return;
             }
 
+            fallbackReasonCode = null;
             fallbackReason = null;
             currentMode = Mode.QUANTUM;
             reconnecting.set(false);
@@ -227,6 +231,20 @@ public class RNProvider {
      */
     public String getFallbackReason() {
         return fallbackReason;
+    }
+
+    public FallbackReason getFallbackReasonCode() {
+        return fallbackReasonCode;
+    }
+
+    public String getFallbackReasonDisplayText() {
+        return fallbackReasonCode == null ? fallbackReason : fallbackReasonCode.displayText();
+    }
+
+    public int getConsumedCount() {
+        synchronized (consumedNumbersLock) {
+            return totalConsumed;
+        }
     }
 
     /**
@@ -291,7 +309,7 @@ public class RNProvider {
         // to generate local pseudo numbers just because the app started in
         // the default-local boot mode.
         if (isForcedPseudo && currentMode == Mode.PSEUDO) {
-            int pseudoNum = fallbackRng.nextInt(65536);
+            int pseudoNum = nextPseudoUInt16();
             addConsumedNumber(pseudoNum, Mode.PSEUDO);
             return OptionalInt.of(pseudoNum);
         }
@@ -300,15 +318,15 @@ public class RNProvider {
         if (nextEntry == null) {
             if (currentMode == Mode.PSEUDO) {
                 fillQueueWithPseudo();
-                int pseudoNum = fallbackRng.nextInt(65536);
+                int pseudoNum = nextPseudoUInt16();
                 addConsumedNumber(pseudoNum, Mode.PSEUDO);
                 return OptionalInt.of(pseudoNum);
             }
 
             synchronized (this) {
                 if (apiRequestCount >= maxApiRequests) {
-                    activatePseudoMode("API request limit reached (" + maxApiRequests + ")");
-                    int pseudoNum = fallbackRng.nextInt(65536);
+                    activatePseudoMode(FallbackReason.RATE_LIMIT, "API request limit reached (" + maxApiRequests + ")");
+                    int pseudoNum = nextPseudoUInt16();
                     addConsumedNumber(pseudoNum, Mode.PSEUDO);
                     return OptionalInt.of(pseudoNum);
                 }
@@ -442,12 +460,13 @@ public class RNProvider {
         }
     }
 
-    private void activatePseudoMode(String reason) {
+    private void activatePseudoMode(FallbackReason reasonCode, String reason) {
         if (shutdownRequested) {
             return;
         }
 
         // Всегда обновляем причину, даже если уже в PSEUDO
+        this.fallbackReasonCode = reasonCode;
         this.fallbackReason = reason;
 
         if (currentMode == Mode.PSEUDO) {
@@ -470,9 +489,11 @@ public class RNProvider {
         notifyLoadingCompleted();
     }
 
-    // ========================================================================
-    // Package-private accessors
-    // ========================================================================
+    private int nextPseudoUInt16() {
+        synchronized (fallbackRngLock) {
+            return fallbackRng.nextInt(65_536);
+        }
+    }
 
     private void fillQueueWithPseudo() {
         if (shutdownRequested) {
@@ -480,7 +501,7 @@ public class RNProvider {
         }
 
         for (int i = 0; i < PSEUDO_BATCH_SIZE; i++) {
-            randomNumbersQueue.add(new RandomNumberEntry(fallbackRng.nextInt(65536), Mode.PSEUDO));
+            randomNumbersQueue.add(new RandomNumberEntry(nextPseudoUInt16(), Mode.PSEUDO));
         }
         pseudoBatchCount++;
         LOGGER.fine("Filled queue with " + PSEUDO_BATCH_SIZE + " pseudo-random numbers. "
@@ -520,6 +541,8 @@ public class RNProvider {
         if (currentMode == Mode.QUANTUM) return;
 
         currentMode = Mode.QUANTUM;
+        fallbackReasonCode = null;
+        fallbackReason = null;
         pseudoBatchCount = 0;
         LOGGER.info("Switched back to QUANTUM mode (ANU API).");
         notifyModeChanged(Mode.QUANTUM);
@@ -537,7 +560,7 @@ public class RNProvider {
         synchronized (this) {
             if (shutdownRequested || isLoading || apiRequestCount >= maxApiRequests) {
                 if (apiRequestCount >= maxApiRequests && currentMode == Mode.QUANTUM) {
-                    activatePseudoMode("API request limit reached");
+                    activatePseudoMode(FallbackReason.RATE_LIMIT, "API request limit reached");
                 }
                 return;
             }
@@ -630,36 +653,34 @@ public class RNProvider {
             return;
         }
 
-        boolean isNetworkDown = reason.contains("Connection refused")
-                || reason.contains("timed out")
-                || reason.contains("UnknownHostException");
-        boolean isRateLimit = reason.contains("429")
-                || reason.toLowerCase(java.util.Locale.ROOT).contains("limit")
-                || reason.toLowerCase(java.util.Locale.ROOT).contains("лимит");
-
-        // Rate limit = особый случай. Не пингуем бесконечно, но оставляем toggle enabled.
-        if (isRateLimit) {
-            // Не запускаем reconnect monitor для rate limit
+        FallbackReason reasonCode = classifyFallbackReason(reason);
+        if (reasonCode == FallbackReason.RATE_LIMIT) {
             LOGGER.info("Rate limit active. Reconnect monitor disabled until manual retry.");
         }
 
-        if (currentMode == Mode.QUANTUM) {
-            activatePseudoMode(reason);
-        } else {
-            // Уже в PSEUDO — обновляем причину (см. activatePseudoMode выше)
-            activatePseudoMode(reason);
+        activatePseudoMode(reasonCode, reason);
+
+        if (apiKeyConfigured && reasonCode.allowsReconnect()) {
+            startReconnectMonitor();
+        }
+    }
+
+    private static FallbackReason classifyFallbackReason(String reason) {
+        if (reason == null || reason.isBlank()) {
+            return FallbackReason.API_ERROR;
         }
 
-        // Запускаем фоновый пинг только для сетевых ошибок, НЕ для rate limit
-        if (apiKeyConfigured && !isRateLimit && !isNetworkDown) {
-            // Для "мягких" ошибок — пингуем
-            startReconnectMonitor();
+        String normalized = reason.toLowerCase(java.util.Locale.ROOT);
+        if (reason.contains("429") || normalized.contains("limit") || normalized.contains("лимит")) {
+            return FallbackReason.RATE_LIMIT;
         }
-        // Для isNetworkDown — тоже пингуем (сеть может восстановиться)
-        if (apiKeyConfigured && isNetworkDown) {
-            startReconnectMonitor();
+        if (normalized.contains("connection refused")
+                || normalized.contains("timed out")
+                || normalized.contains("unknownhost")
+                || normalized.contains("unavailable")) {
+            return FallbackReason.NETWORK_DOWN;
         }
-        // Для isRateLimit — НЕ пингуем (бессмысленно, лимит не сбросится через 15 сек)
+        return FallbackReason.API_ERROR;
     }
 
     long calculateBackoff(int retryAttempt) {

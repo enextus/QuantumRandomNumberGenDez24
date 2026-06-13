@@ -31,6 +31,12 @@ README намеренно не фиксирует ожидаемое число 
 mvn test
 ```
 
+### RNG budget policy
+
+Heavy visual modes keep their rich animation speed in **PSEUDO** mode, but use a conservative per-frame budget in **QUANTUM** mode. This prevents Monte Carlo dashboards, density maps, random walks and other high-throughput modes from consuming ANU API quota too quickly.
+
+The budget is intentionally simple: each heavy mode declares its normal local/PSEUDO batch size and a smaller QUANTUM batch size via `RngStepBudget`. `SierpinskiMode` still uses the global `dots.per.update` setting from `config.properties`.
+
 ---
 
 ## Visualization categories
@@ -682,7 +688,7 @@ org.ThreeDotsSierpinski.app.App
 | `random.queue.min.size` | `100` | Порог дозагрузки буфера |
 | `random.min.value` | `0` | Нижняя граница диапазона |
 | `random.max.value` | `65535` | Верхняя граница диапазона |
-| `panel.size.width` | `680` | Базовая ширина области рисования |
+| `panel.size.width` | `600` | Базовая ширина области рисования |
 | `panel.size.height` | `600` | Базовая высота области рисования |
 | `dot.size` | `2` | Размер точки |
 | `timer.delay` | `150` | Интервал таймера, мс |
