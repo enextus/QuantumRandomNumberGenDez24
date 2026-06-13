@@ -46,6 +46,13 @@ final class RandomNumbersLog implements AutoCloseable {
     private final NumberFileWriter trueNumbersWriter;
     private final NumberFileWriter pseudoNumbersWriter;
 
+    static RandomNumbersLog disabled() {
+        return new RandomNumbersLog(
+                NumberFileWriter.disabled("TRUE random numbers logging disabled"),
+                NumberFileWriter.disabled("PSEUDO random numbers logging disabled")
+        );
+    }
+
     RandomNumbersLog() {
         this(
                 resolvePath(TRUE_LOG_FILE_CONFIG_KEY, DEFAULT_TRUE_LOG_FILE),
@@ -66,6 +73,11 @@ final class RandomNumbersLog implements AutoCloseable {
         this.pseudoNumbersWriter = logPseudoNumbers
                 ? NumberFileWriter.open("PSEUDO random numbers", pseudoLogPath, safeFlushEveryValues)
                 : NumberFileWriter.disabled("PSEUDO random numbers logging disabled");
+    }
+
+    private RandomNumbersLog(NumberFileWriter trueNumbersWriter, NumberFileWriter pseudoNumbersWriter) {
+        this.trueNumbersWriter = trueNumbersWriter;
+        this.pseudoNumbersWriter = pseudoNumbersWriter;
     }
 
     private static Path resolvePath(String configKey, String defaultPath) {

@@ -119,15 +119,15 @@ class RNProviderIntegrationTest {
      * Создаёт RNProvider без автозагрузки (autoLoadOnStart=false).
      */
     private RNProvider createProvider() {
-        return new RNProvider(testSettings(), false, INSTANT_SLEEPER);
+        return new RNProvider(testSettings(), false, INSTANT_SLEEPER, false);
     }
 
     private RNProvider createProvider(String dataType) {
-        return new RNProvider(testSettings(dataType), false, INSTANT_SLEEPER);
+        return new RNProvider(testSettings(dataType), false, INSTANT_SLEEPER, false);
     }
 
     private RNProvider createProvider(RNProvider.ProviderSettings settings) {
-        return new RNProvider(settings, false, INSTANT_SLEEPER);
+        return new RNProvider(settings, false, INSTANT_SLEEPER, false);
     }
 
     /**
@@ -139,7 +139,7 @@ class RNProviderIntegrationTest {
     }
 
     private RNProvider createQuantumProvider(RNProvider.ProviderSettings settings) {
-        RNProvider provider = new RNProvider(settings, false, INSTANT_SLEEPER);
+        RNProvider provider = new RNProvider(settings, false, INSTANT_SLEEPER, false);
         provider.setForcedPseudo(false); // Переключаем в QUANTUM и запускаем загрузку
         return provider;
     }
@@ -561,7 +561,7 @@ class RNProviderIntegrationTest {
                 RecordingListener listener = new RecordingListener();
 
                 // Важно: создаём без автозагрузки, регистрируем listener, затем запускаем
-                RNProvider provider = new RNProvider(testSettings(), false, INSTANT_SLEEPER);
+                RNProvider provider = new RNProvider(testSettings(), false, INSTANT_SLEEPER, false);
                 provider.addDataLoadListener(listener);
                 provider.setForcedPseudo(false); // Запускаем загрузку ПОСЛЕ регистрации listener
 
@@ -582,7 +582,7 @@ class RNProviderIntegrationTest {
                 mockStatus(500, "Server Error");
                 RecordingListener listener = new RecordingListener();
 
-                RNProvider provider = new RNProvider(testSettings(), false, INSTANT_SLEEPER);
+                RNProvider provider = new RNProvider(testSettings(), false, INSTANT_SLEEPER, false);
                 provider.addDataLoadListener(listener);
                 provider.setForcedPseudo(false); // Запускаем загрузку ПОСЛЕ регистрации listener
 
@@ -665,7 +665,7 @@ class RNProviderIntegrationTest {
                 RNProvider.ProviderSettings settings = new RNProvider.ProviderSettings(
                         baseUrl, null, "uint16", 5, 2, 100, 2000, 2000, 3, 3, 1L, 10L
                 );
-                RNProvider provider = new RNProvider(settings, true, INSTANT_SLEEPER);
+                RNProvider provider = new RNProvider(settings, true, INSTANT_SLEEPER, false);
 
                 assertEquals(RNProvider.Mode.PSEUDO, provider.getMode(), "Должен перейти в PSEUDO");
                 assertEquals(FallbackReason.NO_API_KEY, provider.getFallbackReasonCode());
@@ -678,7 +678,7 @@ class RNProviderIntegrationTest {
                 RNProvider.ProviderSettings settings = new RNProvider.ProviderSettings(
                         baseUrl, "", "uint16", 5, 2, 100, 2000, 2000, 3, 3, 1L, 10L
                 );
-                RNProvider provider = new RNProvider(settings, true, INSTANT_SLEEPER);
+                RNProvider provider = new RNProvider(settings, true, INSTANT_SLEEPER, false);
 
                 assertEquals(RNProvider.Mode.PSEUDO, provider.getMode());
                 assertEquals(FallbackReason.NO_API_KEY, provider.getFallbackReasonCode());
@@ -691,7 +691,7 @@ class RNProviderIntegrationTest {
                 RNProvider.ProviderSettings settings = new RNProvider.ProviderSettings(
                         baseUrl, "YOUR_API_KEY_HERE", "uint16", 5, 2, 100, 2000, 2000, 3, 3, 1L, 10L
                 );
-                RNProvider provider = new RNProvider(settings, true, INSTANT_SLEEPER);
+                RNProvider provider = new RNProvider(settings, true, INSTANT_SLEEPER, false);
 
                 assertEquals(RNProvider.Mode.PSEUDO, provider.getMode());
                 assertEquals(FallbackReason.NO_API_KEY, provider.getFallbackReasonCode());
@@ -769,7 +769,7 @@ class RNProviderIntegrationTest {
 
                 RNProvider.Sleeper recordingSleeper = ms -> capturedSleeps.add(ms);
 
-                RNProvider provider = new RNProvider(testSettings(), false, recordingSleeper);
+                RNProvider provider = new RNProvider(testSettings(), false, recordingSleeper, false);
                 provider.setForcedPseudo(false); // Запускаем загрузку
                 assertTrue(provider.waitForInitialData(5000));
 

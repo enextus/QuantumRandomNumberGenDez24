@@ -346,7 +346,7 @@ class VisualizationModesSmokeTest {
         private final NumberSupplier numberSupplier;
 
         private TestRNProvider(NumberSupplier numberSupplier) {
-            super(testSettings(), false, _ -> { });
+            super(testSettings(), false, _ -> { }, false);
             this.numberSupplier = numberSupplier;
         }
 

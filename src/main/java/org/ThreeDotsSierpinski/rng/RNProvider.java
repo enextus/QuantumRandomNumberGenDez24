@@ -109,6 +109,10 @@ public class RNProvider {
     }
 
     public RNProvider(ProviderSettings settings, boolean autoLoadOnStart, Sleeper sleeper) {
+        this(settings, autoLoadOnStart, sleeper, true);
+    }
+
+    public RNProvider(ProviderSettings settings, boolean autoLoadOnStart, Sleeper sleeper, boolean randomNumberLoggingEnabled) {
         this.apiKey = settings.apiKey();
         this.maxApiRequests = settings.maxApiRequests();
         this.queueMinSize = settings.queueMinSize();
@@ -125,7 +129,7 @@ public class RNProvider {
 
         randomNumbersQueue = new LinkedBlockingQueue<>();
         numberProcessor = new RandomNumberProcessor();
-        randomNumbersLog = new RandomNumbersLog();
+        randomNumbersLog = randomNumberLoggingEnabled ? new RandomNumbersLog() : RandomNumbersLog.disabled();
 
         // Проверка наличия API ключа
         if (apiKey == null || apiKey.isEmpty() || apiKey.startsWith("YOUR_")) {

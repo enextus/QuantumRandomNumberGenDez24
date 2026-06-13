@@ -152,7 +152,7 @@ class MonteCarloMandelbrotAreaModeTest {
         private final NumberSupplier numberSupplier;
 
         private TestRNProvider(NumberSupplier numberSupplier) {
-            super(testSettings(), false, ignored -> { });
+            super(testSettings(), false, ignored -> { }, false);
             this.numberSupplier = numberSupplier;
         }
 

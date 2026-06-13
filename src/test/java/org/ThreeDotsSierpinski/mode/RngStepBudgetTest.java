@@ -24,7 +24,7 @@ class RngStepBudgetTest {
     @Test
     @DisplayName("Forced PSEUDO provider keeps the fast visual budget")
     void forcedPseudoProviderKeepsPseudoBudget() {
-        RNProvider provider = new RNProvider(testSettings(), false, _ -> { });
+        RNProvider provider = new RNProvider(testSettings(), false, _ -> { }, false);
 
         assertEquals(1_200, RngStepBudget.forProvider(provider, 1_200, 32));
     }
@@ -41,7 +41,6 @@ class RngStepBudgetTest {
         assertEquals(1, RngStepBudget.forMode(RNProvider.Mode.PSEUDO, 0, 0));
         assertEquals(1, RngStepBudget.forMode(RNProvider.Mode.QUANTUM, 0, 0));
     }
-
     private static RNProvider.ProviderSettings testSettings() {
         return new RNProvider.ProviderSettings(
                 "http://localhost/test",
