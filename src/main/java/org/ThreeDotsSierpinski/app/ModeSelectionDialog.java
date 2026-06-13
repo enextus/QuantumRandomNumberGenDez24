@@ -6,8 +6,6 @@ import org.ThreeDotsSierpinski.mode.VisualizationModes;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.util.*;
 import java.util.List;
 
@@ -26,12 +24,7 @@ public class ModeSelectionDialog {
     private static final String SUBTITLE_MODE_SUFFIX = " modes";
     private static final String FOOTER_TEXT =
             "Powered by ANU Quantum Random Numbers API + L128X256MixRandom fallback";
-    private static final String DESCRIPTION_LINE_SEPARATOR = "\\n";
-    private static final String CARD_ARROW_TEXT = "→";
-    private static final String CARD_CHECKED_TEXT = "✓";
     private static final String BACK_BUTTON_TEXT = "← Back to categories";
-    private static final String CATEGORY_COUNT_SUFFIX_ONE = " mode";
-    private static final String CATEGORY_COUNT_SUFFIX_MANY = " modes";
 
     private static final String FONT_SANS_SERIF = "SansSerif";
 
@@ -69,60 +62,21 @@ public class ModeSelectionDialog {
     private static final int FOOTER_BORDER_BOTTOM = 12;
     private static final int FOOTER_BORDER_RIGHT = 0;
 
-    private static final int CARD_LAYOUT_H_GAP = 12;
-    private static final int CARD_LAYOUT_V_GAP = 0;
-    private static final int CARD_BORDER_THICKNESS = 1;
-    private static final int CARD_BORDER_TOP = 14;
-    private static final int CARD_BORDER_LEFT = 16;
-    private static final int CARD_BORDER_BOTTOM = 14;
-    private static final int CARD_BORDER_RIGHT = 16;
-    private static final int CARD_MIN_WIDTH = 260;
-    private static final int CARD_PREF_HEIGHT = 118;
-    private static final int CARD_ICON_SIZE = 48;
-    private static final int CARD_DESCRIPTION_TOP_SPACING = 4;
-
     private static final int TITLE_FONT_SIZE = 20;
     private static final int SUBTITLE_FONT_SIZE = 13;
     private static final int FOOTER_FONT_SIZE = 10;
-    private static final int ICON_FONT_SIZE = 32;
-    private static final int MODE_NAME_FONT_SIZE = 15;
-    private static final int MODE_DESCRIPTION_FONT_SIZE = 12;
-    private static final int CATEGORY_COUNT_FONT_SIZE = 11;
-    private static final int ARROW_FONT_SIZE = 20;
-
-    private static final int SCREEN_CENTER_DIVISOR = 2;
-    private static final int MIN_USABLE_SCREEN_SIZE = 1;
-    private static final int NO_INTERSECTION_AREA = 0;
-    private static final int MIN_CENTERING_OFFSET = 0;
+    private static final int BACK_BUTTON_FONT_SIZE = 12;
 
     private static final Color HEADER_BACKGROUND = new Color(245, 245, 242);
     private static final Color FOOTER_BACKGROUND = new Color(245, 245, 242);
     private static final Color CARDS_BACKGROUND = Color.WHITE;
     private static final Color BACK_BAR_BACKGROUND = Color.WHITE;
-    private static final Color CARD_BACKGROUND = Color.WHITE;
-    private static final Color CARD_HOVER_BACKGROUND = new Color(240, 245, 255);
-    private static final Color CARD_SELECTED_BACKGROUND = new Color(232, 240, 255);
-    private static final Color CARD_VISITED_BACKGROUND = new Color(232, 250, 235);
-    private static final Color CARD_BORDER_COLOR = new Color(220, 220, 215);
-    private static final Color CARD_HOVER_BORDER_COLOR = new Color(100, 140, 200);
-    private static final Color CARD_SELECTED_BORDER_COLOR = new Color(120, 150, 210);
-    private static final Color CARD_VISITED_BORDER_COLOR = new Color(115, 170, 130);
-    private static final Color CARD_LAST_VISITED_BORDER_COLOR = new Color(210, 70, 70);
     private static final Color SUBTITLE_COLOR = new Color(120, 120, 120);
     private static final Color FOOTER_COLOR = new Color(160, 160, 160);
-    private static final Color DESCRIPTION_COLOR = new Color(100, 100, 100);
-    private static final Color CATEGORY_COUNT_COLOR = new Color(130, 130, 130);
-    private static final Color ARROW_COLOR = new Color(180, 180, 180);
-
     private static final Font TITLE_FONT = new Font(FONT_SANS_SERIF, Font.BOLD, TITLE_FONT_SIZE);
     private static final Font SUBTITLE_FONT = new Font(FONT_SANS_SERIF, Font.PLAIN, SUBTITLE_FONT_SIZE);
     private static final Font FOOTER_FONT = new Font(FONT_SANS_SERIF, Font.PLAIN, FOOTER_FONT_SIZE);
-    private static final Font ICON_FONT = new Font(FONT_SANS_SERIF, Font.PLAIN, ICON_FONT_SIZE);
-    private static final Font MODE_NAME_FONT = new Font(FONT_SANS_SERIF, Font.BOLD, MODE_NAME_FONT_SIZE);
-    private static final Font MODE_DESCRIPTION_FONT = new Font(FONT_SANS_SERIF, Font.PLAIN, MODE_DESCRIPTION_FONT_SIZE);
-    private static final Font CATEGORY_COUNT_FONT = new Font(FONT_SANS_SERIF, Font.BOLD, CATEGORY_COUNT_FONT_SIZE);
-    private static final Font ARROW_FONT = new Font(FONT_SANS_SERIF, Font.PLAIN, ARROW_FONT_SIZE);
-
+    private static final Font BACK_BUTTON_FONT = new Font(FONT_SANS_SERIF, Font.PLAIN, BACK_BUTTON_FONT_SIZE);
     private VisualizationMode selectedMode = null;
     private VisualizationCategory highlightedCategory = null;
     private Set<String> visitedModeIds = Set.of();
@@ -170,8 +124,8 @@ public class ModeSelectionDialog {
                 MODE_GRID_COLUMNS,
                 MODE_GRID_H_GAP,
                 MODE_GRID_V_GAP,
-                CARD_MIN_WIDTH,
-                CARD_PREF_HEIGHT
+                260,
+                118
         );
         cardsPanel.setBorder(BorderFactory.createEmptyBorder(
                 CARDS_BORDER_TOP,
@@ -192,31 +146,6 @@ public class ModeSelectionDialog {
         return scrollPane;
     }
 
-    private static int countNonEmptyCategories(Map<VisualizationCategory, List<VisualizationMode>> modesByCategory) {
-        int count = 0;
-        for (VisualizationCategory category : VisualizationCategory.values()) {
-            if (!modesByCategory.getOrDefault(category, List.of()).isEmpty()) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    private static void addGridFillersIfNeeded(JPanel cardsPanel, int itemCount) {
-        int remainder = itemCount % MODE_GRID_COLUMNS;
-
-        if (remainder == 0) {
-            return;
-        }
-
-        int fillersToAdd = MODE_GRID_COLUMNS - remainder;
-        for (int i = 0; i < fillersToAdd; i++) {
-            var filler = new JPanel();
-            filler.setOpaque(false);
-            cardsPanel.add(filler);
-        }
-    }
-
     private static JPanel createFooterPanel() {
         var footer = new JPanel(new FlowLayout(FlowLayout.CENTER));
         footer.setBorder(BorderFactory.createEmptyBorder(
@@ -233,246 +162,6 @@ public class ModeSelectionDialog {
         footer.add(footerLabel);
 
         return footer;
-    }
-
-    /**
-     * Возвращает монитор, на котором фактически находился диалог выбора режима
-     * в момент выбора карточки/закрытия. Это нужно для multi-monitor workflow:
-     * если пользователь перетащил main UI выбора режима на другой монитор,
-     * окно визуализации должно открыться именно там.
-     */
-    private static GraphicsConfiguration resolveDialogGraphicsConfiguration(Window dialog) {
-        if (dialog == null) {
-            return getDefaultGraphicsConfiguration();
-        }
-
-        Rectangle dialogBounds = dialog.getBounds();
-
-        if (!dialogBounds.isEmpty()) {
-            GraphicsConfiguration largestIntersectionGraphicsConfiguration =
-                    findGraphicsConfigurationWithLargestIntersection(dialogBounds);
-            if (largestIntersectionGraphicsConfiguration != null) {
-                return largestIntersectionGraphicsConfiguration;
-            }
-
-            Point dialogCenter = new Point(
-                    dialogBounds.x + dialogBounds.width / SCREEN_CENTER_DIVISOR,
-                    dialogBounds.y + dialogBounds.height / SCREEN_CENTER_DIVISOR
-            );
-
-            GraphicsConfiguration centerGraphicsConfiguration = findGraphicsConfiguration(dialogCenter);
-            if (centerGraphicsConfiguration != null) {
-                return centerGraphicsConfiguration;
-            }
-        }
-
-        GraphicsConfiguration currentGraphicsConfiguration = dialog.getGraphicsConfiguration();
-        if (currentGraphicsConfiguration != null) {
-            return currentGraphicsConfiguration;
-        }
-
-        return getDefaultGraphicsConfiguration();
-    }
-
-    private static GraphicsConfiguration findGraphicsConfigurationWithLargestIntersection(Rectangle windowBounds) {
-        GraphicsEnvironment graphicsEnvironment = GraphicsEnvironment.getLocalGraphicsEnvironment();
-
-        GraphicsConfiguration bestGraphicsConfiguration = null;
-        long bestIntersectionArea = NO_INTERSECTION_AREA;
-
-        for (GraphicsDevice screenDevice : graphicsEnvironment.getScreenDevices()) {
-            GraphicsConfiguration graphicsConfiguration = screenDevice.getDefaultConfiguration();
-            Rectangle intersection = graphicsConfiguration.getBounds().intersection(windowBounds);
-
-            long intersectionArea = (long) Math.max(NO_INTERSECTION_AREA, intersection.width)
-                    * Math.max(NO_INTERSECTION_AREA, intersection.height);
-
-            if (intersectionArea > bestIntersectionArea) {
-                bestIntersectionArea = intersectionArea;
-                bestGraphicsConfiguration = graphicsConfiguration;
-            }
-        }
-
-        return bestGraphicsConfiguration;
-    }
-
-    private static GraphicsConfiguration findGraphicsConfiguration(Point point) {
-        GraphicsEnvironment graphicsEnvironment = GraphicsEnvironment.getLocalGraphicsEnvironment();
-
-        for (GraphicsDevice screenDevice : graphicsEnvironment.getScreenDevices()) {
-            GraphicsConfiguration graphicsConfiguration = screenDevice.getDefaultConfiguration();
-            if (graphicsConfiguration.getBounds().contains(point)) {
-                return graphicsConfiguration;
-            }
-        }
-
-        return null;
-    }
-
-    private static GraphicsConfiguration getDefaultGraphicsConfiguration() {
-        return GraphicsEnvironment
-                .getLocalGraphicsEnvironment()
-                .getDefaultScreenDevice()
-                .getDefaultConfiguration();
-    }
-
-    private static void centerDialog(
-            JDialog dialog,
-            JFrame parent,
-            GraphicsConfiguration targetGraphicsConfiguration
-    ) {
-        if (parent != null) {
-            dialog.setLocationRelativeTo(parent);
-            return;
-        }
-
-        if (targetGraphicsConfiguration == null) {
-            dialog.setLocationRelativeTo(null);
-            return;
-        }
-
-        Rectangle usableBounds = getUsableScreenBounds(targetGraphicsConfiguration);
-
-        int x = usableBounds.x + Math.max(
-                MIN_CENTERING_OFFSET,
-                (usableBounds.width - dialog.getWidth()) / SCREEN_CENTER_DIVISOR
-        );
-        int y = usableBounds.y + Math.max(
-                MIN_CENTERING_OFFSET,
-                (usableBounds.height - dialog.getHeight()) / SCREEN_CENTER_DIVISOR
-        );
-
-        dialog.setLocation(x, y);
-    }
-
-    private static Rectangle getUsableScreenBounds(GraphicsConfiguration graphicsConfiguration) {
-        Rectangle bounds = graphicsConfiguration.getBounds();
-        Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(graphicsConfiguration);
-
-        return new Rectangle(
-                bounds.x + insets.left,
-                bounds.y + insets.top,
-                Math.max(MIN_USABLE_SCREEN_SIZE, bounds.width - insets.left - insets.right),
-                Math.max(MIN_USABLE_SCREEN_SIZE, bounds.height - insets.top - insets.bottom)
-        );
-    }
-
-    private static JPanel createBaseCard(boolean highlighted, boolean visited, boolean lastVisited) {
-        var card = new JPanel(new BorderLayout(CARD_LAYOUT_H_GAP, CARD_LAYOUT_V_GAP));
-        card.setBorder(createCardBorder(resolveCardBorderColor(highlighted, visited, lastVisited)));
-        card.setBackground(resolveCardBackground(highlighted, visited));
-        card.setPreferredSize(new Dimension(CARD_MIN_WIDTH, CARD_PREF_HEIGHT));
-        card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        return card;
-    }
-
-    private static void attachCardHoverAndClick(
-            JPanel card,
-            boolean highlighted,
-            boolean visited,
-            boolean lastVisited,
-            Runnable onClick
-    ) {
-        card.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                card.setBackground(CARD_HOVER_BACKGROUND);
-                card.setBorder(createCardBorder(CARD_HOVER_BORDER_COLOR));
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                card.setBackground(resolveCardBackground(highlighted, visited));
-                card.setBorder(createCardBorder(resolveCardBorderColor(highlighted, visited, lastVisited)));
-            }
-
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                onClick.run();
-            }
-        });
-    }
-
-    private static Color resolveCardBackground(boolean highlighted, boolean visited) {
-        if (visited) {
-            return CARD_VISITED_BACKGROUND;
-        }
-        return highlighted ? CARD_SELECTED_BACKGROUND : CARD_BACKGROUND;
-    }
-
-    private static Color resolveCardBorderColor(boolean highlighted, boolean visited, boolean lastVisited) {
-        if (lastVisited) {
-            return CARD_LAST_VISITED_BORDER_COLOR;
-        }
-        if (visited) {
-            return CARD_VISITED_BORDER_COLOR;
-        }
-        return highlighted ? CARD_SELECTED_BORDER_COLOR : CARD_BORDER_COLOR;
-    }
-
-    private static JPanel createCategoryTextPanel(VisualizationCategory category, int modeCount) {
-        var textPanel = new JPanel();
-        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
-        textPanel.setOpaque(false);
-
-        var name = new JLabel(category.getDisplayName());
-        name.setFont(MODE_NAME_FONT);
-        name.setAlignmentX(Component.LEFT_ALIGNMENT);
-        textPanel.add(name);
-
-        textPanel.add(Box.createVerticalStrut(CARD_DESCRIPTION_TOP_SPACING));
-
-        var desc = new JLabel(category.getDescription());
-        desc.setFont(MODE_DESCRIPTION_FONT);
-        desc.setForeground(DESCRIPTION_COLOR);
-        desc.setAlignmentX(Component.LEFT_ALIGNMENT);
-        textPanel.add(desc);
-
-        textPanel.add(Box.createVerticalStrut(CARD_DESCRIPTION_TOP_SPACING));
-
-        String countText = modeCount + (modeCount == 1 ? CATEGORY_COUNT_SUFFIX_ONE : CATEGORY_COUNT_SUFFIX_MANY);
-        var count = new JLabel(countText);
-        count.setFont(CATEGORY_COUNT_FONT);
-        count.setForeground(CATEGORY_COUNT_COLOR);
-        count.setAlignmentX(Component.LEFT_ALIGNMENT);
-        textPanel.add(count);
-
-        return textPanel;
-    }
-
-    private static JPanel createModeTextPanel(VisualizationMode mode) {
-        var textPanel = new JPanel();
-        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
-        textPanel.setOpaque(false);
-
-        var name = new JLabel(mode.getName());
-        name.setFont(MODE_NAME_FONT);
-        name.setAlignmentX(Component.LEFT_ALIGNMENT);
-        textPanel.add(name);
-
-        textPanel.add(Box.createVerticalStrut(CARD_DESCRIPTION_TOP_SPACING));
-
-        for (String line : mode.getDescription().split(DESCRIPTION_LINE_SEPARATOR)) {
-            var desc = new JLabel(line);
-            desc.setFont(MODE_DESCRIPTION_FONT);
-            desc.setForeground(DESCRIPTION_COLOR);
-            desc.setAlignmentX(Component.LEFT_ALIGNMENT);
-            textPanel.add(desc);
-        }
-
-        return textPanel;
-    }
-
-    private static javax.swing.border.Border createCardBorder(Color color) {
-        return BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(color, CARD_BORDER_THICKNESS, true),
-                BorderFactory.createEmptyBorder(
-                        CARD_BORDER_TOP,
-                        CARD_BORDER_LEFT,
-                        CARD_BORDER_BOTTOM,
-                        CARD_BORDER_RIGHT
-                )
-        );
     }
 
     public GraphicsConfiguration getLastDialogGraphicsConfiguration() {
@@ -530,10 +219,10 @@ public class ModeSelectionDialog {
 
         dialog.setSize(DIALOG_WIDTH, DIALOG_MAX_HEIGHT);
         dialog.setMinimumSize(new Dimension(DIALOG_MIN_WIDTH, DIALOG_MIN_HEIGHT));
-        centerDialog(dialog, parent, targetGraphicsConfiguration);
+        ScreenPlacement.centerDialog(dialog, parent, targetGraphicsConfiguration);
         dialog.setVisible(true);
 
-        lastDialogGraphicsConfiguration = resolveDialogGraphicsConfiguration(dialog);
+        lastDialogGraphicsConfiguration = ScreenPlacement.resolveGraphicsConfiguration(dialog);
 
         return selectedMode;
     }
@@ -597,16 +286,23 @@ public class ModeSelectionDialog {
             if (!categoryModes.isEmpty()) {
                 boolean categoryVisited = containsVisitedMode(categoryModes);
                 boolean categoryLastVisited = containsLastVisitedMode(categoryModes);
-                cardsPanel.add(createCategoryCard(
+                cardsPanel.add(ModeCardFactory.createCategoryCard(
                         category,
-                        categoryModes,
+                        categoryModes.size(),
                         category == highlightedCategory,
                         categoryVisited,
                         categoryLastVisited,
-                        modesByCategory,
-                        contentPanel,
-                        dialog,
-                        subtitleLabel
+                        () -> {
+                            highlightedCategory = category;
+                            showModeSelection(
+                                    category,
+                                    categoryModes,
+                                    modesByCategory,
+                                    contentPanel,
+                                    dialog,
+                                    subtitleLabel
+                            );
+                        }
                 ));
             }
         }
@@ -620,7 +316,15 @@ public class ModeSelectionDialog {
         for (var mode : modes) {
             boolean visited = visitedModeIds.contains(mode.getId());
             boolean lastVisited = mode.getId().equals(lastSelectedModeId);
-            cardsPanel.add(createModeCard(mode, visited, lastVisited, dialog));
+            cardsPanel.add(ModeCardFactory.createModeCard(
+                    mode,
+                    visited,
+                    lastVisited,
+                    () -> {
+                        selectedMode = mode;
+                        dialog.dispose();
+                    }
+            ));
         }
 
         return createCardsScrollPane(cardsPanel);
@@ -642,7 +346,7 @@ public class ModeSelectionDialog {
         backBar.setBackground(BACK_BAR_BACKGROUND);
 
         var backButton = new JButton(BACK_BUTTON_TEXT);
-        backButton.setFont(MODE_DESCRIPTION_FONT);
+        backButton.setFont(BACK_BUTTON_FONT);
         backButton.addActionListener(ignored -> showCategorySelection(
                 contentPanel,
                 modesByCategory,
@@ -652,79 +356,6 @@ public class ModeSelectionDialog {
         backBar.add(backButton);
 
         return backBar;
-    }
-
-    /**
-     * Создаёт карточку категории режимов.
-     */
-    private JPanel createCategoryCard(
-            VisualizationCategory category,
-            List<VisualizationMode> modes,
-            boolean highlighted,
-            boolean visited,
-            boolean lastVisited,
-            Map<VisualizationCategory, List<VisualizationMode>> modesByCategory,
-            JPanel contentPanel,
-            JDialog dialog,
-            JLabel subtitleLabel
-    ) {
-        var card = createBaseCard(highlighted, visited, lastVisited);
-
-
-        var icon = new JLabel(category.getIcon());
-        icon.setFont(ICON_FONT);
-        icon.setPreferredSize(new Dimension(CARD_ICON_SIZE, CARD_ICON_SIZE));
-        icon.setHorizontalAlignment(SwingConstants.CENTER);
-        card.add(icon, BorderLayout.WEST);
-
-        card.add(createCategoryTextPanel(category, modes.size()), BorderLayout.CENTER);
-
-        var arrow = new JLabel(visited ? CARD_CHECKED_TEXT : CARD_ARROW_TEXT);
-        arrow.setFont(ARROW_FONT);
-        arrow.setForeground(visited ? CARD_VISITED_BORDER_COLOR : ARROW_COLOR);
-        card.add(arrow, BorderLayout.EAST);
-
-        attachCardHoverAndClick(card, highlighted, visited, lastVisited, () -> {
-            highlightedCategory = category;
-            showModeSelection(
-                    category,
-                    modes,
-                    modesByCategory,
-                    contentPanel,
-                    dialog,
-                    subtitleLabel
-            );
-        });
-
-        return card;
-    }
-
-    /**
-     * Создаёт карточку одного режима.
-     */
-    private JPanel createModeCard(VisualizationMode mode, boolean visited, boolean lastVisited, JDialog dialog) {
-        var card = createBaseCard(false, visited, lastVisited);
-
-        var icon = new JLabel(mode.getIcon());
-        icon.setFont(ICON_FONT);
-        icon.setPreferredSize(new Dimension(CARD_ICON_SIZE, CARD_ICON_SIZE));
-        icon.setHorizontalAlignment(SwingConstants.CENTER);
-        card.add(icon, BorderLayout.WEST);
-
-        var textPanel = createModeTextPanel(mode);
-        card.add(textPanel, BorderLayout.CENTER);
-
-        var arrow = new JLabel(visited ? CARD_CHECKED_TEXT : CARD_ARROW_TEXT);
-        arrow.setFont(ARROW_FONT);
-        arrow.setForeground(visited ? CARD_VISITED_BORDER_COLOR : ARROW_COLOR);
-        card.add(arrow, BorderLayout.EAST);
-
-        attachCardHoverAndClick(card, false, visited, lastVisited, () -> {
-            selectedMode = mode;
-            dialog.dispose();
-        });
-
-        return card;
     }
 
     private boolean containsVisitedMode(List<VisualizationMode> modes) {
