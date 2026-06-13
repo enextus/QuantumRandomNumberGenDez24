@@ -26,6 +26,7 @@ final class QuantumNumbersApiClient {
     private final RNProvider.ProviderSettings settings;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private static final String API_KEY_HEADER = "x-api-key";
 
     QuantumNumbersApiClient(RNProvider.ProviderSettings settings) {
         this.settings = settings;
@@ -41,7 +42,7 @@ final class QuantumNumbersApiClient {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(requestUrl))
-                .header("x-api-key", settings.apiKey())
+                .header(API_KEY_HEADER, settings.apiKey())
                 .timeout(Duration.ofMillis(settings.readTimeout()))
                 .GET()
                 .build();
