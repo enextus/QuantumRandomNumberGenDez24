@@ -6,6 +6,7 @@ import org.ThreeDotsSierpinski.config.LoggerConfig;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalInt;
+import java.util.OptionalLong;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -38,13 +39,15 @@ public class RNProvider {
      */
     private static final int PSEUDO_BATCH_SIZE = 1024;
 
-    // ========================================================================
-    // Режим работы
-    // ========================================================================
     /**
-     * После скольких pseudo-batch-ей пытаться переподключиться к API
+     * Polling interval used by waitForInitialData(). Kept as a named constant so
+     * the old timing behavior remains explicit and easy to adjust later.
      */
-    private static final int RECONNECT_EVERY_N_BATCHES = 5;
+    private static final long INITIAL_DATA_POLL_INTERVAL_MS = 100L;
+    /**
+     * Background reconnect interval after temporary network/API failures.
+     */
+    private static final long RECONNECT_RETRY_INTERVAL_MS = 15_000L;
 
     // ========================================================================
     // Настройки экземпляра
@@ -122,7 +125,7 @@ public class RNProvider {
         numberProcessor = new RandomNumberProcessor();
         randomNumbersLog = new RandomNumbersLog();
 
-// Проверка наличия API ключа
+        // Проверка наличия API ключа
         if (apiKey == null || apiKey.isEmpty() || apiKey.startsWith("YOUR_")) {
             LOGGER.warning("API key is not configured. Falling back to pseudo-random mode (L128X256MixRandom).");
             apiKeyConfigured = false;
@@ -176,7 +179,7 @@ public class RNProvider {
         while (!initialLoadComplete && lastError == null &&
                 (System.currentTimeMillis() - start) < timeoutMs) {
             try {
-                Thread.sleep(100);
+                Thread.sleep(INITIAL_DATA_POLL_INTERVAL_MS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return false;
@@ -325,7 +328,7 @@ public class RNProvider {
     }
 
     /**
-     * Фоновая задача: раз в 15 секунд пытается достучаться до API.
+     * Фоновая задача: периодически пытается достучаться до API.
      * Если успешно — переключает обратно в QUANTUM и разблокирует UI.
      */
     private void startReconnectMonitor() {
@@ -337,7 +340,7 @@ public class RNProvider {
             try {
                 while (!shutdownRequested && reconnecting.get() && currentMode == Mode.PSEUDO) {
                     try {
-                        Thread.sleep(15_000);
+                        Thread.sleep(RECONNECT_RETRY_INTERVAL_MS);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         break;
@@ -362,7 +365,10 @@ public class RNProvider {
                     } catch (RateLimitException e) {
                         break;
                     } catch (Exception e) {
-                        LOGGER.fine("Reconnect failed, will retry in 15s: " + e.getMessage());
+                        LOGGER.fine("Reconnect failed, will retry in "
+                                + RECONNECT_RETRY_INTERVAL_MS
+                                + " ms: "
+                                + e.getMessage());
                     }
                 }
             } finally {
@@ -371,9 +377,18 @@ public class RNProvider {
         });
     }
 
+    public OptionalLong tryGetNextRandomNumberInRange(long min, long max) {
+        OptionalInt randomNum = getNextRandomNumber();
+        if (randomNum.isEmpty()) {
+            return OptionalLong.empty();
+        }
+
+        return OptionalLong.of(numberProcessor.generateNumberInRange(randomNum.getAsInt(), min, max));
+    }
+
     public long getNextRandomNumberInRange(long min, long max) {
-        int randomNum = getNextRandomNumber().orElseThrow();
-        return numberProcessor.generateNumberInRange(randomNum, min, max);
+        return tryGetNextRandomNumberInRange(min, max)
+                .orElseThrow(() -> new IllegalStateException("No random number available."));
     }
 
     public void shutdown() {

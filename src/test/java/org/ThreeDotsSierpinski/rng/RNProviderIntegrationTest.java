@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.OptionalInt;
+import java.util.OptionalLong;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -529,13 +530,14 @@ class RNProviderIntegrationTest {
                 RNProvider provider = createQuantumProvider(testSettings());
                 assertTrue(provider.waitForInitialData(5000));
 
-                // 0 → min диапазона, 65535 → max диапазона
+                // 0 → min диапазона, 32768 → середина диапазона
                 long result1 = provider.getNextRandomNumberInRange(0, 100);
                 assertEquals(0, result1, "0 должен маппиться в начало диапазона");
 
-                long result2 = provider.getNextRandomNumberInRange(0, 100);
-                assertTrue(result2 >= 49 && result2 <= 51,
-                        "32768 (~середина) должен маппиться в ~50, получено: " + result2);
+                OptionalLong result2 = provider.tryGetNextRandomNumberInRange(0, 100);
+                assertTrue(result2.isPresent(), "tryGetNextRandomNumberInRange() должен вернуть значение при наличии числа");
+                assertTrue(result2.getAsLong() >= 49 && result2.getAsLong() <= 51,
+                        "32768 (~середина) должен маппиться в ~50, получено: " + result2.getAsLong());
             }
         }
 
