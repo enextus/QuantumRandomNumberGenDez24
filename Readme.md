@@ -13,23 +13,22 @@ Java 25 / Swing-приложение для визуализации поток�
 
 ## Current status
 
-Актуальное состояние после рефакторинга пакетов:
+Актуальное состояние после архитектурных cleanup-патчей:
 
 | Метрика | Значение |
-|---|---:|
+|---|---|
 | Java | 25 |
-| Main source classes | 56 |
-| Tests | 255 expected after Chirikov/Flame/Sandpile patch |
-| Last verified result | `BUILD SUCCESS` |
-| Test failures | 0 |
-| Test errors | 0 |
+| Build tool | Maven |
+| Compiler setup | `maven-compiler-plugin` + `<release>25</release>` |
+| Tests | запускать локально через `mvn test` |
+| Last verified local result | `BUILD SUCCESS` |
+| Last verified at | `2026-06-13T07:53:41+02:00` |
 | JaCoCo | enabled |
 
-Последний подтверждённый локальный прогон перед Buddhabrot patch:
+README намеренно не фиксирует ожидаемое число тестов: оно часто меняется при добавлении режимов, smoke-тестов и integration-тестов. Source of truth для проверки — локальный Maven-прогон:
 
-```text
-Tests run: 251, Failures: 0, Errors: 0, Skipped: 0
-BUILD SUCCESS
+```bash
+mvn test
 ```
 
 ---
@@ -53,6 +52,8 @@ BUILD SUCCESS
 ### Physics / complex systems
 
 - **Lorenz Attractor 3D** — 3D-аттрактор Лоренца с ансамблем траекторий и QRNG-jitter.
+- **Aizawa / Rössler / Thomas / Dadras / Halvorsen Attractors** — дополнительные strange-attractor визуализации.
+- **Lissajous family** — 3D, frequency, oscilloscope, spectral и quantum-vs-pseudo варианты фигур Лиссажу.
 - **Bifurcation Diagram** — бифуркационная диаграмма логистического отображения.
 - **Chirikov Standard Map** — фазовое пространство Hamiltonian chaos: KAM-islands и chaotic sea.
 - **Percolation** — site percolation, top-connected clusters и spanning cluster.
@@ -346,6 +347,7 @@ Diffusion-Limited Aggregation. Частицы случайно блуждают 
 - **Java 25**
 - **Swing / AWT**
 - **Maven**
+- **Maven Compiler Plugin** с `release 25`
 - **Jackson Databind** для JSON
 - **FlatLaf** для Swing UI
 - **JUnit 5** для тестов
@@ -353,7 +355,7 @@ Diffusion-Limited Aggregation. Частицы случайно блуждают 
 - встроенный `com.sun.net.httpserver.HttpServer` для integration-тестов `RNProvider`
 - **ANU Quantum Random Numbers API** как внешний источник данных
 
-Примечание: Mockito-зависимости могут оставаться в `pom.xml` как legacy dependency, но активные smoke-тесты используют lightweight test doubles вместо Mockito/ByteBuddy.
+Smoke-тесты используют lightweight test doubles. Mockito-зависимости удалены из `pom.xml`.
 
 ---
 
@@ -361,7 +363,9 @@ Diffusion-Limited Aggregation. Частицы случайно блуждают 
 
 ### 1. Источник случайных чисел
 
-`RNProvider` загружает числа из ANU API. По умолчанию проект запрашивает:
+`RNProvider` управляет состоянием источника случайных чисел, локальной очередью, history/ring-buffer, fallback `QUANTUM → PSEUDO` и reconnect lifecycle. HTTP-запросы к ANU API, проверка статуса ответа и JSON parsing вынесены в `QuantumNumbersApiClient`.
+
+По умолчанию проект запрашивает:
 
 - тип данных: `uint16`;
 - длину массива: `1024`;
@@ -370,7 +374,7 @@ Diffusion-Limited Aggregation. Частицы случайно блуждают 
 
 При временных ошибках используется retry с exponential backoff. Если загрузка не удалась, API key не задан или лимит запросов исчерпан, `RNProvider` переключается в `PSEUDO` и начинает выдавать числа из локального генератора `L128X256MixRandom`.
 
-После нескольких pseudo-batch-циклов провайдер пытается снова обратиться к ANU API. Если загрузка успешна, приложение возвращается в `QUANTUM`.
+После нескольких pseudo-batch-циклов провайдер пытается снова обратиться к ANU API. Если загрузка успешна, приложение возвращается в `QUANTUM`. Background loading/reconnect защищены lifecycle-флагом `shutdownRequested`, чтобы после shutdown не продолжались callbacks, queue updates или запись в log.
 
 ---
 
@@ -412,14 +416,14 @@ logs/rnds-pseudo.log
 Реестр доступных режимов находится в:
 
 ```java
-VisualizationMode.allModes()
+VisualizationModes.all()
 ```
 
 ---
 
 ### 4. Отрисовка
 
-`DotController` работает как Swing-панель, которая:
+`DotController` работает как Swing-панель orchestration-level, которая:
 
 - хранит `offscreenImage`;
 - обновляет изображение через `javax.swing.Timer`;
@@ -427,8 +431,9 @@ VisualizationMode.allModes()
 - выполняет работу с canvas на EDT;
 - показывает счётчик точек;
 - показывает текущий режим RNG;
-- отображает стек использованных чисел;
+- отображает стек использованных чисел через `RandomNumbersStackOverlay`;
 - поддерживает `refreshVisualization()`;
+- делегирует AppleMac frame/layout/styling в `AppleMacChrome`;
 - поддерживает AppleMac plot/sidebar separation;
 - поддерживает reserved UI areas;
 - останавливает timers через `shutdown()`.
@@ -474,9 +479,13 @@ org.ThreeDotsSierpinski
 ├── app
 │   ├── App
 │   ├── ModeSelectionDialog
-│   └── DotController
+│   ├── DotController
+│   ├── AppleMacChrome
+│   └── RandomNumbersStackOverlay
 ├── mode
 │   ├── VisualizationMode
+│   ├── VisualizationModes
+│   ├── VisualizationCategory
 │   ├── VisualizationStyle
 │   ├── chaos
 │   │   ├── SierpinskiMode
@@ -490,6 +499,18 @@ org.ThreeDotsSierpinski
 │   │   └── BuddhabrotMode
 │   ├── physics
 │   │   ├── LorenzAttractor3DMode
+│   │   ├── AizawaAttractorMode
+│   │   ├── RosslerAttractorMode
+│   │   ├── ThomasAttractorMode
+│   │   ├── DadrasAttractorMode
+│   │   ├── HalvorsenAttractorMode
+│   │   ├── AbstractStrangeAttractorMode
+│   │   ├── Lissajous3DMode
+│   │   ├── LissajousFrequencyMode
+│   │   ├── LissajousOscilloscopeMode
+│   │   ├── LissajousQuantumVsPseudoMode
+│   │   ├── LissajousSpectralAnalyzerMode
+│   │   ├── AbstractLissajousMode
 │   │   ├── ChirikovStandardMapMode
 │   │   ├── BifurcationDiagramMode
 │   │   ├── PercolationMode
@@ -504,6 +525,7 @@ org.ThreeDotsSierpinski
 │       └── DLAMode
 ├── rng
 │   ├── RNProvider
+│   ├── QuantumNumbersApiClient
 │   ├── RNLoadListener
 │   ├── RNLoadListenerImpl
 │   ├── RandomNumberProcessor
@@ -530,10 +552,14 @@ org.ThreeDotsSierpinski
 
 - **`App`** — точка входа, GUI workflow loop, multi-monitor logic, кнопки управления, статистические тесты, PNG export.
 - **`ModeSelectionDialog`** — 3-колоночное окно выбора режима.
-- **`DotController`** — центральная Swing-панель визуализации.
-- **`VisualizationMode`** — общий контракт и registry всех режимов.
+- **`DotController`** — центральная Swing-панель визуализации и orchestration для animation/render lifecycle.
+- **`AppleMacChrome`** — AppleMac frame/layout/component styling.
+- **`RandomNumbersStackOverlay`** — rendering таблицы использованных случайных чисел с ограниченным snapshot хвоста history.
+- **`VisualizationMode`** — общий контракт режима визуализации.
+- **`VisualizationModes`** — registry доступных concrete modes.
 - **`VisualizationStyle`** — стиль визуализации, включая `APPLE_MAC`.
-- **`RNProvider`** — сетевой клиент, буфер случайных чисел, fallback `QUANTUM → PSEUDO → QUANTUM`.
+- **`RNProvider`** — state machine, queue/history, fallback и reconnect lifecycle для `QUANTUM → PSEUDO → QUANTUM`.
+- **`QuantumNumbersApiClient`** — HTTP-клиент ANU API и JSON parsing.
 - **`RandomNumbersLog`** — файловое логгирование потоков случайных чисел.
 - **`RandomnessTestSuite`** — runtime sanity checks.
 - **`Config`** — загрузка настроек из environment, `.env`, `config.properties`.
@@ -568,9 +594,11 @@ org.ThreeDotsSierpinski
 В `pom.xml`:
 
 ```xml
-<maven.compiler.source>25</maven.compiler.source>
-<maven.compiler.target>25</maven.compiler.target>
+<maven.compiler.release>25</maven.compiler.release>
+<maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
 ```
+
+Компиляция закреплена через явный `maven-compiler-plugin` и `<release>${maven.compiler.release}</release>`, а не через пару `source/target`.
 
 Даже без API key приложение стартует в `PSEUDO`.
 
@@ -668,15 +696,13 @@ org.ThreeDotsSierpinski.app.App
 
 ## ZIP-контекст для ChatGPT
 
-Для быстрой передачи актуального состояния проекта в ChatGPT используются скрипты:
+Для быстрой передачи актуального состояния проекта в ChatGPT используется один Git Bash-скрипт:
 
 ```text
-scripts/make-chatgpt-context-zip.ps1
-scripts/make-chatgpt-context-zip.cmd
 scripts/make-chatgpt-context-zip.sh
 ```
 
-Они создают архив только с полезным проектным контекстом:
+Он создаёт архив только с полезным проектным контекстом:
 
 ```text
 pom.xml
@@ -700,23 +726,23 @@ logs/
 ./scripts/make-chatgpt-context-zip.sh
 ```
 
-Запуск из Windows CMD:
-
-```cmd
-scripts\make-chatgpt-context-zip.cmd
-```
-
-Запуск через PowerShell:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\make-chatgpt-context-zip.ps1
-```
+Скрипт использует красивую progress-анимацию и fallback-упаковку без лишнего `META-INF` manifest noise.
 
 ---
 
 ## Тесты
 
-Проект содержит unit-, component- и integration-тесты на **JUnit 5**.
+Проект содержит unit-, component- и integration-тесты на **JUnit 5**. Точное количество тестов не фиксируется в README; актуальный результат показывает Maven при запуске `mvn test`.
+
+Последний подтверждённый локальный прогон:
+
+```text
+BUILD SUCCESS
+Failures: 0
+Errors: 0
+Skipped: 0
+Finished at: 2026-06-13T07:53:41+02:00
+```
 
 ### Что покрыто
 
@@ -786,4 +812,4 @@ mvn -Dtest=MonteCarloMandelbrotAreaModeTest test
 
 `rep-qrng-chaos-game` — учебно-практический Java-проект, где поток случайных чисел превращается в живые визуальные структуры: фракталы, Monte Carlo-оценки, Buddhabrot density maps, Fractal Flames, Hamiltonian chaos maps, sandpile criticality, 3D-рельефы, аттракторы, бифуркации, перколяционные кластеры, stochastic processes и statistical sanity checks.
 
-После последнего рефакторинга проект организован как небольшой scientific visualization framework с пакетами `app`, `mode`, `rng`, `stats`, `math`, `model` и `config`, а визуализации сгруппированы по научным доменам: `chaos`, `montecarlo`, `physics`, `stochastic`.
+После последних cleanup-патчей проект организован как небольшой scientific visualization framework с пакетами `app`, `mode`, `rng`, `stats`, `math`, `model` и `config`, а визуализации сгруппированы по научным доменам: `chaos`, `montecarlo`, `physics`, `stochastic`. Registry режимов вынесен в `VisualizationModes`, AppleMac/random-stack rendering вынесены из `DotController`, а ANU API HTTP/JSON слой вынесен из `RNProvider` в `QuantumNumbersApiClient`.
