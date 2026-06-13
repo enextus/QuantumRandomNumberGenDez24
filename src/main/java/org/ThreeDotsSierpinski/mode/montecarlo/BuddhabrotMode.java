@@ -88,6 +88,15 @@ public class BuddhabrotMode implements VisualizationMode {
     private static final Color HELP_OVERLAY_BACKGROUND = new Color(5, 12, 24, 244);
     private static final Color HELP_OVERLAY_BORDER = new Color(90, 135, 190, 220);
 
+    private static final int DENSITY_LUT_SIZE = 1024;
+    private static final int BACKGROUND_RGB = BACKGROUND.getRGB();
+    private static final int DENSITY_LOW_RGB = new Color(6, 12, 26).getRGB();
+    private static final int DENSITY_BLUE_RGB = new Color(45, 92, 210).getRGB();
+    private static final int DENSITY_CYAN_RGB = new Color(184, 238, 255).getRGB();
+    private static final int DENSITY_GOLD_RGB = new Color(255, 211, 105).getRGB();
+    private static final int DENSITY_WHITE_RGB = new Color(255, 253, 248).getRGB();
+    private static final int[] DENSITY_COLOR_LUT = createDensityColorLut();
+
     private static final Font TITLE_FONT = new Font("SansSerif", Font.BOLD, 28);
     private static final Font SUBTITLE_FONT = new Font("SansSerif", Font.PLAIN, 14);
     private static final Font LABEL_FONT = new Font("SansSerif", Font.PLAIN, 12);
@@ -136,6 +145,7 @@ public class BuddhabrotMode implements VisualizationMode {
     private double[] orbitReal;
     private double[] orbitImag;
     private BufferedImage chromeLayer;
+    private BufferedImage plotImage;
     private DotController controller;
     private RNProvider.Mode lastObservedMode = RNProvider.Mode.PSEUDO;
     private boolean helpOverlayVisible = false;
@@ -435,8 +445,14 @@ public class BuddhabrotMode implements VisualizationMode {
 
         layoutHelpOverlayBounds(safeWidth, safeHeight);
 
-        histogram = new int[Math.max(1, plotBounds.width * plotBounds.height)];
-        plotPixels = new int[Math.max(1, plotBounds.width * plotBounds.height)];
+        int plotPixelCount = Math.max(1, plotBounds.width * plotBounds.height);
+        histogram = new int[plotPixelCount];
+        plotPixels = new int[plotPixelCount];
+        plotImage = new BufferedImage(
+                Math.max(1, plotBounds.width),
+                Math.max(1, plotBounds.height),
+                BufferedImage.TYPE_INT_ARGB
+        );
         chromeLayer = new BufferedImage(safeWidth, safeHeight, BufferedImage.TYPE_INT_ARGB);
         renderChromeLayer();
     }
@@ -591,7 +607,8 @@ public class BuddhabrotMode implements VisualizationMode {
         try {
             graphics.drawImage(chromeLayer, 0, 0, null);
             paintDensityMap();
-            graphics.drawImage(createPlotImage(), plotBounds.x, plotBounds.y, null);
+            updatePlotImage();
+            graphics.drawImage(plotImage, plotBounds.x, plotBounds.y, null);
             drawOverlayText(graphics);
             if (helpOverlayVisible) {
                 drawHelpOverlay(graphics);
@@ -601,14 +618,22 @@ public class BuddhabrotMode implements VisualizationMode {
         }
     }
 
-    private BufferedImage createPlotImage() {
-        BufferedImage image = new BufferedImage(
-                Math.max(1, plotBounds.width),
-                Math.max(1, plotBounds.height),
-                BufferedImage.TYPE_INT_ARGB
-        );
-        image.setRGB(0, 0, plotBounds.width, plotBounds.height, plotPixels, 0, plotBounds.width);
-        return image;
+    private void updatePlotImage() {
+        if (plotPixels == null || plotBounds.width <= 0 || plotBounds.height <= 0) {
+            return;
+        }
+
+        if (plotImage == null
+                || plotImage.getWidth() != plotBounds.width
+                || plotImage.getHeight() != plotBounds.height) {
+            plotImage = new BufferedImage(
+                    Math.max(1, plotBounds.width),
+                    Math.max(1, plotBounds.height),
+                    BufferedImage.TYPE_INT_ARGB
+            );
+        }
+
+        plotImage.setRGB(0, 0, plotBounds.width, plotBounds.height, plotPixels, 0, plotBounds.width);
     }
 
     private void paintDensityMap() {
@@ -619,7 +644,7 @@ public class BuddhabrotMode implements VisualizationMode {
         int totalPixels = Math.min(plotPixels.length, histogram.length);
         if (maxHistogramCount <= 0) {
             for (int i = 0; i < totalPixels; i++) {
-                plotPixels[i] = BACKGROUND.getRGB();
+                plotPixels[i] = BACKGROUND_RGB;
             }
             return;
         }
@@ -628,58 +653,71 @@ public class BuddhabrotMode implements VisualizationMode {
         for (int i = 0; i < totalPixels; i++) {
             int count = histogram[i];
             if (count <= 0) {
-                plotPixels[i] = BACKGROUND.getRGB();
+                plotPixels[i] = BACKGROUND_RGB;
                 continue;
             }
 
             double normalized = Math.log1p(count) / logMax;
             normalized = Math.pow(normalized, 0.88);
-            plotPixels[i] = densityColor(normalized).getRGB();
+            plotPixels[i] = densityRgb(normalized);
         }
     }
 
-    private Color densityColor(double normalized) {
+    private int densityRgb(double normalized) {
         if (normalized <= 0.0) {
-            return BACKGROUND;
+            return BACKGROUND_RGB;
+        }
+
+        int lutIndex = (int) Math.round(Math.min(1.0, normalized) * (DENSITY_LUT_SIZE - 1));
+        return DENSITY_COLOR_LUT[lutIndex];
+    }
+
+    private static int[] createDensityColorLut() {
+        int[] lut = new int[DENSITY_LUT_SIZE];
+        for (int i = 0; i < lut.length; i++) {
+            double normalized = i / (double) (lut.length - 1);
+            lut[i] = computeDensityRgb(normalized);
+        }
+        return lut;
+    }
+
+    private static int computeDensityRgb(double normalized) {
+        if (normalized <= 0.0) {
+            return BACKGROUND_RGB;
         }
         if (normalized < 0.35) {
-            return interpolate(
-                    new Color(6, 12, 26),
-                    new Color(45, 92, 210),
-                    normalized / 0.35
-            );
+            return interpolateRgb(DENSITY_LOW_RGB, DENSITY_BLUE_RGB, normalized / 0.35);
         }
         if (normalized < 0.72) {
-            return interpolate(
-                    new Color(45, 92, 210),
-                    new Color(184, 238, 255),
-                    (normalized - 0.35) / 0.37
-            );
+            return interpolateRgb(DENSITY_BLUE_RGB, DENSITY_CYAN_RGB, (normalized - 0.35) / 0.37);
         }
         if (normalized < 0.92) {
-            return interpolate(
-                    new Color(184, 238, 255),
-                    new Color(255, 211, 105),
-                    (normalized - 0.72) / 0.20
-            );
+            return interpolateRgb(DENSITY_CYAN_RGB, DENSITY_GOLD_RGB, (normalized - 0.72) / 0.20);
         }
-        return interpolate(
-                new Color(255, 211, 105),
-                new Color(255, 253, 248),
-                (normalized - 0.92) / 0.08
-        );
+        return interpolateRgb(DENSITY_GOLD_RGB, DENSITY_WHITE_RGB, (normalized - 0.92) / 0.08);
     }
 
-    private Color interpolate(Color first, Color second, double t) {
+    private static int interpolateRgb(int firstRgb, int secondRgb, double t) {
         double clamped = Math.max(0.0, Math.min(1.0, t));
-        return new Color(
-                blendChannel(first.getRed(), second.getRed(), clamped),
-                blendChannel(first.getGreen(), second.getGreen(), clamped),
-                blendChannel(first.getBlue(), second.getBlue(), clamped)
-        );
+        int red = blendChannel(red(firstRgb), red(secondRgb), clamped);
+        int green = blendChannel(green(firstRgb), green(secondRgb), clamped);
+        int blue = blendChannel(blue(firstRgb), blue(secondRgb), clamped);
+        return 0xFF000000 | (red << 16) | (green << 8) | blue;
     }
 
-    private int blendChannel(int first, int second, double t) {
+    private static int red(int rgb) {
+        return rgb >> 16 & 0xFF;
+    }
+
+    private static int green(int rgb) {
+        return rgb >> 8 & 0xFF;
+    }
+
+    private static int blue(int rgb) {
+        return rgb & 0xFF;
+    }
+
+    private static int blendChannel(int first, int second, double t) {
         return (int) Math.round(first + (second - first) * t);
     }
 
