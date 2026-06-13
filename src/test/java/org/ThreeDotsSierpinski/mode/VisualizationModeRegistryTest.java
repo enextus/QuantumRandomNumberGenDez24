@@ -30,7 +30,7 @@ class VisualizationModeRegistryTest {
     @Test
     @DisplayName("Registers all current visualization modes")
     void registersAllCurrentVisualizationModes() {
-        Set<String> ids = Arrays.stream(VisualizationMode.allModes())
+        Set<String> ids = Arrays.stream(VisualizationModes.all())
                 .map(VisualizationMode::getId)
                 .collect(Collectors.toSet());
 
@@ -56,7 +56,7 @@ class VisualizationModeRegistryTest {
     @Test
     @DisplayName("Mode ids are unique")
     void modeIdsAreUnique() {
-        VisualizationMode[] modes = VisualizationMode.allModes();
+        VisualizationMode[] modes = VisualizationModes.all();
         long uniqueIds = Arrays.stream(modes)
                 .map(VisualizationMode::getId)
                 .distinct()

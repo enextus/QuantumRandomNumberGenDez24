@@ -2,6 +2,7 @@ package org.ThreeDotsSierpinski.app;
 
 import org.ThreeDotsSierpinski.mode.VisualizationCategory;
 import org.ThreeDotsSierpinski.mode.VisualizationMode;
+import org.ThreeDotsSierpinski.mode.VisualizationModes;
 
 import javax.swing.*;
 import java.awt.*;
@@ -498,7 +499,7 @@ public class ModeSelectionDialog {
         this.lastSelectedModeId = lastSelectedModeId;
         lastDialogGraphicsConfiguration = targetGraphicsConfiguration;
 
-        VisualizationMode[] modes = VisualizationMode.allModes();
+        VisualizationMode[] modes = VisualizationModes.all();
         Map<VisualizationCategory, List<VisualizationMode>> modesByCategory = groupModesByCategory(modes);
 
         var dialog = new JDialog(parent, DIALOG_TITLE, true);

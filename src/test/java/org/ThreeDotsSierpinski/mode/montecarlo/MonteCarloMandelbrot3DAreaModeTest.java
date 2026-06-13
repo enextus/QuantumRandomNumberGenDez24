@@ -108,7 +108,7 @@ class MonteCarloMandelbrot3DAreaModeTest {
     @Test
     @DisplayName("Registry contains Monte Carlo Mandelbrot 3D mode")
     void registryContainsMode() {
-        boolean found = Arrays.stream(VisualizationMode.allModes())
+        boolean found = Arrays.stream(VisualizationModes.all())
                 .anyMatch(mode -> "monte-carlo-mandelbrot-3d-area".equals(mode.getId()));
 
         assertTrue(found);

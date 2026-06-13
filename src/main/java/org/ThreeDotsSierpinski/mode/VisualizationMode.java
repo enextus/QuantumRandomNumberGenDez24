@@ -1,16 +1,7 @@
 package org.ThreeDotsSierpinski.mode;
 
-import org.ThreeDotsSierpinski.app.*;
-import org.ThreeDotsSierpinski.config.*;
-import org.ThreeDotsSierpinski.math.*;
-import org.ThreeDotsSierpinski.mode.*;
-import org.ThreeDotsSierpinski.mode.chaos.*;
-import org.ThreeDotsSierpinski.mode.montecarlo.*;
-import org.ThreeDotsSierpinski.mode.physics.*;
-import org.ThreeDotsSierpinski.mode.stochastic.*;
-import org.ThreeDotsSierpinski.model.*;
-import org.ThreeDotsSierpinski.rng.*;
-import org.ThreeDotsSierpinski.stats.*;
+import org.ThreeDotsSierpinski.app.DotController;
+import org.ThreeDotsSierpinski.rng.RNProvider;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -25,7 +16,7 @@ import javax.swing.*;
  * - Возвращает список нарисованных точек (для анимации RED→BLACK)
  * Для добавления нового режима:
  * 1. Создать класс, реализующий этот интерфейс
- * 2. Зарегистрировать в {@link VisualizationMode#allModes()}
+ * 2. Зарегистрировать в {@link VisualizationModes#all()}
  */
 public interface VisualizationMode {
 
@@ -226,43 +217,4 @@ public interface VisualizationMode {
         };
     }
 
-    /**
-     * Реестр всех доступных режимов.
-     * Для добавления нового — просто добавить в массив.
-     */
-    static VisualizationMode[] allModes() {
-        return new VisualizationMode[] {
-                new SierpinskiMode(),
-                new VoronoiMode(),
-                new BarnsleyFernMode(),
-                new FractalFlameMode(),
-                new RandomWalkHeatmapMode(),
-                new Rule30AutomatonMode(),
-                new BuddhabrotMode(),
-                new MonteCarloMandelbrotAreaMode(),
-                new MonteCarloMandelbrot3DAreaMode(),
-                new LorenzAttractor3DMode(),
-                new ChirikovStandardMapMode(),
-                new AizawaAttractorMode(),
-                new ThomasAttractorMode(),
-                new RosslerAttractorMode(),
-                new HalvorsenAttractorMode(),
-                new DadrasAttractorMode(),
-                new MonteCarloPiMode(),
-                new GaltonBoardMode(),
-                new PercolationMode(),
-                new ForestFireMode(),
-                new AbelianSandpileMode(),
-                new SpectralPlotMode(),
-                new ChaosGameRepresentationMode(),
-                new DLAMode(),
-                new BifurcationDiagramMode(),
-                new LissajousFrequencyMode(),
-                new LissajousOscilloscopeMode(),
-                new LissajousQuantumVsPseudoMode(),
-                new Lissajous3DMode(),
-                new LissajousSpectralAnalyzerMode(),
-                new ChaosLissajousMode(),
-        };
-    }
 }

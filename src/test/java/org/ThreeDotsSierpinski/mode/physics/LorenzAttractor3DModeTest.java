@@ -106,7 +106,7 @@ class LorenzAttractor3DModeTest {
     @Test
     @DisplayName("Registry contains Lorenz 3D mode")
     void registryContainsMode() {
-        boolean found = Arrays.stream(VisualizationMode.allModes())
+        boolean found = Arrays.stream(VisualizationModes.all())
                 .anyMatch(mode -> "lorenz-attractor-3d".equals(mode.getId()));
 
         assertTrue(found);
