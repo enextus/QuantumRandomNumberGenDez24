@@ -9,6 +9,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.OptionalInt;
 
@@ -101,7 +102,10 @@ public class VoronoiMode implements VisualizationMode {
         toggle.addActionListener(_ -> {
             showCenterMarkers = toggle.isSelected();
             syncToggleText.run();
-            controller.refreshVisualization();
+
+            if (controller != null) {
+                controller.refreshVisualization();
+            }
         });
 
         return List.of(label, toggle);
@@ -179,9 +183,7 @@ public class VoronoiMode implements VisualizationMode {
         int[] pixels = new int[width * height];
 
         // Фон — чёрный
-        for (int i = 0; i < pixels.length; i++) {
-            pixels[i] = 0xFF000000;
-        }
+        Arrays.fill(pixels, 0xFF000000);
 
         if (seeds.isEmpty()) {
             canvas.setRGB(0, 0, width, height, pixels, 0, width);
