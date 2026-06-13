@@ -55,19 +55,14 @@ public class DotController extends JPanel {
     private static final int RNG_LABEL_X = 10;
     private static final int RNG_LABEL_Y = 100;
 
-    private static final int ERROR_TEXT_X = 10;
-    private static final int ERROR_TEXT_Y = 120;
-
     private static final int INFO_FONT_SIZE = 12;
     private static final int POINT_COUNTER_FONT_SIZE = 48;
     private static final int RNG_LABEL_FONT_SIZE = 12;
-    private static final int ERROR_FONT_SIZE = 12;
 
     private static final String FONT_SANS_SERIF = "SansSerif";
     private static final Font INFO_FONT = new Font(FONT_SANS_SERIF, Font.PLAIN, INFO_FONT_SIZE);
     private static final Font POINT_COUNTER_FONT = new Font(FONT_SANS_SERIF, Font.BOLD, POINT_COUNTER_FONT_SIZE);
     private static final Font RNG_LABEL_FONT = new Font(FONT_SANS_SERIF, Font.BOLD, RNG_LABEL_FONT_SIZE);
-    private static final Font ERROR_FONT = new Font(FONT_SANS_SERIF, Font.PLAIN, ERROR_FONT_SIZE);
 
     private static final Color DARK_BACKGROUND_COLOR = Color.BLACK;
     private static final Color LIGHT_BACKGROUND_COLOR = Color.WHITE;
@@ -84,9 +79,6 @@ public class DotController extends JPanel {
     private static final Color DARK_PSEUDO_COLOR = new Color(255, 180, 60);
     private static final Color LIGHT_PSEUDO_COLOR = new Color(204, 120, 0);
 
-    private static final Color DARK_ERROR_COLOR = new Color(255, 120, 120);
-    private static final Color LIGHT_ERROR_COLOR = Color.RED;
-
     private static final String RNG_LABEL_QUANTUM_STATUS = "QUANTUM (API)";
     private static final String RNG_LABEL_PSEUDO_STATUS = "PSEUDO (Local)";
 
@@ -96,7 +88,6 @@ public class DotController extends JPanel {
     private static final String INFO_SEPARATOR = "  |  ";
     private static final String POINTS_LABEL = "Points: ";
     private static final String RANDOM_NUMBERS_LABEL = "Random numbers: ";
-    private static final String ERROR_LOG_PREFIX = "Error: ";
     private static final String ANIMATION_STARTED_LOG_PREFIX = "Animation started: ";
     private static final String ANIMATION_STOPPED_LOG = "Animation stopped.";
 
@@ -113,7 +104,6 @@ public class DotController extends JPanel {
 
     private final VisualizationMode mode;
     private final RNProvider randomNumberProvider;
-    private final String errorMessage;
     private final JLabel statusLabel;
     private final List<Point> pendingRecolorPoints = new ArrayList<>();
     private final Timer recolorTimer;
@@ -142,9 +132,6 @@ public class DotController extends JPanel {
         setBackground(resolvePanelBackgroundColor());
 
         initModeMouseForwarding();
-
-        errorMessage = null;
-
         initAnimationTimer();
 
         recolorTimer = new Timer(RECOLOR_DELAY_MS, e -> {
@@ -214,14 +201,6 @@ public class DotController extends JPanel {
         return dark ? DARK_PSEUDO_COLOR : LIGHT_PSEUDO_COLOR;
     }
 
-    private static Color resolveErrorColor(boolean dark, VisualizationStyle style) {
-        if (style == VisualizationStyle.APPLE_MAC) {
-            return AppleMacChrome.TEXT_COLOR;
-        }
-
-        return dark ? DARK_ERROR_COLOR : LIGHT_ERROR_COLOR;
-    }
-
     private void initModeMouseForwarding() {
         addMouseListener(new MouseAdapter() {
             @Override
@@ -233,32 +212,26 @@ public class DotController extends JPanel {
 
     private void initAnimationTimer() {
         animationTimer = new Timer(TIMER_DELAY, e -> {
-            if (errorMessage == null) {
-                refreshReservedDrawingAreasIfNeeded();
+            refreshReservedDrawingAreasIfNeeded();
 
-                BufferedImage activeModeCanvas = getModeCanvasForDrawing();
-                if (activeModeCanvas == null) {
-                    repaint();
-                    return;
+            BufferedImage activeModeCanvas = getModeCanvasForDrawing();
+            if (activeModeCanvas == null) {
+                repaint();
+                return;
+            }
+
+            var newPoints = mode.step(randomNumberProvider, activeModeCanvas, DOT_SIZE);
+
+            repaint();
+
+            if (mode.usesRecolorAnimation() && !newPoints.isEmpty()) {
+                synchronized (pendingRecolorPoints) {
+                    pendingRecolorPoints.addAll(newPoints);
                 }
 
-                var newPoints = mode.step(randomNumberProvider, activeModeCanvas, DOT_SIZE);
-
-                repaint();
-
-                if (mode.usesRecolorAnimation() && !newPoints.isEmpty()) {
-                    synchronized (pendingRecolorPoints) {
-                        pendingRecolorPoints.addAll(newPoints);
-                    }
-
-                    if (!recolorTimer.isRunning()) {
-                        recolorTimer.restart();
-                    }
+                if (!recolorTimer.isRunning()) {
+                    recolorTimer.restart();
                 }
-            } else {
-                stop();
-                repaint();
-                LOGGER.severe(ERROR_LOG_PREFIX + errorMessage);
             }
         });
     }
@@ -268,7 +241,7 @@ public class DotController extends JPanel {
     }
 
     public void start() {
-        if (!isRunning && errorMessage == null) {
+        if (!isRunning) {
             animationTimer.start();
             isRunning = true;
             LOGGER.info(ANIMATION_STARTED_LOG_PREFIX + mode.getName());
@@ -354,8 +327,6 @@ public class DotController extends JPanel {
                 drawRngModeIndicator(g2d, dark, style);
             }
         }
-        drawErrorMessage(g2d, dark, style);
-
         if (mode.usesRandomNumbersStackOverlay()) {
             RandomNumbersStackOverlay.draw(g, getWidth(), getHeight(), dark, style, randomNumberProvider);
         }
@@ -512,16 +483,6 @@ public class DotController extends JPanel {
 
         String modeLabel = isQuantum ? RNG_MODE_LABEL_QUANTUM : RNG_MODE_LABEL_PSEUDO;
         g2d.drawString(modeLabel, RNG_LABEL_X, RNG_LABEL_Y);
-    }
-
-    private void drawErrorMessage(Graphics2D g2d, boolean dark, VisualizationStyle style) {
-        if (errorMessage == null) {
-            return;
-        }
-
-        g2d.setColor(resolveErrorColor(dark, style));
-        g2d.setFont(ERROR_FONT);
-        g2d.drawString(errorMessage, ERROR_TEXT_X, ERROR_TEXT_Y);
     }
 
     private Color resolvePanelBackgroundColor() {
