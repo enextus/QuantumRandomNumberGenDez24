@@ -46,6 +46,9 @@ public class DotController extends JPanel {
     private static final int RANDOM_STACK_HEADER_HEIGHT = 18;
     private static final int RANDOM_STACK_CELL_HEIGHT = 18;
     private static final int RANDOM_STACK_BOTTOM_RESERVED_SPACE = 250;
+    private static final int RANDOM_STACK_DIGIT_GROUP_COUNT = MAX_DIGIT_GROUP - MIN_DIGIT_GROUP + 1;
+    private static final int RANDOM_STACK_HISTORY_OVERSCAN_FACTOR = 4;
+    private static final int RANDOM_STACK_MIN_SNAPSHOT_SIZE = 5_000;
 
     private static final int LIGHT_MODE_EXTRA_WIDTH = 300;
 
@@ -660,6 +663,17 @@ public class DotController extends JPanel {
         return Math.max(0, frameBottomOffset - frameTopOffset);
     }
 
+    private static int calculateRandomStackSnapshotLimit(int visibleRows) {
+        long calculatedLimit = (long) Math.max(1, visibleRows)
+                * RANDOM_STACK_DIGIT_GROUP_COUNT
+                * RANDOM_STACK_HISTORY_OVERSCAN_FACTOR;
+
+        return (int) Math.min(
+                Integer.MAX_VALUE,
+                Math.max(RANDOM_STACK_MIN_SNAPSHOT_SIZE, calculatedLimit)
+        );
+    }
+
     private void initModeMouseForwarding() {
         addMouseListener(new MouseAdapter() {
             @Override
@@ -1080,7 +1094,11 @@ public class DotController extends JPanel {
     }
 
     private void drawRandomNumbersStack(Graphics g, boolean dark, VisualizationStyle style) {
-        List<Long> numbers = randomNumberProvider.getConsumedNumbers();
+        int startY = getRandomStackTopMargin(style);
+        int visibleRows = calculateVisibleRandomStackRows(startY, style);
+        int snapshotLimit = calculateRandomStackSnapshotLimit(visibleRows);
+
+        List<Long> numbers = randomNumberProvider.getLastConsumedNumbers(snapshotLimit);
         if (numbers.isEmpty()) {
             return;
         }
@@ -1099,8 +1117,6 @@ public class DotController extends JPanel {
                     getWidth() - getRandomStackRightMargin(style) - stackWidth
             );
             int startX = currentX;
-            int startY = getRandomStackTopMargin(style);
-            int visibleRows = calculateVisibleRandomStackRows(startY, style);
             int stackFrameY = startY + getRandomStackFrameTopOffset(style);
             int stackHeight = getRandomStackFrameHeight(style, visibleRows);
 
@@ -1108,7 +1124,17 @@ public class DotController extends JPanel {
                 List<Long> columnNumbers = numbersByDigits.getOrDefault(digitCount, List.of());
 
                 int columnWidth = calculateDigitColumnWidth(g2d, digitCount, style);
-                drawDigitColumn(g2d, columnNumbers, digitCount, currentX, startY, columnWidth, dark, style);
+                drawDigitColumn(
+                        g2d,
+                        columnNumbers,
+                        digitCount,
+                        currentX,
+                        startY,
+                        columnWidth,
+                        visibleRows,
+                        dark,
+                        style
+                );
 
                 currentX += columnWidth + getRandomStackColumnGap(style);
             }
@@ -1128,13 +1154,13 @@ public class DotController extends JPanel {
             int x,
             int y,
             int columnWidth,
+            int visibleRows,
             boolean dark,
             VisualizationStyle style
     ) {
         int headerY = y + getRandomStackHeaderYOffset(style);
         drawDigitColumnHeader(g2d, digitCount, x, headerY, columnWidth, dark, style);
 
-        int visibleRows = calculateVisibleRandomStackRows(y, style);
         int fromIndex = Math.max(0, numbers.size() - visibleRows);
         List<Long> visibleNumbers = numbers.subList(fromIndex, numbers.size());
 
