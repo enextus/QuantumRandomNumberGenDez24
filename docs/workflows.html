@@ -1,0 +1,1522 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>rep-qrng-chaos-game — Runtime Workflows</title>
+  <style>
+    :root {
+      --bg: #0c0f16;
+      --bg-2: #10141d;
+      --panel: rgba(20, 25, 35, 0.92);
+      --panel-2: #1a2030;
+      --stroke: rgba(255, 255, 255, 0.08);
+      --stroke-2: rgba(255, 255, 255, 0.14);
+      --text: #eef1f6;
+      --muted: #98a2b6;
+      --faint: #59637a;
+      --signal: #78a9ff;
+      --signal-strong: #a6c8ff;
+      --gold: #f1c21b;
+      --green: #42be65;
+      --cyan: #3ddbd9;
+      --pink: #ff7eb6;
+      --orange: #ffb784;
+      --node: #1b2233;
+      --node-active: #16346b;
+      --node-border: #45506a;
+      --shadow: rgba(0, 0, 0, 0.45);
+      --radius: 12px;
+      --mono: ui-monospace, "SF Mono", "IBM Plex Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+      --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: var(--sans);
+      background:
+        radial-gradient(1200px 600px at 12% -10%, #17203a 0, rgba(23,32,58,0) 55%),
+        radial-gradient(900px 500px at 100% 0%, #12203a 0, rgba(18,32,58,0) 45%),
+        var(--bg);
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 20px 26px 16px;
+      border-bottom: 1px solid var(--stroke);
+      background: rgba(12, 15, 22, 0.78);
+      backdrop-filter: blur(12px);
+      position: sticky; top: 0; z-index: 60;
+      display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 24px;
+    }
+    .brand { display: flex; flex-direction: column; gap: 4px; }
+    .eyebrow {
+      font-family: var(--mono); font-size: 11px; letter-spacing: .22em;
+      text-transform: uppercase; color: var(--signal);
+    }
+    header h1 { margin: 0; font-size: 22px; font-weight: 650; letter-spacing: .2px; }
+    header p { margin: 0; color: var(--muted); max-width: 890px; line-height: 1.5; font-size: 13px; }
+    .version-badge {
+      margin-left: auto; font-family: var(--mono); font-size: 11px; letter-spacing: .08em;
+      color: var(--signal-strong); border: 1px solid rgba(120,169,255,.28);
+      background: rgba(120,169,255,.08); border-radius: 999px; padding: 7px 10px;
+      text-transform: uppercase;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 300px minmax(560px, 1fr) 390px;
+      gap: 14px;
+      padding: 14px;
+      align-items: stretch;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 16px 40px var(--shadow);
+      display: flex; flex-direction: column; min-height: 0;
+    }
+    .panel > h2 {
+      font-family: var(--mono);
+      font-size: 11px; text-transform: uppercase; letter-spacing: .16em;
+      color: var(--muted); margin: 0;
+      padding: 13px 15px 11px; border-bottom: 1px solid var(--stroke);
+    }
+
+    .sidebar { max-height: calc(100vh - 118px); }
+    .workflow-list { padding: 9px; display: flex; flex-direction: column; gap: 7px; overflow: auto; }
+    .workflow-button {
+      width: 100%; text-align: left; cursor: pointer;
+      border: 1px solid var(--stroke); background: var(--panel-2);
+      color: var(--text); border-radius: 10px; padding: 9px 11px;
+      transition: border-color .14s ease, transform .14s ease, background .14s ease;
+      display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start;
+    }
+    .workflow-button:hover { border-color: var(--signal); transform: translateX(2px); }
+    .workflow-button:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+    .workflow-button.active { background: #12315c; border-color: var(--signal); }
+    .wf-index {
+      font-family: var(--mono); font-size: 11px; color: var(--signal);
+      background: rgba(120,169,255,.12); border: 1px solid rgba(120,169,255,.25);
+      border-radius: 6px; text-align: center; padding: 2px 0; line-height: 1.4;
+    }
+    .workflow-button.active .wf-index { background: rgba(120,169,255,.22); }
+    .wf-text .name { display: block; font-weight: 650; font-size: 13px; margin-bottom: 3px; }
+    .wf-text .summary { display: block; color: var(--muted); font-size: 11.5px; line-height: 1.34; }
+
+    .legend { padding: 12px 15px 8px; border-top: 1px solid var(--stroke); }
+    .legend h3 { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 0 0 9px; }
+    .legend-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; font-size: 11.5px; color: var(--muted); }
+    .legend-grid > div { display: flex; align-items: center; gap: 6px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+    .assumptions {
+      margin: 4px 15px 14px; padding: 10px 11px; border-radius: 9px;
+      border: 1px dashed rgba(241,194,27,.4); background: rgba(241,194,27,.06);
+      font-size: 11px; color: #e8d9a6; line-height: 1.4;
+    }
+    .assumptions b { color: var(--gold); font-weight: 650; }
+
+    .graph-panel { min-height: 0; }
+    .graph-scroll { position: relative; overflow: auto; flex: 1; min-height: 550px; }
+    #plot { position: relative; }
+    #edges { position: absolute; inset: 0; z-index: 12; pointer-events: none; overflow: visible; }
+    .toolbar {
+      position: sticky; top: 0; z-index: 30;
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      padding: 10px 14px; margin: 0;
+      background: linear-gradient(180deg, rgba(16,20,29,.96) 60%, rgba(16,20,29,0));
+      pointer-events: none;
+    }
+    .toolbar .tb-title {
+      font-size: 12px; color: var(--muted);
+      background: rgba(12,15,22,.7); border: 1px solid var(--stroke);
+      padding: 7px 11px; border-radius: 9px; pointer-events: auto;
+    }
+    .toolbar .tb-title strong { color: var(--text); font-weight: 650; }
+    .toolbar .tb-hint { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+
+    .lane {
+      position: absolute; top: 0; bottom: 0;
+      border-right: 1px dashed rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0) 30%);
+      z-index: 0;
+    }
+    .lane:last-child { border-right: 0; }
+    .lane .lane-label {
+      position: absolute; top: 54px; left: 10px;
+      writing-mode: vertical-rl; transform: rotate(180deg);
+      font-family: var(--mono); color: rgba(255,255,255,.22);
+      font-weight: 700; font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+    }
+
+    .node {
+      position: absolute; width: 168px;
+      transform: translate(-50%, -50%);
+      z-index: 7; cursor: pointer; text-align: left;
+      background: var(--node); border: 1px solid var(--node-border);
+      border-left-width: 3px; border-radius: 11px;
+      padding: 8px 10px; color: var(--text);
+      box-shadow: 0 6px 18px rgba(0,0,0,.3);
+      transition: opacity .18s ease, box-shadow .18s ease, background .18s ease, transform .12s ease;
+      opacity: .55;
+    }
+    .node:hover { opacity: 1; transform: translate(-50%, -50%) scale(1.03); }
+    .node:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; opacity: 1; }
+    .node.active { opacity: 1; background: var(--node-active); box-shadow: 0 0 0 1px rgba(120,169,255,.5), 0 10px 26px rgba(0,0,0,.5); }
+    .node.dim { opacity: .18; }
+    .node .label { font-weight: 650; font-size: 11.5px; line-height: 1.22; }
+    .node .meta { margin-top: 4px; font-family: var(--mono); font-size: 9.5px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+
+    .edge { fill: none; stroke: var(--signal); stroke-width: 2.35; opacity: .92; }
+    .edge.base { stroke: rgba(152,162,182,.42); stroke-width: 1.25; opacity: .35; stroke-dasharray: 4 8; }
+    .edge.pulse { stroke-dasharray: 5 7; animation: flow 1.1s linear infinite; filter: drop-shadow(0 0 5px rgba(120,169,255,.45)); }
+    .edge.hl { stroke: var(--signal-strong); stroke-width: 4; opacity: 1; filter: drop-shadow(0 0 8px rgba(120,169,255,.75)); }
+    @keyframes flow { to { stroke-dashoffset: -24; } }
+    .badge-c { fill: #0c0f16; stroke: var(--signal); stroke-width: 1.5; }
+    .badge-c.hl { stroke: var(--signal-strong); fill: #16346b; }
+    .badge-t { fill: var(--signal-strong); font-family: var(--mono); font-size: 10px; font-weight: 700; }
+
+    .detail { max-height: calc(100vh - 118px); }
+    .detail-content { padding: 14px 15px 18px; overflow: auto; }
+    .detail-content h3 { margin: 0 0 6px; font-size: 18px; font-weight: 650; }
+    .detail-content .kicker { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--signal); margin-bottom: 8px; }
+    .detail-content .summary { color: var(--muted); line-height: 1.5; margin-bottom: 14px; font-size: 13px; }
+    .step {
+      border: 1px solid var(--stroke); background: rgba(255,255,255,.025);
+      border-radius: 10px; padding: 9px 11px; margin-bottom: 8px;
+      transition: border-color .14s ease, background .14s ease;
+    }
+    .step:hover, .step.hl { border-color: var(--signal); background: rgba(120,169,255,.08); }
+    .step-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+    .step-num { font-family: var(--mono); font-size: 11px; color: var(--signal); }
+    .step-label { font-weight: 650; font-size: 12.5px; }
+    .step-route { font-family: var(--mono); color: var(--muted); font-size: 11px; margin-bottom: 5px; word-break: break-word; }
+    .step-route .arrow { color: var(--signal); }
+    .step-details { color: #ccd4e4; font-size: 12px; line-height: 1.45; }
+    .payload {
+      margin-top: 7px; color: #dbe7ff; font-size: 11.5px; line-height: 1.4;
+      background: rgba(255,255,255,.045); border: 1px solid var(--stroke);
+      border-radius: 8px; padding: 7px 8px;
+    }
+    .node-card { margin-top: 14px; border: 1px solid var(--stroke); background: rgba(120,169,255,.06); border-radius: 10px; padding: 11px; }
+    .node-card h4 { margin: 0 0 7px; font-size: 12px; font-family: var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .node-card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .path { font-family: var(--mono); color: #82cfff; font-size: 11.5px; word-break: break-all; }
+    .classes { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+    .pill {
+      font-family: var(--mono); font-size: 10.5px; color: #dbe7ff;
+      background: rgba(255,255,255,.055); border: 1px solid var(--stroke);
+      border-radius: 999px; padding: 3px 6px;
+    }
+    .used-btn {
+      display: inline-block; margin: 3px 5px 0 0; cursor: pointer;
+      font-size: 11.5px; color: var(--text); background: var(--panel-2);
+      border: 1px solid var(--stroke); border-radius: 7px; padding: 3px 8px;
+      transition: border-color .12s ease;
+    }
+    .used-btn:hover { border-color: var(--signal); }
+    code { font-family: var(--mono); color: #82cfff; }
+    details.json-source { margin: 0 15px 14px; border: 1px solid var(--stroke); border-radius: 10px; background: rgba(255,255,255,.025); }
+    details.json-source summary { cursor: pointer; color: var(--muted); padding: 10px 11px; font-size: 11px; font-family: var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+    details.json-source pre { margin: 0; padding: 0 11px 11px; overflow: auto; max-height: 340px; color: #dbe7ff; font-size: 10.5px; line-height: 1.45; white-space: pre-wrap; }
+
+    @media (max-width: 1180px) {
+      .shell { grid-template-columns: 1fr; }
+      .sidebar, .detail { max-height: none; }
+      .graph-scroll { min-height: 650px; }
+      .version-badge { margin-left: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .edge.pulse { animation: none; stroke-dasharray: none; }
+      * { transition: none !important; }
+    }
+    @media print {
+      body { background: #fff; color: #111; }
+      header, .sidebar, .detail, .toolbar { display: none !important; }
+      .shell { display: block; padding: 0; }
+      .graph-panel { box-shadow: none; border: 1px solid #ccc; }
+      .node { opacity: 1 !important; background: #f4f6fb; color: #111; border-color: #90a; }
+      .node.dim { opacity: .35 !important; }
+      .node .meta { color: #555; }
+      .lane .lane-label { color: #bbb; }
+      .edge { stroke: #2b6; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="eyebrow">System Blueprint · Runtime only</span>
+      <h1>rep-qrng-chaos-game — Runtime Workflows</h1>
+    </div>
+    <p>Single-file map driven by the embedded JSON below. Pick a runtime action to trace how control, random-number data, callbacks, drawing state, logs, and UI events pass between packages and components.</p>
+    <span class="version-badge">2026-07-06 baseline</span>
+  </header>
+
+  <main class="shell">
+    <aside class="panel sidebar">
+      <h2>Runtime workflows</h2>
+      <div id="workflowList" class="workflow-list"></div>
+      <div class="legend">
+        <h3>Node types</h3>
+        <div class="legend-grid" id="legendGrid"></div>
+      </div>
+      <div class="assumptions" id="assumptions">
+        <b>Scope:</b> runtime only. No Maven, test, packaging, ToDesktop, CI, or context-ZIP generation flows are included. The RNG quality-check workflow is the in-app UI action, not a build/test workflow.
+      </div>
+    </aside>
+
+    <section class="panel graph-panel">
+      <div class="graph-scroll" id="graphScroll">
+        <div class="toolbar">
+          <div class="tb-title">Active workflow: <strong id="activeWorkflowName">—</strong></div>
+          <div class="tb-hint">click nodes · hover steps · JSON-driven</div>
+        </div>
+        <div id="plot">
+          <svg id="edges" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+                <path d="M0 0 L10 5 L0 10 z" fill="#78a9ff"></path>
+              </marker>
+            </defs>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel detail">
+      <h2>Flow details</h2>
+      <div id="details" class="detail-content"></div>
+      <details class="json-source">
+        <summary>Embedded JSON source</summary>
+        <pre id="jsonEcho"></pre>
+      </details>
+    </aside>
+  </main>
+
+  <script id="architecture-data" type="application/json">
+{
+  "title": "rep-qrng-chaos-game Runtime Workflows",
+  "version": "3.0-design-refresh",
+  "updated": "2026-07-06",
+  "scope": "Runtime workflows only",
+  "lanes": [
+    "Actor / UI",
+    "Swing Runtime",
+    "App Package",
+    "Mode Core",
+    "Mode Implementations",
+    "Runtime Services",
+    "External / Files"
+  ],
+  "nodes": [
+    {
+      "id": "user",
+      "label": "User / UI action",
+      "type": "actor",
+      "group": "Actor / UI",
+      "path": "",
+      "details": "Clicks mode cards, Play, RNG toggle, Test RNG, Save PNG, Exit, and mode-specific controls.",
+      "classes": [
+        "mouse",
+        "keyboard"
+      ]
+    },
+    {
+      "id": "swing",
+      "label": "Swing EDT + timers",
+      "type": "runtime",
+      "group": "Swing Runtime",
+      "path": "",
+      "details": "Runs UI callbacks, painting, JOptionPane dialogs, Swing Timer animation ticks, and invokeLater updates.",
+      "classes": [
+        "SwingUtilities",
+        "Timer",
+        "JFrame",
+        "JDialog"
+      ]
+    },
+    {
+      "id": "config",
+      "label": "config",
+      "type": "package",
+      "group": "App Package",
+      "path": "src/main/java/org/ThreeDotsSierpinski/config/",
+      "details": "Loads app settings, API settings, dimensions, logging configuration, and file-log paths.",
+      "classes": [
+        "Config",
+        "LoggerConfig",
+        "config.properties"
+      ]
+    },
+    {
+      "id": "app",
+      "label": "app",
+      "type": "package",
+      "group": "App Package",
+      "path": "src/main/java/org/ThreeDotsSierpinski/app/",
+      "details": "Application coordinator, mode selector, main visualization window, controls, screen placement, overlays, and canvas controller.",
+      "classes": [
+        "App",
+        "ModeSelectionDialog",
+        "ModeCardFactory",
+        "VisualizationFrameFactory",
+        "VisualizationControlsPanel",
+        "DotController",
+        "RandomNumbersStackOverlay",
+        "ScreenPlacement",
+        "AppleMacChrome"
+      ]
+    },
+    {
+      "id": "modeCore",
+      "label": "mode core",
+      "type": "package",
+      "group": "Mode Core",
+      "path": "src/main/java/org/ThreeDotsSierpinski/mode/",
+      "details": "The VisualizationMode contract and registry. Mode implementations receive RNProvider, draw on BufferedImage, return fresh points, and expose metadata/UI hooks.",
+      "classes": [
+        "VisualizationMode",
+        "VisualizationModes",
+        "VisualizationCategory",
+        "VisualizationStyle",
+        "RngSampler",
+        "RngStepBudget"
+      ]
+    },
+    {
+      "id": "modeChaos",
+      "label": "mode.chaos",
+      "type": "package",
+      "group": "Mode Implementations",
+      "path": "src/main/java/org/ThreeDotsSierpinski/mode/chaos/",
+      "details": "Chaos/fractal visualizations selected through the registry.",
+      "classes": [
+        "SierpinskiMode",
+        "BarnsleyFernMode",
+        "FractalFlameMode",
+        "ChaosGameRepresentationMode"
+      ]
+    },
+    {
+      "id": "modeMontecarlo",
+      "label": "mode.montecarlo",
+      "type": "package",
+      "group": "Mode Implementations",
+      "path": "src/main/java/org/ThreeDotsSierpinski/mode/montecarlo/",
+      "details": "Monte Carlo visualizations and dashboards using random samples to estimate or explore regions.",
+      "classes": [
+        "MonteCarloPiMode",
+        "BuddhabrotMode",
+        "MonteCarloMandelbrotAreaMode",
+        "MonteCarloMandelbrot3DAreaMode"
+      ]
+    },
+    {
+      "id": "modePhysics",
+      "label": "mode.physics",
+      "type": "package",
+      "group": "Mode Implementations",
+      "path": "src/main/java/org/ThreeDotsSierpinski/mode/physics/",
+      "details": "Attractors, Lissajous variants, sandpile, forest fire, bifurcation, percolation, and map-based physics/chaos modes.",
+      "classes": [
+        "LorenzAttractor3DMode",
+        "AbstractStrangeAttractorMode",
+        "AbstractLissajousMode",
+        "ChirikovStandardMapMode",
+        "AizawaAttractorMode",
+        "ThomasAttractorMode",
+        "RosslerAttractorMode",
+        "HalvorsenAttractorMode",
+        "DadrasAttractorMode",
+        "BifurcationDiagramMode",
+        "PercolationMode",
+        "ForestFireMode",
+        "AbelianSandpileMode",
+        "Lissajous*"
+      ]
+    },
+    {
+      "id": "modeStochastic",
+      "label": "mode.stochastic",
+      "type": "package",
+      "group": "Mode Implementations",
+      "path": "src/main/java/org/ThreeDotsSierpinski/mode/stochastic/",
+      "details": "Random walk, cellular automaton, Galton board, DLA, Voronoi, and spectral random-number visualizations.",
+      "classes": [
+        "RandomWalkHeatmapMode",
+        "Rule30AutomatonMode",
+        "GaltonBoardMode",
+        "DLAMode",
+        "VoronoiMode",
+        "SpectralPlotMode"
+      ]
+    },
+    {
+      "id": "rng",
+      "label": "rng",
+      "type": "package",
+      "group": "Runtime Services",
+      "path": "src/main/java/org/ThreeDotsSierpinski/rng/",
+      "details": "Random-number provider, ANU API client, fallback PRNG, consumed-number history, data-load callbacks, and TRUE random-number log writer.",
+      "classes": [
+        "RNProvider",
+        "QuantumNumbersApiClient",
+        "RandomNumberProcessor",
+        "RandomNumbersLog",
+        "RNLoadListener",
+        "RNLoadListenerImpl",
+        "FallbackReason"
+      ]
+    },
+    {
+      "id": "stats",
+      "label": "stats",
+      "type": "package",
+      "group": "Runtime Services",
+      "path": "src/main/java/org/ThreeDotsSierpinski/stats/",
+      "details": "Runtime statistical checks over numbers consumed by the current visualization run.",
+      "classes": [
+        "RandomnessTestSuite",
+        "KolmogorovSmirnovTest",
+        "ChiSquareUniformityTest",
+        "FrequencyBitTest",
+        "RunsBitTest",
+        "TestResult"
+      ]
+    },
+    {
+      "id": "math",
+      "label": "math",
+      "type": "package",
+      "group": "Runtime Services",
+      "path": "src/main/java/org/ThreeDotsSierpinski/math/",
+      "details": "Shared algorithms and utilities used by visualization modes.",
+      "classes": [
+        "MathUtils",
+        "SierpinskiAlgorithm"
+      ]
+    },
+    {
+      "id": "model",
+      "label": "model",
+      "type": "package",
+      "group": "App Package",
+      "path": "src/main/java/org/ThreeDotsSierpinski/model/",
+      "details": "Simple domain model for points/dots consumed by visualizations.",
+      "classes": [
+        "Dot"
+      ]
+    },
+    {
+      "id": "anuApi",
+      "label": "ANU Quantum Numbers API",
+      "type": "external",
+      "group": "External / Files",
+      "path": "",
+      "details": "External HTTP source for quantum random numbers. Returns JSON data that is parsed into uint16 values.",
+      "classes": [
+        "HTTP GET",
+        "JSON data",
+        "429 rate limit"
+      ]
+    },
+    {
+      "id": "files",
+      "label": "File system outputs",
+      "type": "external",
+      "group": "External / Files",
+      "path": "",
+      "details": "Runtime outputs: app log, TRUE random-number log, optional pseudo log, and saved PNG files.",
+      "classes": [
+        "logs/app.log",
+        "logs/rnds-true.log",
+        "*.png",
+        "*_transparent.png"
+      ]
+    }
+  ],
+  "baseEdges": [
+    {
+      "from": "user",
+      "to": "swing",
+      "label": "UI events"
+    },
+    {
+      "from": "swing",
+      "to": "app",
+      "label": "callbacks"
+    },
+    {
+      "from": "config",
+      "to": "app",
+      "label": "settings"
+    },
+    {
+      "from": "app",
+      "to": "modeCore",
+      "label": "registry + mode contract"
+    },
+    {
+      "from": "modeCore",
+      "to": "modeChaos",
+      "label": "implements"
+    },
+    {
+      "from": "modeCore",
+      "to": "modeMontecarlo",
+      "label": "implements"
+    },
+    {
+      "from": "modeCore",
+      "to": "modePhysics",
+      "label": "implements"
+    },
+    {
+      "from": "modeCore",
+      "to": "modeStochastic",
+      "label": "implements"
+    },
+    {
+      "from": "app",
+      "to": "rng",
+      "label": "provider + listener"
+    },
+    {
+      "from": "rng",
+      "to": "anuApi",
+      "label": "HTTP API"
+    },
+    {
+      "from": "rng",
+      "to": "files",
+      "label": "random logs"
+    },
+    {
+      "from": "app",
+      "to": "files",
+      "label": "save PNG"
+    },
+    {
+      "from": "app",
+      "to": "stats",
+      "label": "quality checks"
+    },
+    {
+      "from": "modeCore",
+      "to": "math",
+      "label": "helpers"
+    },
+    {
+      "from": "modeCore",
+      "to": "model",
+      "label": "points/dots"
+    }
+  ],
+  "flows": [
+    {
+      "id": "start-select-mode",
+      "label": "Start app and select visualization mode",
+      "summary": "Startup initializes look-and-feel/logging, resolves the launch screen, opens the mode-selection dialog, groups registered modes by category, and returns the selected VisualizationMode.",
+      "steps": [
+        {
+          "from": "user",
+          "to": "swing",
+          "label": "Run application",
+          "details": "The user starts the process from IDE/terminal. Swing takes over on the EDT via SwingUtilities.invokeLater.",
+          "payload": "No domain data yet; this is process/UI startup."
+        },
+        {
+          "from": "swing",
+          "to": "app",
+          "label": "App.main",
+          "details": "App sets FlatLightLaf, initializes LoggerConfig, resolves the target GraphicsConfiguration, and enters showModeSelectionLoop().",
+          "payload": "GraphicsConfiguration target screen; startup log entries."
+        },
+        {
+          "from": "config",
+          "to": "app",
+          "label": "Logger + settings",
+          "details": "LoggerConfig and Config provide runtime properties used by App and later by DotController/RNProvider.",
+          "payload": "log.file.name, panel size, timer delay, API settings."
+        },
+        {
+          "from": "app",
+          "to": "modeCore",
+          "label": "VisualizationModes.all()",
+          "details": "ModeSelectionDialog pulls the full registry, groups modes by VisualizationCategory, and renders category/mode cards.",
+          "payload": "VisualizationMode[]; category, id, name, icon, description."
+        },
+        {
+          "from": "modeCore",
+          "to": "modeChaos",
+          "label": "Concrete modes",
+          "details": "Chaos package contributes Sierpinski, Barnsley Fern, Fractal Flame, and CGR modes to the registry.",
+          "payload": "VisualizationMode implementations."
+        },
+        {
+          "from": "modeCore",
+          "to": "modeMontecarlo",
+          "label": "Concrete modes",
+          "details": "Monte Carlo package contributes Pi, Buddhabrot, and Mandelbrot area modes.",
+          "payload": "VisualizationMode implementations."
+        },
+        {
+          "from": "modeCore",
+          "to": "modePhysics",
+          "label": "Concrete modes",
+          "details": "Physics package contributes attractors, Lissajous variants, sandpile, forest fire, bifurcation, percolation, and map modes.",
+          "payload": "VisualizationMode implementations."
+        },
+        {
+          "from": "modeCore",
+          "to": "modeStochastic",
+          "label": "Concrete modes",
+          "details": "Stochastic package contributes random walk, Rule30, Galton board, DLA, Voronoi, and spectral modes.",
+          "payload": "VisualizationMode implementations."
+        },
+        {
+          "from": "user",
+          "to": "app",
+          "label": "Card click",
+          "details": "The clicked card sets selectedMode; App remembers last category, visited mode ids, and last selected mode id.",
+          "payload": "selectedMode, lastSelectedCategory, visitedModeIds, lastSelectedModeId."
+        }
+      ]
+    },
+    {
+      "id": "launch-visualization",
+      "label": "Launch selected visualization window",
+      "summary": "The selected mode is launched inside a JFrame with RNProvider, DotController, bottom controls, data-load listener, and initial-data wait logic.",
+      "steps": [
+        {
+          "from": "app",
+          "to": "rng",
+          "label": "new RNProvider()",
+          "details": "App creates the runtime random-number provider for this visualization run.",
+          "payload": "ProviderSettings from Config; queue, ring buffer, API client, fallback PRNG, RandomNumbersLog."
+        },
+        {
+          "from": "config",
+          "to": "rng",
+          "label": "API/runtime settings",
+          "details": "RNProvider reads API URL/key/type/length/block size, max requests, timeouts, queue threshold, and log settings.",
+          "payload": "api.url, api.key, api.data.type, api.array.length, random.queue.min.size, random.log.*"
+        },
+        {
+          "from": "app",
+          "to": "swing",
+          "label": "Create JFrame",
+          "details": "VisualizationFrameFactory creates the frame and App adds DotController to CENTER and controls to SOUTH.",
+          "payload": "JFrame bound to selected mode and target screen."
+        },
+        {
+          "from": "app",
+          "to": "modeCore",
+          "label": "Mode metadata/hooks",
+          "details": "VisualizationControlsPanel asks the mode for mode-specific controls and uses mode metadata for the window/control setup.",
+          "payload": "mode.getName(), createModeControls(), style/overlay hooks."
+        },
+        {
+          "from": "app",
+          "to": "rng",
+          "label": "Attach listener",
+          "details": "RNLoadListenerImpl is registered so provider events can update status, toggle state, and raw-data window.",
+          "payload": "onLoadingStarted, onLoadingCompleted, onError, onRawDataReceived, onModeChanged."
+        },
+        {
+          "from": "swing",
+          "to": "app",
+          "label": "Initial wait thread",
+          "details": "A virtual thread calls waitForInitialData(15000). The result is posted back to the EDT to enable Play and sync the RNG toggle/status.",
+          "payload": "dataReady boolean, RNProvider.Mode, fallback reason, API-key availability."
+        }
+      ]
+    },
+    {
+      "id": "play-render-tick",
+      "label": "Play and render animation tick",
+      "summary": "Play starts DotController's Swing Timer. Each tick calls mode.step(provider, canvas, dotSize), consumes random values, draws on the mode canvas, repaints overlays, and optionally recolors fresh points.",
+      "steps": [
+        {
+          "from": "user",
+          "to": "app",
+          "label": "Play click",
+          "details": "The Play/Stop button listener calls dotController.toggle() and updates the status label.",
+          "payload": "running flag; button text Play ↔ Stop; status text."
+        },
+        {
+          "from": "app",
+          "to": "swing",
+          "label": "Start Timer",
+          "details": "DotController.start() starts the Swing Timer using timer.delay from Config.",
+          "payload": "Timer event stream on EDT."
+        },
+        {
+          "from": "swing",
+          "to": "app",
+          "label": "Timer event",
+          "details": "DotController refreshes reserved drawing areas, obtains the active mode canvas, and dispatches one animation step.",
+          "payload": "BufferedImage subimage, dotSize, reserved areas."
+        },
+        {
+          "from": "app",
+          "to": "modeCore",
+          "label": "mode.step(...)",
+          "details": "The selected VisualizationMode receives RNProvider, BufferedImage canvas, and dotSize. The implementation controls how many values it consumes and how it draws.",
+          "payload": "RNProvider provider; BufferedImage canvas; int dotSize; List<Point> fresh points."
+        },
+        {
+          "from": "modeCore",
+          "to": "rng",
+          "label": "Get random value",
+          "details": "Mode implementations call RNProvider directly or through RngSampler/RngStepBudget. RNProvider returns OptionalInt/OptionalLong without blocking the EDT.",
+          "payload": "uint16 value, mapped range value, or Optional.empty while quantum data is loading."
+        },
+        {
+          "from": "modeCore",
+          "to": "math",
+          "label": "Algorithm helpers",
+          "details": "Some modes use shared math helpers and mode-specific equations to convert random samples into positions/states.",
+          "payload": "coordinates, transforms, state transitions."
+        },
+        {
+          "from": "modeCore",
+          "to": "model",
+          "label": "Points/dots",
+          "details": "Modes may represent output as points/dots and return fresh points to DotController for recolor animation.",
+          "payload": "List<Point>; Dot model where applicable."
+        },
+        {
+          "from": "app",
+          "to": "swing",
+          "label": "Paint overlays",
+          "details": "DotController repaints the offscreen image, common info text, point counter, RNG indicator, AppleMacChrome frame if used, and RandomNumbersStackOverlay if enabled.",
+          "payload": "point count, provider mode, last consumed numbers, canvas image."
+        }
+      ]
+    },
+    {
+      "id": "qrng-background-load",
+      "label": "Background QRNG load and switch to QUANTUM",
+      "summary": "RNProvider starts in local PSEUDO by default while a background API request loads quantum numbers. On success it removes stale pseudo queue entries, enqueues QUANTUM values, notifies the UI, and switches mode.",
+      "steps": [
+        {
+          "from": "rng",
+          "to": "anuApi",
+          "label": "HTTP request",
+          "details": "QuantumNumbersApiClient builds a GET request with x-api-key, length/type/size parameters, connect timeout, and read timeout.",
+          "payload": "API key header; length; type; optional block size."
+        },
+        {
+          "from": "anuApi",
+          "to": "rng",
+          "label": "JSON response",
+          "details": "The response body is parsed by ObjectMapper; the data array is converted into integer random numbers.",
+          "payload": "raw JSON string; List<Integer> uint16/hex16 values."
+        },
+        {
+          "from": "rng",
+          "to": "rng",
+          "label": "Queue update",
+          "details": "RNProvider removes stale PSEUDO entries before adding fresh QUANTUM entries so UI mode and consumed source stay consistent.",
+          "payload": "RandomNumberEntry(value, sourceMode=QUANTUM)."
+        },
+        {
+          "from": "rng",
+          "to": "app",
+          "label": "Listener callbacks",
+          "details": "RNLoadListenerImpl receives raw data, loading completion, and mode change events.",
+          "payload": "rawData, onLoadingCompleted, onModeChanged(QUANTUM)."
+        },
+        {
+          "from": "app",
+          "to": "swing",
+          "label": "UI sync",
+          "details": "Callbacks update the status label, selected RNG toggle state, and raw-data window on the EDT.",
+          "payload": "QUANTUM toggle selected; status text; raw data appended."
+        }
+      ]
+    },
+    {
+      "id": "fallback-pseudo",
+      "label": "Fallback to local PSEUDO RNG",
+      "summary": "When there is no API key, the API fails, or the rate limit is hit, RNProvider activates PSEUDO mode using L128X256MixRandom and keeps animation non-blocking.",
+      "steps": [
+        {
+          "from": "config",
+          "to": "rng",
+          "label": "Missing/invalid API key",
+          "details": "If api.key is missing, blank, or placeholder-like, RNProvider sets apiKeyConfigured=false and activates NO_API_KEY fallback.",
+          "payload": "FallbackReason.NO_API_KEY; currentMode=PSEUDO."
+        },
+        {
+          "from": "anuApi",
+          "to": "rng",
+          "label": "Failure / 429",
+          "details": "HTTP errors, network failures, or 429 rate limit are classified into FallbackReason values.",
+          "payload": "NETWORK_DOWN, API_ERROR, RATE_LIMIT."
+        },
+        {
+          "from": "rng",
+          "to": "rng",
+          "label": "fillQueueWithPseudo",
+          "details": "RNProvider fills its queue with local L128X256MixRandom values in batches and marks entries as PSEUDO.",
+          "payload": "RandomNumberEntry(value, sourceMode=PSEUDO); pseudoBatchCount++."
+        },
+        {
+          "from": "rng",
+          "to": "app",
+          "label": "Mode changed",
+          "details": "Listeners update the app status and RNG toggle so the UI shows PSEUDO instead of QUANTUM.",
+          "payload": "onModeChanged(PSEUDO), fallback reason display text."
+        },
+        {
+          "from": "rng",
+          "to": "files",
+          "label": "Pseudo logging policy",
+          "details": "Consumed pseudo values still enter the ring buffer/history, but pseudo logging is disabled by default; TRUE log remains quantum-only.",
+          "payload": "consumedNumbersRing updated; pseudo writer disabled unless configured."
+        }
+      ]
+    },
+    {
+      "id": "toggle-rng-source",
+      "label": "Toggle RNG source in the visualization window",
+      "summary": "The RNG toggle lets the user request QUANTUM or force local PSEUDO during a visualization run. App validates API availability/rate limit and asks RNProvider to switch.",
+      "steps": [
+        {
+          "from": "user",
+          "to": "app",
+          "label": "RNG toggle click",
+          "details": "The bottom-panel JToggleButton action listener checks whether the API key is configured and whether rate limit fallback is active.",
+          "payload": "wantsQuantum boolean; fallback reason code."
+        },
+        {
+          "from": "app",
+          "to": "swing",
+          "label": "Dialog on blocked switch",
+          "details": "If no API key or daily limit is active, App shows a warning dialog and restores PSEUDO toggle state.",
+          "payload": "JOptionPane warning; toggle selected=false."
+        },
+        {
+          "from": "app",
+          "to": "rng",
+          "label": "setForcedPseudo",
+          "details": "If allowed, App calls setForcedPseudo(!wantsQuantum). For QUANTUM, RNProvider clears fallback state and starts async loading; for PSEUDO, it marks manual fallback.",
+          "payload": "isForcedPseudo; currentMode; fallback reason."
+        },
+        {
+          "from": "app",
+          "to": "modeCore",
+          "label": "Refresh visualization",
+          "details": "DotController.refreshVisualization() asks the mode to redraw current state without consuming new random numbers.",
+          "payload": "mode.redraw(canvas, width, height, dotSize)."
+        },
+        {
+          "from": "rng",
+          "to": "app",
+          "label": "Mode callback",
+          "details": "RNLoadListenerImpl syncs the toggle when provider mode actually changes.",
+          "payload": "onModeChanged(QUANTUM/PSEUDO)."
+        }
+      ]
+    },
+    {
+      "id": "auto-reconnect",
+      "label": "Automatic reconnect from temporary API fallback",
+      "summary": "For reconnectable failures, RNProvider starts a background virtual-thread monitor that periodically retries the API and switches back to QUANTUM when loading succeeds.",
+      "steps": [
+        {
+          "from": "rng",
+          "to": "rng",
+          "label": "classify fallback",
+          "details": "handleLoadFailure classifies the reason. RATE_LIMIT does not reconnect; API/network errors can start the reconnect monitor.",
+          "payload": "FallbackReason.allowsReconnect()."
+        },
+        {
+          "from": "rng",
+          "to": "anuApi",
+          "label": "Retry request",
+          "details": "startReconnectMonitor sleeps for the reconnect interval and then calls loadInitialData() in a virtual thread.",
+          "payload": "15-second reconnect interval; HTTP request."
+        },
+        {
+          "from": "anuApi",
+          "to": "rng",
+          "label": "Successful data",
+          "details": "On success, RNProvider resets consecutive failures, switches to QUANTUM, and notifies API availability.",
+          "payload": "currentMode=QUANTUM; fallback reason cleared."
+        },
+        {
+          "from": "rng",
+          "to": "app",
+          "label": "Availability callback",
+          "details": "RNLoadListenerImpl updates status if the UI is currently on QUANTUM and the API has been restored.",
+          "payload": "onApiAvailabilityChanged(true)."
+        }
+      ]
+    },
+    {
+      "id": "consume-log-true",
+      "label": "Consume numbers and log TRUE random values",
+      "summary": "Every consumed number is stored in RNProvider's ring buffer. Only values whose sourceMode is QUANTUM are written to logs/rnds-true.log by default.",
+      "steps": [
+        {
+          "from": "modeCore",
+          "to": "rng",
+          "label": "Consume value",
+          "details": "During step(), the active mode asks RNProvider for the next value or mapped range value.",
+          "payload": "OptionalInt uint16 or OptionalLong mapped range."
+        },
+        {
+          "from": "rng",
+          "to": "rng",
+          "label": "addConsumedNumber",
+          "details": "RNProvider writes the value into a fixed-size ring buffer used by overlays and runtime quality checks.",
+          "payload": "consumedNumbersRing[ringWriteIndex], totalConsumed."
+        },
+        {
+          "from": "rng",
+          "to": "files",
+          "label": "TRUE log write",
+          "details": "If sourceMode is QUANTUM, RandomNumbersLog writes the value to the configured TRUE log file and flushes periodically.",
+          "payload": "logs/rnds-true.log; comma-separated values; blank line between runs."
+        },
+        {
+          "from": "rng",
+          "to": "app",
+          "label": "History overlay",
+          "details": "RandomNumbersStackOverlay reads the latest consumed numbers from RNProvider for the right-side runtime display.",
+          "payload": "getLastConsumedNumbers(limit)."
+        }
+      ]
+    },
+    {
+      "id": "runtime-quality-checks",
+      "label": "Run RNG quality checks from the UI",
+      "summary": "The Test RNG button collects consumed values from the current run and runs the runtime RandomnessTestSuite, then shows a result dialog.",
+      "steps": [
+        {
+          "from": "user",
+          "to": "app",
+          "label": "Test RNG click",
+          "details": "App reads dotController.getUsedRandomNumbers(). If fewer than 10 values are available, it updates status and stops.",
+          "payload": "List<Long> consumed numbers."
+        },
+        {
+          "from": "app",
+          "to": "rng",
+          "label": "Read history",
+          "details": "DotController delegates to RNProvider.getConsumedNumbers(), returning a copy of the ring-buffer history.",
+          "payload": "Immutable-style List<Long> copy, up to HISTORY_MAX_SIZE."
+        },
+        {
+          "from": "app",
+          "to": "stats",
+          "label": "suite.runAll",
+          "details": "RandomnessTestSuite runs KS, chi-square, frequency/monobit, and runs tests with alpha 0.05.",
+          "payload": "numbers, alpha=0.05, List<TestResult>."
+        },
+        {
+          "from": "stats",
+          "to": "app",
+          "label": "Results",
+          "details": "App counts passed tests, formats quality markers, updates status, and builds the dialog panel.",
+          "payload": "TestResult.Quality STRONG/MARGINAL/FAIL; statistic; testName."
+        },
+        {
+          "from": "app",
+          "to": "swing",
+          "label": "JOptionPane",
+          "details": "The runtime results are shown in a modal Swing dialog.",
+          "payload": "summary label, colored indicators, warning/info icon."
+        }
+      ]
+    },
+    {
+      "id": "save-png",
+      "label": "Save current visualization as PNG",
+      "summary": "Save PNG opens a directory chooser and writes two images: the ARGB transparent image and a white-background RGB version.",
+      "steps": [
+        {
+          "from": "user",
+          "to": "app",
+          "label": "Save PNG click",
+          "details": "App builds a filename from mode id, timestamp, and point count, then opens a directory-only JFileChooser.",
+          "payload": "baseName = modeId_timestamp_pointspts."
+        },
+        {
+          "from": "app",
+          "to": "swing",
+          "label": "Choose directory",
+          "details": "JFileChooser returns the target directory or cancels the save.",
+          "payload": "java.io.File directory."
+        },
+        {
+          "from": "app",
+          "to": "files",
+          "label": "ImageIO.write",
+          "details": "DotController.saveImages writes the offscreen ARGB image and a composited white-background image.",
+          "payload": "baseName_transparent.png and baseName.png."
+        },
+        {
+          "from": "app",
+          "to": "config",
+          "label": "Logger",
+          "details": "Successful and failed saves are logged through LoggerConfig's application logger.",
+          "payload": "Saved/failed log lines with absolute paths."
+        }
+      ]
+    },
+    {
+      "id": "mode-specific-control",
+      "label": "Use a mode-specific control or redraw hook",
+      "summary": "Modes can add their own Swing controls to the bottom panel. These controls can update mode state and ask DotController to redraw without consuming new random numbers.",
+      "steps": [
+        {
+          "from": "app",
+          "to": "modeCore",
+          "label": "createModeControls",
+          "details": "VisualizationControlsPanel asks the selected mode for extra controls and appends them before the Exit button.",
+          "payload": "List<JComponent> mode-specific controls."
+        },
+        {
+          "from": "user",
+          "to": "swing",
+          "label": "Control click",
+          "details": "A checkbox/button/slider from the mode receives the UI event on the EDT.",
+          "payload": "mode-specific state change."
+        },
+        {
+          "from": "swing",
+          "to": "modeCore",
+          "label": "Update mode state",
+          "details": "The selected mode updates its own fields, style, overlays, or display flags.",
+          "payload": "visual style, layer visibility, help state, reserved areas."
+        },
+        {
+          "from": "modeCore",
+          "to": "app",
+          "label": "redraw/apply style",
+          "details": "The control can call DotController.refreshVisualization() or applyModeStyle(); redraw() does not consume new random numbers.",
+          "payload": "redraw(canvas,width,height,dotSize); canvasInitialized reset when style changes."
+        }
+      ]
+    },
+    {
+      "id": "mouse-click-mode",
+      "label": "Mouse click inside visualization canvas",
+      "summary": "DotController forwards canvas clicks to the selected mode after translating panel coordinates into mode-canvas coordinates.",
+      "steps": [
+        {
+          "from": "user",
+          "to": "app",
+          "label": "Canvas click",
+          "details": "DotController's MouseAdapter receives mouseClicked on the JPanel.",
+          "payload": "MouseEvent point in panel coordinates."
+        },
+        {
+          "from": "app",
+          "to": "app",
+          "label": "Coordinate transform",
+          "details": "If the mode canvas is a subimage, DotController subtracts modeCanvasBounds so the mode receives local canvas coordinates.",
+          "payload": "Point local to modeCanvas."
+        },
+        {
+          "from": "app",
+          "to": "modeCore",
+          "label": "handleMouseClicked",
+          "details": "The selected mode can open help overlays, inspect hit areas, or ignore the click. Default implementation is no-op.",
+          "payload": "Point; parent Component."
+        },
+        {
+          "from": "modeCore",
+          "to": "swing",
+          "label": "Optional dialog/UI",
+          "details": "Modes that implement click handling may show help dialogs or update UI state through Swing.",
+          "payload": "JOptionPane or custom state change."
+        }
+      ]
+    },
+    {
+      "id": "finish-return-selector",
+      "label": "Exit visualization and return to mode selector",
+      "summary": "Exit or window closing shuts down the active DotController and RNProvider, disposes the frame, remembers the screen, and reopens mode selection on that screen.",
+      "steps": [
+        {
+          "from": "user",
+          "to": "app",
+          "label": "Exit / close",
+          "details": "The Exit button or windowClosing handler calls finishVisualization(). An AtomicBoolean prevents duplicate shutdown.",
+          "payload": "visualizationFinished compareAndSet(false,true)."
+        },
+        {
+          "from": "app",
+          "to": "swing",
+          "label": "Resolve screen",
+          "details": "App resolves the GraphicsConfiguration from the visualization window bounds before disposing it.",
+          "payload": "Return monitor / GraphicsConfiguration."
+        },
+        {
+          "from": "app",
+          "to": "app",
+          "label": "Stop timers",
+          "details": "DotController.shutdown() stops animation and recolor timers.",
+          "payload": "animationTimer.stop(); recolorTimer.stop()."
+        },
+        {
+          "from": "app",
+          "to": "rng",
+          "label": "Shutdown provider",
+          "details": "RNProvider.shutdown() stops reconnect/loading state, finishes log batches, closes writers, and logs final counters.",
+          "payload": "shutdownRequested=true; finishBatch(); close(); mode/request counts."
+        },
+        {
+          "from": "rng",
+          "to": "files",
+          "label": "Finish random log batch",
+          "details": "RandomNumbersLog writes a blank-line batch separator for any open TRUE/PSEUDO batch and closes file writers.",
+          "payload": "logs/rnds-true.log batch separator."
+        },
+        {
+          "from": "swing",
+          "to": "app",
+          "label": "Reopen selector",
+          "details": "After frame.dispose(), App invokes showModeSelectionLoop(returnGraphicsConfiguration) on the EDT.",
+          "payload": "Same/actual monitor; last category and visited-mode state preserved."
+        }
+      ]
+    }
+  ]
+}
+  </script>
+
+  <script>
+    "use strict";
+    const data = JSON.parse(document.getElementById("architecture-data").textContent);
+    const scrollEl = document.getElementById("graphScroll");
+    const plot = document.getElementById("plot");
+    const edgesSvg = document.getElementById("edges");
+    const workflowList = document.getElementById("workflowList");
+    const details = document.getElementById("details");
+    const activeWorkflowName = document.getElementById("activeWorkflowName");
+    const jsonEcho = document.getElementById("jsonEcho");
+    const SVGNS = "http://www.w3.org/2000/svg";
+
+    const nodeById = new Map(data.nodes.map(n => [n.id, n]));
+    const lanes = data.lanes;
+    const typeColors = {
+      actor: "#78a9ff", runtime: "#82cfff", package: "#42be65", external: "#ffb784",
+      service: "#08bdba", config: "#f1c21b", component: "#a7f0ba"
+    };
+
+    const TOP_PAD = 74;
+    const BOT_PAD = 44;
+    const ROW_MIN = 128;
+    const MIN_W = 1220;
+    const lanePhaseOffsets = lanes.map((_, i) => {
+      const magnitude = 22 + (i % 3) * 8;
+      return (i % 2 === 0 ? 1 : -1) * magnitude;
+    });
+    const nodeYBias = {
+      user: 50,
+      swing: -18,
+      config: -54,
+      app: 34,
+      model: 74,
+      modeCore: -12,
+      modeChaos: -76,
+      modeMontecarlo: -18,
+      modePhysics: 42,
+      modeStochastic: 96,
+      rng: -66,
+      stats: 12,
+      math: 76,
+      anuApi: -40,
+      files: 62
+    };
+    const nodeEls = new Map();
+    const pos = new Map();
+    let plotW = MIN_W, plotH = 800;
+    let currentFlowId = null;
+
+    jsonEcho.textContent = JSON.stringify(data, null, 2);
+
+    function esc(v) {
+      return String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[c]));
+    }
+
+    const laneNodes = lanes.map(name => data.nodes.filter(n => n.group === name));
+    const maxCount = Math.max(...laneNodes.map(g => g.length));
+
+    function buildLanes() {
+      lanes.forEach((name, i) => {
+        const lane = document.createElement("div");
+        lane.className = "lane";
+        lane.dataset.laneIndex = i;
+        lane.innerHTML = '<span class="lane-label">' + esc(name) + "</span>";
+        plot.appendChild(lane);
+      });
+    }
+
+    function buildNodes() {
+      data.nodes.forEach(node => {
+        const el = document.createElement("button");
+        el.type = "button";
+        el.className = "node";
+        el.dataset.nodeId = node.id;
+        el.style.borderLeftColor = typeColors[node.type] || "var(--node-border)";
+        el.innerHTML = '<div class="label">' + esc(node.label) + '</div><div class="meta">' + esc(node.type) + "</div>";
+        el.addEventListener("click", () => showNodeDetails(node));
+        plot.appendChild(el);
+        nodeEls.set(node.id, el);
+      });
+    }
+
+    function layout() {
+      plotW = Math.max(MIN_W, scrollEl.clientWidth);
+      plotH = Math.max(620, TOP_PAD + BOT_PAD + maxCount * ROW_MIN);
+      plot.style.width = plotW + "px";
+      plot.style.height = plotH + "px";
+      edgesSvg.setAttribute("width", plotW);
+      edgesSvg.setAttribute("height", plotH);
+      edgesSvg.setAttribute("viewBox", "0 0 " + plotW + " " + plotH);
+
+      const laneW = plotW / lanes.length;
+      const usableH = plotH - TOP_PAD - BOT_PAD;
+      plot.querySelectorAll(".lane").forEach(el => {
+        const i = +el.dataset.laneIndex;
+        el.style.left = (i * laneW) + "px";
+        el.style.width = laneW + "px";
+      });
+
+      laneNodes.forEach((group, li) => {
+        const cx = laneW * (li + 0.5);
+        const laneOffset = lanePhaseOffsets[li] || 0;
+        group.forEach((node, k) => {
+          const baseCy = TOP_PAD + usableH * ((k + 0.5) / group.length);
+          const cy = Math.max(TOP_PAD + 42, Math.min(plotH - BOT_PAD - 42, baseCy + laneOffset + (nodeYBias[node.id] || 0)));
+          pos.set(node.id, { x: cx, y: cy });
+          const el = nodeEls.get(node.id);
+          el.style.left = cx + "px";
+          el.style.top = cy + "px";
+        });
+      });
+      drawBaseEdges();
+    }
+
+    function pathFor(fromId, toId, index) {
+      const f = pos.get(fromId), t = pos.get(toId);
+      const fe = nodeEls.get(fromId), te = nodeEls.get(toId);
+      if (!f || !t || !fe || !te) return null;
+      const fw = fe.offsetWidth / 2, fh = fe.offsetHeight / 2;
+      const tw = te.offsetWidth / 2, th = te.offsetHeight / 2;
+      const dx = t.x - f.x;
+      const dy = t.y - f.y;
+      const sepp = ((index % 3) - 1) * 12;
+      let sx, sy, ex, ey, c1x, c1y, c2x, c2y;
+
+      if (Math.abs(dx) > 8 && Math.abs(dy) < 72) {
+        const arcDir = index % 2 === 0 ? -1 : 1;
+        const anchorOffset = arcDir * Math.min(24, Math.max(fh, th) * 0.62);
+        const arcLift = arcDir * (68 + Math.abs(sepp) * 2.0);
+        if (dx > 0) {
+          sx = f.x + fw; sy = f.y + anchorOffset;
+          ex = t.x - tw; ey = t.y + anchorOffset;
+        } else {
+          sx = f.x - fw; sy = f.y + anchorOffset;
+          ex = t.x + tw; ey = t.y + anchorOffset;
+        }
+        const span = Math.max(58, Math.abs(ex - sx) * 0.36);
+        c1x = sx + (dx > 0 ? span : -span);
+        c1y = sy + arcLift;
+        c2x = ex - (dx > 0 ? span : -span);
+        c2y = ey + arcLift;
+      } else if (dx > 8) {
+        sx = f.x + fw; sy = f.y; ex = t.x - tw; ey = t.y;
+        const mid = (sx + ex) / 2;
+        c1x = mid; c1y = sy + sepp; c2x = mid; c2y = ey + sepp;
+      } else if (dx < -8) {
+        sx = f.x - fw; sy = f.y; ex = t.x + tw; ey = t.y;
+        const mid = (sx + ex) / 2;
+        c1x = mid; c1y = sy + sepp; c2x = mid; c2y = ey + sepp;
+      } else {
+        const horizontalDir = index % 2 === 0 ? 1 : -1;
+        sx = f.x + horizontalDir * fw; sy = f.y;
+        ex = t.x + horizontalDir * tw; ey = t.y;
+        const b = f.x + horizontalDir * (Math.max(fw, tw) + 110 + Math.abs(sepp));
+        c1x = b; c1y = sy; c2x = b; c2y = ey;
+      }
+      const p = { sx, sy, ex, ey, c1x, c1y, c2x, c2y };
+      p.mx = 0.125 * sx + 0.375 * c1x + 0.375 * c2x + 0.125 * ex;
+      p.my = 0.125 * sy + 0.375 * c1y + 0.375 * c2y + 0.125 * ey;
+      return p;
+    }
+
+    function pathD(p) {
+      return "M " + p.sx + " " + p.sy + " C " + p.c1x + " " + p.c1y + ", " + p.c2x + " " + p.c2y + ", " + p.ex + " " + p.ey;
+    }
+
+    function drawBaseEdges() {
+      edgesSvg.querySelectorAll(".base-dyn").forEach(el => el.remove());
+      const baseLayer = document.createElementNS(SVGNS, "g");
+      baseLayer.setAttribute("class", "base-dyn");
+      (data.baseEdges || []).forEach((edge, i) => {
+        const p = pathFor(edge.from, edge.to, i);
+        if (!p) return;
+        const path = document.createElementNS(SVGNS, "path");
+        path.setAttribute("class", "edge base");
+        path.setAttribute("d", pathD(p));
+        baseLayer.appendChild(path);
+      });
+      edgesSvg.insertBefore(baseLayer, edgesSvg.firstChild.nextSibling);
+    }
+
+    function clearFlowEdges() {
+      edgesSvg.querySelectorAll(".flow-dyn").forEach(el => el.remove());
+    }
+
+    function drawFlow(flow) {
+      clearFlowEdges();
+      const flowLayer = document.createElementNS(SVGNS, "g");
+      flowLayer.setAttribute("class", "flow-dyn");
+      edgesSvg.appendChild(flowLayer);
+      flow.steps.forEach((step, i) => {
+        if (step.from === step.to) return;
+        const p = pathFor(step.from, step.to, i);
+        if (!p) return;
+        const path = document.createElementNS(SVGNS, "path");
+        path.setAttribute("class", "edge pulse flow-edge");
+        path.dataset.step = i;
+        path.setAttribute("d", pathD(p));
+        path.setAttribute("marker-end", "url(#arrow)");
+        flowLayer.appendChild(path);
+
+        const g = document.createElementNS(SVGNS, "g");
+        g.dataset.step = i;
+        const circle = document.createElementNS(SVGNS, "circle");
+        circle.setAttribute("class", "badge-c");
+        circle.dataset.step = i;
+        circle.setAttribute("cx", p.mx); circle.setAttribute("cy", p.my); circle.setAttribute("r", 9);
+        const txt = document.createElementNS(SVGNS, "text");
+        txt.setAttribute("class", "badge-t");
+        txt.setAttribute("x", p.mx); txt.setAttribute("y", p.my + 3.4);
+        txt.setAttribute("text-anchor", "middle");
+        txt.textContent = i + 1;
+        g.appendChild(circle); g.appendChild(txt);
+        flowLayer.appendChild(g);
+      });
+    }
+
+    function highlightStep(index, on) {
+      edgesSvg.querySelectorAll('[data-step="' + index + '"]').forEach(el => {
+        if (el.tagName === "path") el.classList.toggle("hl", on);
+        if (el.classList && el.classList.contains("badge-c")) el.classList.toggle("hl", on);
+      });
+      const row = details.querySelector('.step[data-step="' + index + '"]');
+      if (row) row.classList.toggle("hl", on);
+    }
+
+    function renderFlowDetails(flow) {
+      details.innerHTML =
+        '<div class="kicker">Runtime workflow</div>' +
+        "<h3>" + esc(flow.label) + "</h3>" +
+        '<div class="summary">' + esc(flow.summary) + "</div>" +
+        flow.steps.map((step, i) => {
+          const f = nodeById.get(step.from), t = nodeById.get(step.to);
+          return '<div class="step" data-step="' + i + '">' +
+            '<div class="step-head"><span class="step-num">' + String(i + 1).padStart(2, "0") + '</span><span class="step-label">' + esc(step.label) + "</span></div>" +
+            '<div class="step-route">' + esc(f ? f.label : step.from) + ' <span class="arrow">→</span> ' + esc(t ? t.label : step.to) + "</div>" +
+            '<div class="step-details">' + esc(step.details) + "</div>" +
+            (step.payload ? '<div class="payload"><strong>Passed/changed:</strong> ' + esc(step.payload) + "</div>" : "") +
+          "</div>";
+        }).join("");
+      details.querySelectorAll(".step").forEach(row => {
+        const idx = +row.dataset.step;
+        row.addEventListener("mouseenter", () => highlightStep(idx, true));
+        row.addEventListener("mouseleave", () => highlightStep(idx, false));
+      });
+    }
+
+    function selectFlow(flowId, updateHash = true) {
+      const flow = data.flows.find(f => f.id === flowId) || data.flows[0];
+      currentFlowId = flow.id;
+      const active = new Set();
+      flow.steps.forEach(s => { active.add(s.from); active.add(s.to); });
+
+      document.querySelectorAll(".workflow-button").forEach(b => b.classList.toggle("active", b.dataset.flowId === flow.id));
+      nodeEls.forEach((el, id) => {
+        const on = active.has(id);
+        el.classList.toggle("active", on);
+        el.classList.toggle("dim", !on);
+      });
+      activeWorkflowName.textContent = flow.label;
+      drawFlow(flow);
+      renderFlowDetails(flow);
+      if (updateHash) history.replaceState(null, "", "#flow=" + flow.id);
+    }
+
+    function showNodeDetails(node) {
+      const usedIn = data.flows.filter(f => f.steps.some(s => s.from === node.id || s.to === node.id));
+      const pathHtml = node.path ? '<div class="node-card"><h4>Location</h4><p class="path">' + esc(node.path) + "</p></div>" : "";
+      const classHtml = (node.classes || []).length
+        ? '<div class="node-card"><h4>Key classes / artifacts</h4><div class="classes">' + node.classes.map(c => '<span class="pill">' + esc(c) + '</span>').join("") + "</div></div>"
+        : "";
+      const usedHtml = usedIn.length
+        ? usedIn.map(f => '<button class="used-btn" data-flow="' + f.id + '">' + esc(f.label) + "</button>").join("")
+        : '<span style="color:var(--muted)">— not part of a documented runtime flow —</span>';
+      details.innerHTML =
+        '<div class="kicker">' + esc(node.type) + " · " + esc(node.group) + "</div>" +
+        "<h3>" + esc(node.label) + "</h3>" +
+        '<div class="summary">' + esc(node.details) + "</div>" +
+        pathHtml + classHtml +
+        '<div class="node-card"><h4>Used in workflows</h4><p>' + usedHtml + "</p></div>";
+      details.querySelectorAll(".used-btn").forEach(b => b.addEventListener("click", () => selectFlow(b.dataset.flow)));
+    }
+
+    function renderWorkflowButtons() {
+      workflowList.innerHTML = data.flows.map((flow, i) =>
+        '<button class="workflow-button" data-flow-id="' + flow.id + '">' +
+          '<span class="wf-index">' + (i + 1) + "</span>" +
+          '<span class="wf-text"><span class="name">' + esc(flow.label) + '</span><span class="summary">' + esc(flow.summary) + "</span></span>" +
+        "</button>"
+      ).join("");
+      workflowList.querySelectorAll("button").forEach(b => b.addEventListener("click", () => selectFlow(b.dataset.flowId)));
+    }
+
+    function renderLegend() {
+      const types = [...new Set(data.nodes.map(n => n.type))].sort();
+      document.getElementById("legendGrid").innerHTML = types.map(t =>
+        '<div><span class="dot" style="background:' + (typeColors[t] || "#777") + '"></span>' + esc(t) + "</div>"
+      ).join("");
+    }
+
+    function flowFromHash() {
+      const m = /#flow=([\w-]+)/.exec(location.hash || "");
+      return m && data.flows.some(f => f.id === m[1]) ? m[1] : data.flows[0].id;
+    }
+
+    buildLanes();
+    buildNodes();
+    renderLegend();
+    renderWorkflowButtons();
+    layout();
+    selectFlow(flowFromHash(), false);
+
+    let raf = 0;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        layout();
+        if (currentFlowId) drawFlow(data.flows.find(f => f.id === currentFlowId));
+      });
+    });
+    ro.observe(scrollEl);
+    window.addEventListener("hashchange", () => selectFlow(flowFromHash(), false));
+  </script>
+</body>
+</html>
