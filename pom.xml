@@ -51,16 +51,18 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- JSON parsing for Quantum Numbers API responses -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
         </dependency>
 
     </dependencies>
@@ -137,7 +139,6 @@
                 </configuration>
             </plugin>
 
-            <!-- Code coverage: JaCoCo -->
             <!-- Code coverage: JaCoCo -->
             <plugin>
                 <groupId>org.jacoco</groupId>

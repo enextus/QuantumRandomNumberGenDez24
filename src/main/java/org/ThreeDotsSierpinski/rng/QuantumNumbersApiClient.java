@@ -58,30 +58,35 @@ final class QuantumNumbersApiClient {
             if (statusCode == 429) {
                 throw new RateLimitException(errorBody);
             }
-            throw new IOException("HTTP error code: " + statusCode + " - " + errorBody);
+            throw new ApiResponseException("HTTP error code: " + statusCode + " - " + errorBody);
         }
 
         String responseBody = response.body();
         LOGGER.info("Received response: "
                 + responseBody.substring(0, Math.min(200, responseBody.length())) + "...");
 
-        JsonNode rootNode = OBJECT_MAPPER.readTree(responseBody);
+        JsonNode rootNode;
+        try {
+            rootNode = OBJECT_MAPPER.readTree(responseBody);
+        } catch (IOException e) {
+            throw new InvalidApiResponseException("Invalid JSON response.", e);
+        }
 
         if (rootNode.has(DATA_NODE)) {
             JsonNode dataNode = rootNode.get(DATA_NODE);
 
             if (!dataNode.isArray()) {
-                throw new IOException("Invalid response format: 'data' is not an array.");
+                throw new InvalidApiResponseException("Invalid response format: 'data' is not an array.");
             }
 
             return new QuantumNumbersApiResponse(responseBody, parseNumbers(dataNode));
         }
 
         if (rootNode.has(MESSAGE_NODE)) {
-            throw new IOException("API Error: " + rootNode.get(MESSAGE_NODE).asText());
+            throw new ApiResponseException("API Error: " + rootNode.get(MESSAGE_NODE).asText());
         }
 
-        throw new IOException("Unexpected response from server.");
+        throw new InvalidApiResponseException("Unexpected response from server.");
     }
 
     private String buildRequestUrl() {
@@ -113,5 +118,21 @@ record QuantumNumbersApiResponse(String rawData, List<Integer> numbers) {
 class RateLimitException extends IOException {
     RateLimitException(String message) {
         super(message);
+    }
+}
+
+class ApiResponseException extends IOException {
+    ApiResponseException(String message) {
+        super(message);
+    }
+}
+
+class InvalidApiResponseException extends IOException {
+    InvalidApiResponseException(String message) {
+        super(message);
+    }
+
+    InvalidApiResponseException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

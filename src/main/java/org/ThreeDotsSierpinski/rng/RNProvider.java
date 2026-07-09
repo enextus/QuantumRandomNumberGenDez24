@@ -144,13 +144,10 @@ public class RNProvider {
             apiKeyConfigured = false;
             activatePseudoMode(FallbackReason.NO_API_KEY, "no API key");
         } else if (autoLoadOnStart) {
-            // Ключ есть!
-            if (isForcedPseudo) {
-                activatePseudoMode(FallbackReason.DEFAULT_LOCAL, "Default local mode"); // Стартуем визуально как PSEUDO
-                loadInitialDataAsync(); // Запускаем фоновую загрузку
-            } else {
-                loadInitialDataAsync();
-            }
+            // Ключ есть: стартуем визуально в локальном PSEUDO и параллельно
+            // пытаемся загрузить настоящие QUANTUM-числа.
+            activatePseudoMode(FallbackReason.DEFAULT_LOCAL, "Default local mode");
+            loadInitialDataAsync();
         }
     }
 
@@ -291,20 +288,14 @@ public class RNProvider {
 
             result = new long[actualSize];
 
-            // Читаем буфер в обратном порядке: от самых новых к старым.
+            // Walk the ring from newest to older values, but fill the result
+            // from the end so callers still receive oldest -> newest order.
             int currentIdx = ringWriteIndex == 0 ? HISTORY_MAX_SIZE - 1 : ringWriteIndex - 1;
 
-            for (int i = 0; i < actualSize; i++) {
+            for (int i = actualSize - 1; i >= 0; i--) {
                 result[i] = consumedNumbersRing[currentIdx];
                 currentIdx = currentIdx == 0 ? HISTORY_MAX_SIZE - 1 : currentIdx - 1;
             }
-        }
-
-        // Разворачиваем массив, чтобы индекс 0 был самым старым из выборки.
-        for (int i = 0; i < result.length / 2; i++) {
-            long temp = result[i];
-            result[i] = result[result.length - 1 - i];
-            result[result.length - 1 - i] = temp;
         }
 
         // Конвертируем в List<Long> для совместимости с остальным кодом.
@@ -410,6 +401,7 @@ public class RNProvider {
                         notifyApiAvailability(true);
                         break;
                     } catch (RateLimitException e) {
+                        handleLoadFailure(FallbackReason.RATE_LIMIT, "API request limit reached during reconnect.");
                         break;
                     } catch (Exception e) {
                         LOGGER.fine("Reconnect failed, will retry in "
@@ -648,8 +640,9 @@ public class RNProvider {
         CompletableFuture.runAsync(this::loadWithRetry, Thread::startVirtualThread)
                 .exceptionally(ex -> {
                     if (!shutdownRequested) {
-                        LOGGER.log(Level.SEVERE, "Exception during data loading", ex);
-                        handleLoadFailure("Exception: " + ex.getMessage());
+                        Throwable cause = unwrapCompletionException(ex);
+                        LOGGER.log(Level.SEVERE, "Exception during data loading", cause);
+                        handleLoadFailure(fallbackReasonFor(cause), "Exception: " + cause.getMessage());
                     }
                     finishApiLoad();
                     return null;
@@ -679,7 +672,7 @@ public class RNProvider {
 
                 } catch (RateLimitException e) {
                     LOGGER.info("Rate limit (429) detected. Bypassing retries, activating fallback.");
-                    handleLoadFailure("Суточный лимит исчерпан, переключаю на псевдослучайные числа.");
+                    handleLoadFailure(FallbackReason.RATE_LIMIT, "Суточный лимит исчерпан, переключаю на псевдослучайные числа.");
                     return;
 
                 } catch (Exception e) {
@@ -688,7 +681,10 @@ public class RNProvider {
 
                     if (retryCount > maxRetries) {
                         LOGGER.severe("All " + maxRetries + " retries failed: " + e.getMessage());
-                        handleLoadFailure("API unavailable after " + maxRetries + " retries: " + e.getMessage());
+                        handleLoadFailure(
+                                fallbackReasonFor(e),
+                                "API unavailable after " + maxRetries + " retries: " + e.getMessage()
+                        );
                         return;
                     }
 
@@ -715,12 +711,11 @@ public class RNProvider {
         }
     }
 
-    private void handleLoadFailure(String reason) {
+    private void handleLoadFailure(FallbackReason reasonCode, String reason) {
         if (shutdownRequested) {
             return;
         }
 
-        FallbackReason reasonCode = classifyFallbackReason(reason);
         if (reasonCode == FallbackReason.RATE_LIMIT) {
             LOGGER.info("Rate limit active. Reconnect monitor disabled until manual retry.");
         }
@@ -732,22 +727,28 @@ public class RNProvider {
         }
     }
 
-    private static FallbackReason classifyFallbackReason(String reason) {
-        if (reason == null || reason.isBlank()) {
-            return FallbackReason.API_ERROR;
-        }
+    private static FallbackReason fallbackReasonFor(Throwable error) {
+        Throwable cause = unwrapCompletionException(error);
 
-        String normalized = reason.toLowerCase(java.util.Locale.ROOT);
-        if (reason.contains("429") || normalized.contains("limit") || normalized.contains("лимит")) {
+        if (cause instanceof RateLimitException) {
             return FallbackReason.RATE_LIMIT;
         }
-        if (normalized.contains("connection refused")
-                || normalized.contains("timed out")
-                || normalized.contains("unknownhost")
-                || normalized.contains("unavailable")) {
+        if (cause instanceof ApiResponseException || cause instanceof InvalidApiResponseException) {
+            return FallbackReason.API_ERROR;
+        }
+        if (cause instanceof java.io.IOException || cause instanceof InterruptedException) {
             return FallbackReason.NETWORK_DOWN;
         }
+
         return FallbackReason.API_ERROR;
+    }
+
+    private static Throwable unwrapCompletionException(Throwable error) {
+        Throwable current = error;
+        while (current instanceof java.util.concurrent.CompletionException && current.getCause() != null) {
+            current = current.getCause();
+        }
+        return current;
     }
 
     long calculateBackoff(int retryAttempt) {

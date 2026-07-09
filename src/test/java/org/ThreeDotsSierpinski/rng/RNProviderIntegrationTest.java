@@ -464,6 +464,21 @@ class RNProviderIntegrationTest {
 
             assertEquals(RNProvider.Mode.PSEUDO, provider.getMode(),
                     "При API error должен уйти в PSEUDO");
+            assertEquals(FallbackReason.API_ERROR, provider.getFallbackReasonCode());
+            assertNull(provider.getLastError());
+            provider.shutdown(); // Останавливаем фоновый reconnect-monitor
+        }
+
+        @Test
+        @DisplayName("HTTP 429 → явный RATE_LIMIT fallback без парсинга текста")
+        void testHttp429UsesExplicitRateLimitReason() throws Exception {
+            mockStatus(429, "quota exhausted");
+
+            RNProvider provider = createQuantumProvider(testSettings());
+
+            assertTrue(waitUntil(() -> provider.getMode() == RNProvider.Mode.PSEUDO),
+                    "При HTTP 429 должен уйти в PSEUDO");
+
             assertEquals(FallbackReason.RATE_LIMIT, provider.getFallbackReasonCode());
             assertNull(provider.getLastError());
             provider.shutdown(); // Останавливаем фоновый reconnect-monitor
