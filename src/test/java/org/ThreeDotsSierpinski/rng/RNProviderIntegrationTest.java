@@ -31,6 +31,7 @@ import java.util.OptionalLong;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
@@ -621,6 +622,33 @@ class RNProviderIntegrationTest {
                 assertTrue(listener.errors.size() >= 2,
                         "Должно быть несколько ошибок (retry), получено: " + listener.errors.size());
                 provider.shutdown(); // Останавливаем фоновый reconnect-monitor
+            }
+
+            @Test
+            @DisplayName("Mode listeners are not notified while RNProvider monitor is locked")
+            void testModeListenersAreNotCalledUnderProviderMonitor() {
+                RNProvider.ProviderSettings settings = new RNProvider.ProviderSettings(
+                        baseUrl, "test-key", "uint16",
+                        2, 1, 0,
+                        2000, 2000, 0,
+                        3, 1L, 10L
+                );
+                RNProvider provider = new RNProvider(settings, false, INSTANT_SLEEPER, false);
+                AtomicBoolean listenerCalledUnderProviderLock = new AtomicBoolean(false);
+
+                provider.addDataLoadListener(new RecordingListener() {
+                    @Override
+                    public void onModeChanged(RNProvider.Mode mode) {
+                        listenerCalledUnderProviderLock.set(Thread.holdsLock(provider));
+                    }
+                });
+
+                OptionalInt result = provider.getNextRandomNumber();
+
+                assertTrue(result.isPresent(), "Rate-limit fallback should return a pseudo-random number");
+                assertEquals(RNProvider.Mode.PSEUDO, provider.getMode());
+                assertFalse(listenerCalledUnderProviderLock.get(),
+                        "RNProvider must not call listeners while holding its own monitor");
             }
         }
 

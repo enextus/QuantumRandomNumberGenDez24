@@ -327,13 +327,11 @@ public class RNProvider {
                 return OptionalInt.of(pseudoNum);
             }
 
-            synchronized (this) {
-                if (apiRequestCount >= maxApiRequests) {
-                    activatePseudoMode(FallbackReason.RATE_LIMIT, "API request limit reached (" + maxApiRequests + ")");
-                    int pseudoNum = nextPseudoUInt16();
-                    addConsumedNumber(pseudoNum, Mode.PSEUDO);
-                    return OptionalInt.of(pseudoNum);
-                }
+            if (isApiRequestLimitReached()) {
+                activatePseudoMode(FallbackReason.RATE_LIMIT, "API request limit reached (" + maxApiRequests + ")");
+                int pseudoNum = nextPseudoUInt16();
+                addConsumedNumber(pseudoNum, Mode.PSEUDO);
+                return OptionalInt.of(pseudoNum);
             }
 
             loadInitialDataAsync();
@@ -368,8 +366,16 @@ public class RNProvider {
                         break;
                     }
 
-                    if (shutdownRequested || !reconnecting.get()) {
+                    if (shutdownRequested || !reconnecting.get() || currentMode != Mode.PSEUDO) {
                         break;
+                    }
+
+                    if (!tryBeginApiLoad()) {
+                        if (isApiRequestLimitReached()) {
+                            break;
+                        }
+                        LOGGER.fine("Skipping reconnect attempt because another API load is already running.");
+                        continue;
                     }
 
                     LOGGER.info("Background reconnect attempt...");
@@ -391,6 +397,8 @@ public class RNProvider {
                                 + RECONNECT_RETRY_INTERVAL_MS
                                 + " ms: "
                                 + e.getMessage());
+                    } finally {
+                        finishApiLoad();
                     }
                 }
             } finally {
@@ -436,6 +444,29 @@ public class RNProvider {
 
     void triggerLoad() {
         loadInitialDataAsync();
+    }
+
+    private boolean isApiRequestLimitReached() {
+        synchronized (this) {
+            return apiRequestCount >= maxApiRequests;
+        }
+    }
+
+    private boolean tryBeginApiLoad() {
+        synchronized (this) {
+            if (shutdownRequested || isLoading || apiRequestCount >= maxApiRequests) {
+                return false;
+            }
+
+            isLoading = true;
+            return true;
+        }
+    }
+
+    private void finishApiLoad() {
+        synchronized (this) {
+            isLoading = false;
+        }
     }
 
     /**
@@ -561,21 +592,37 @@ public class RNProvider {
             return;
         }
 
+        boolean activateRateLimitFallback = false;
+        boolean fillPseudoQueue = false;
+        boolean startApiLoad = false;
+
         synchronized (this) {
-            if (shutdownRequested || isLoading || apiRequestCount >= maxApiRequests) {
-                if (apiRequestCount >= maxApiRequests && currentMode == Mode.QUANTUM) {
-                    activatePseudoMode(FallbackReason.RATE_LIMIT, "API request limit reached");
-                }
+            if (shutdownRequested || isLoading) {
                 return;
             }
 
-            // Разрешаем фоновую загрузку, если это старт по умолчанию (isForcedPseudo)
-            if (currentMode == Mode.PSEUDO && !isForcedPseudo) {
-                fillQueueWithPseudo();
-                return;
+            if (apiRequestCount >= maxApiRequests) {
+                activateRateLimitFallback = currentMode == Mode.QUANTUM;
+            } else if (currentMode == Mode.PSEUDO && !isForcedPseudo) {
+                fillPseudoQueue = true;
+            } else {
+                isLoading = true;
+                startApiLoad = true;
             }
+        }
 
-            isLoading = true;
+        if (activateRateLimitFallback) {
+            activatePseudoMode(FallbackReason.RATE_LIMIT, "API request limit reached");
+            return;
+        }
+
+        if (fillPseudoQueue) {
+            fillQueueWithPseudo();
+            return;
+        }
+
+        if (!startApiLoad) {
+            return;
         }
 
         CompletableFuture.runAsync(this::loadWithRetry, Thread::startVirtualThread)
@@ -584,9 +631,7 @@ public class RNProvider {
                         LOGGER.log(Level.SEVERE, "Exception during data loading", ex);
                         handleLoadFailure("Exception: " + ex.getMessage());
                     }
-                    synchronized (this) {
-                        isLoading = false;
-                    }
+                    finishApiLoad();
                     return null;
                 });
     }
@@ -646,9 +691,7 @@ public class RNProvider {
                 }
             }
         } finally {
-            synchronized (this) {
-                isLoading = false;
-            }
+            finishApiLoad();
         }
     }
 
