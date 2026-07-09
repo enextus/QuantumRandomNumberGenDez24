@@ -574,6 +574,11 @@ public class DotController extends JPanel {
     }
 
     public int saveImages(java.io.File directory, String baseName) {
+        if (offscreenImage == null) {
+            LOGGER.warning("No rendered image is available to save yet.");
+            return 0;
+        }
+
         int saved = 0;
 
         var transparentFile = new java.io.File(directory, baseName + TRANSPARENT_FILE_SUFFIX);
