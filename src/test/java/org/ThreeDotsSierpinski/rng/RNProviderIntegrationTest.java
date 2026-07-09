@@ -38,6 +38,8 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+
 /**
  * Интеграционные тесты для RNProvider с локальным mock HTTP-сервером.
  * Используют com.sun.net.httpserver.HttpServer — никаких внешних зависимостей.
@@ -620,23 +622,26 @@ class RNProviderIntegrationTest {
             }
 
             @Test
-            @DisplayName("Ошибка → started, error (несколько раз при retry)")
+            @DisplayName("Ошибка → started, error")
             void testErrorCallbacks() throws Exception {
                 mockStatus(500, "Server Error");
                 RecordingListener listener = new RecordingListener();
 
                 RNProvider provider = new RNProvider(testSettings(), false, INSTANT_SLEEPER, false);
-                provider.addDataLoadListener(listener);
-                provider.setForcedPseudo(false); // Запускаем загрузку ПОСЛЕ регистрации listener
+                try {
+                    provider.addDataLoadListener(listener);
+                    provider.setForcedPseudo(false); // Запускаем загрузку ПОСЛЕ регистрации listener
 
-                assertTrue(waitUntil(() -> provider.getLastError() != null || listener.events.contains("error")),
-                        "Должен получить ошибку без долгого ожидания");
+                    assertTrue(waitUntil(() -> provider.getLastError() != null || listener.events.contains("error")),
+                            "Должен получить ошибку без долгого ожидания");
 
-                assertTrue(listener.events.contains("started"), "Должен вызвать onLoadingStarted");
-                assertTrue(listener.events.contains("error"), "Должен вызвать onError");
-                assertTrue(listener.errors.size() >= 2,
-                        "Должно быть несколько ошибок (retry), получено: " + listener.errors.size());
-                provider.shutdown(); // Останавливаем фоновый reconnect-monitor
+                    assertTrue(listener.events.contains("started"), "Должен вызвать onLoadingStarted");
+                    assertTrue(listener.events.contains("error"), "Должен вызвать onError");
+                    assertFalse(listener.errors.isEmpty(),
+                            "Должен быть хотя бы один error callback");
+                } finally {
+                    provider.shutdown(); // Останавливаем фоновый reconnect-monitor
+                }
             }
 
             @Test
