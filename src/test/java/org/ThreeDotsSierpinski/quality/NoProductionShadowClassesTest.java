@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Guards against accidental copies of production classes in src/test/java.
- *
  * Maven puts target/test-classes before target/classes on the test classpath.
  * Therefore, if src/test/java contains a class with the same fully qualified
  * name as a production class, tests may execute the test copy instead of the
