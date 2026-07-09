@@ -91,6 +91,13 @@ public class RNProvider {
      * Доступ только под consumedNumbersLock.
      */
     private int totalConsumed = 0;
+    /**
+     * Monotonic version of the consumed-number history. Unlike totalConsumed,
+     * this keeps growing after the fixed-size ring buffer is full, so UI caches
+     * can detect fresh values even when the stored history size stays constant.
+     * Access only under consumedNumbersLock.
+     */
+    private long consumedVersion = 0L;
     private volatile boolean isLoading = false;
     private final AtomicBoolean reconnecting = new AtomicBoolean(false);
     private volatile boolean shutdownRequested = false;
@@ -248,6 +255,18 @@ public class RNProvider {
     public int getConsumedCount() {
         synchronized (consumedNumbersLock) {
             return totalConsumed;
+        }
+    }
+
+    /**
+     * Monotonic version of the consumed-number history.
+     * <p>
+     * Intended for lightweight UI cache invalidation: each consumed number
+     * increments this value, including after the fixed-size history ring is full.
+     */
+    public long getConsumedVersion() {
+        synchronized (consumedNumbersLock) {
+            return consumedVersion;
         }
     }
 
@@ -482,6 +501,7 @@ public class RNProvider {
             if (totalConsumed < HISTORY_MAX_SIZE) {
                 totalConsumed++;
             }
+            consumedVersion++;
         }
 
         if (shutdownRequested) {

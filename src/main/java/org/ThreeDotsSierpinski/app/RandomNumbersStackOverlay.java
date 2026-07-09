@@ -41,6 +41,9 @@ final class RandomNumbersStackOverlay {
     private static final Color VALUE_COLOR = Color.BLACK;
     private static final Color ROW_BACKGROUND = new Color(245, 245, 245);
 
+    private static final Object SNAPSHOT_CACHE_LOCK = new Object();
+    private static CachedSnapshot cachedSnapshot = CachedSnapshot.empty();
+
     private RandomNumbersStackOverlay() {
     }
 
@@ -56,8 +59,8 @@ final class RandomNumbersStackOverlay {
         int visibleRows = calculateVisibleRows(panelHeight, startY, style);
         int snapshotLimit = calculateSnapshotLimit(visibleRows);
 
-        List<Long> numbers = randomNumberProvider.getLastConsumedNumbers(snapshotLimit);
-        if (numbers.isEmpty()) {
+        CachedSnapshot snapshot = getCachedSnapshot(randomNumberProvider, snapshotLimit);
+        if (snapshot.isEmpty()) {
             return;
         }
 
@@ -65,7 +68,7 @@ final class RandomNumbersStackOverlay {
         try {
             g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-            Map<Integer, List<Long>> numbersByDigits = groupNumbersByDigitCount(numbers);
+            Map<Integer, List<Long>> numbersByDigits = snapshot.numbersByDigits();
 
             int stackWidth = calculateStackWidth(g2d, style);
             int currentX = style == VisualizationStyle.APPLE_MAC
@@ -102,6 +105,65 @@ final class RandomNumbersStackOverlay {
             }
         } finally {
             g2d.dispose();
+        }
+    }
+
+    private static CachedSnapshot getCachedSnapshot(RNProvider randomNumberProvider, int snapshotLimit) {
+        long consumedVersion = randomNumberProvider.getConsumedVersion();
+
+        synchronized (SNAPSHOT_CACHE_LOCK) {
+            if (cachedSnapshot.matches(randomNumberProvider, consumedVersion, snapshotLimit)) {
+                return cachedSnapshot;
+            }
+        }
+
+        List<Long> numbers = randomNumberProvider.getLastConsumedNumbers(snapshotLimit);
+        CachedSnapshot freshSnapshot = CachedSnapshot.from(randomNumberProvider, consumedVersion, snapshotLimit, numbers);
+
+        synchronized (SNAPSHOT_CACHE_LOCK) {
+            if (cachedSnapshot.matches(randomNumberProvider, consumedVersion, snapshotLimit)) {
+                return cachedSnapshot;
+            }
+
+            cachedSnapshot = freshSnapshot;
+            return cachedSnapshot;
+        }
+    }
+
+    private record CachedSnapshot(
+            RNProvider provider,
+            long consumedVersion,
+            int snapshotLimit,
+            boolean isEmpty,
+            Map<Integer, List<Long>> numbersByDigits
+    ) {
+        private static CachedSnapshot empty() {
+            return new CachedSnapshot(null, -1L, -1, true, Map.of());
+        }
+
+        private static CachedSnapshot from(
+                RNProvider provider,
+                long consumedVersion,
+                int snapshotLimit,
+                List<Long> numbers
+        ) {
+            if (numbers.isEmpty()) {
+                return new CachedSnapshot(provider, consumedVersion, snapshotLimit, true, Map.of());
+            }
+
+            return new CachedSnapshot(
+                    provider,
+                    consumedVersion,
+                    snapshotLimit,
+                    false,
+                    groupNumbersByDigitCount(numbers)
+            );
+        }
+
+        private boolean matches(RNProvider candidateProvider, long candidateVersion, int candidateLimit) {
+            return provider == candidateProvider
+                    && consumedVersion == candidateVersion
+                    && snapshotLimit == candidateLimit;
         }
     }
 
@@ -292,10 +354,8 @@ final class RandomNumbersStackOverlay {
     private static int calculateSnapshotLimit(int visibleRows) {
         long calculatedLimit = (long) Math.max(1, visibleRows) * DIGIT_GROUP_COUNT * HISTORY_OVERSCAN_FACTOR;
 
-        return (int) Math.min(
-                Integer.MAX_VALUE,
-                Math.max(MIN_SNAPSHOT_SIZE, calculatedLimit)
-        );
+        return Math.clamp(calculatedLimit, MIN_SNAPSHOT_SIZE,
+                Integer.MAX_VALUE);
     }
 
     private static int getTopMargin(VisualizationStyle style) {
