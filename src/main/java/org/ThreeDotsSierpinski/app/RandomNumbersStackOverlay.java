@@ -450,4 +450,10 @@ final class RandomNumbersStackOverlay {
 
         return dark ? DARK_ROW_BACKGROUND : ROW_BACKGROUND;
     }
+
+    static void resetCache() {
+        synchronized (SNAPSHOT_CACHE_LOCK) {
+            cachedSnapshot = CachedSnapshot.empty();
+        }
+    }
 }

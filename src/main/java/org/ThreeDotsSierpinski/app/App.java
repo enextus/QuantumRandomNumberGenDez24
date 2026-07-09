@@ -279,6 +279,7 @@ public class App {
 
         dotController.shutdown();
         randomNumberProvider.shutdown();
+        RandomNumbersStackOverlay.resetCache();
         frame.dispose();
 
         LOGGER.info(LOG_VISUALIZATION_FINISHED);
