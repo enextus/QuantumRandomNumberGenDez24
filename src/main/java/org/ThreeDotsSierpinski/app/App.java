@@ -7,15 +7,12 @@ import org.ThreeDotsSierpinski.mode.VisualizationMode;
 import org.ThreeDotsSierpinski.rng.FallbackReason;
 import org.ThreeDotsSierpinski.rng.RNLoadListenerImpl;
 import org.ThreeDotsSierpinski.rng.RNProvider;
-import org.ThreeDotsSierpinski.stats.RandomnessTestSuite;
-import org.ThreeDotsSierpinski.stats.TestResult;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
@@ -188,49 +185,7 @@ public class App {
         });
 
         // Проверить качество
-        testButton.addActionListener(_ -> {
-            List<Long> numbers = dotController.getUsedRandomNumbers();
-            if (numbers.size() < 10) {
-                statusLabel.setText("Нужно минимум 10 точек для тестов");
-                return;
-            }
-
-            RandomnessTestSuite suite = new RandomnessTestSuite();
-            List<TestResult> results = suite.runAll(numbers, 0.05);
-            long passed = results.stream().filter(TestResult::passed).count();
-
-            statusLabel.setText("Тесты: " + passed + "/" + results.size()
-                    + " пройдено (" + numbers.size() + " чисел)");
-
-            var panel = new JPanel();
-            panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-            panel.setBorder(BorderFactory.createEmptyBorder(8, 4, 8, 4));
-
-            for (TestResult result : results) {
-                panel.add(getJPanel(result));
-            }
-
-            panel.add(Box.createVerticalStrut(8));
-            var summary = new JLabel("Итого: " + passed + "/" + results.size() + " тестов пройдено");
-            summary.setFont(new Font("SansSerif", Font.BOLD, 13));
-            summary.setAlignmentX(Component.LEFT_ALIGNMENT);
-            summary.setBorder(BorderFactory.createEmptyBorder(4, 8, 0, 0));
-            panel.add(summary);
-
-            var legend = new JLabel("<html><font color='#228B22'>● отлично</font>"
-                    + "   <font color='#CC9900'>● приемлемо</font>"
-                    + "   <font color='#CC0000'>● не пройден</font></html>");
-            legend.setFont(new Font("SansSerif", Font.PLAIN, 11));
-            legend.setBorder(BorderFactory.createEmptyBorder(6, 8, 0, 0));
-            legend.setAlignmentX(Component.LEFT_ALIGNMENT);
-            panel.add(legend);
-
-            JOptionPane.showMessageDialog(
-                    frame, panel,
-                    "Результаты тестов случайности (" + numbers.size() + " чисел)",
-                    passed == results.size() ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.WARNING_MESSAGE
-            );
-        });
+        testButton.addActionListener(_ -> RandomnessQualityCheck.run(frame, statusLabel, testButton, dotController, visualizationFinished));
 
         // Save PNG
         saveButton.addActionListener(_ -> {
@@ -435,27 +390,4 @@ public class App {
         return null;
     }
 
-    private static JPanel getJPanel(TestResult result) {
-        var row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
-        var indicator = new JLabel("●");
-        indicator.setFont(new Font("SansSerif", Font.BOLD, 16));
-        indicator.setForeground(switch (result.quality()) {
-            case STRONG -> new Color(34, 139, 34);
-            case MARGINAL -> new Color(204, 153, 0);
-            case FAIL -> new Color(204, 0, 0);
-        });
-        row.add(indicator);
-        var mark = new JLabel(switch (result.quality()) {
-            case STRONG -> "✓";
-            case MARGINAL -> "○";
-            case FAIL -> "✗";
-        });
-        mark.setFont(new Font("SansSerif", Font.BOLD, 14));
-        mark.setForeground(indicator.getForeground());
-        row.add(mark);
-        var text = new JLabel(result.statistic() + "    " + result.testName());
-        text.setFont(new Font("Monospaced", Font.PLAIN, 13));
-        row.add(text);
-        return row;
-    }
 }
