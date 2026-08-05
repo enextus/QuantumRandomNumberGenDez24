@@ -15,6 +15,7 @@ import org.ThreeDotsSierpinski.mode.physics.ChaosLissajousMode;
 import org.ThreeDotsSierpinski.mode.physics.ChirikovStandardMapMode;
 import org.ThreeDotsSierpinski.mode.physics.DadrasAttractorMode;
 import org.ThreeDotsSierpinski.mode.physics.ForestFireMode;
+import org.ThreeDotsSierpinski.mode.physics.FourierSeriesSpiralMode;
 import org.ThreeDotsSierpinski.mode.physics.HalvorsenAttractorMode;
 import org.ThreeDotsSierpinski.mode.physics.Lissajous3DMode;
 import org.ThreeDotsSierpinski.mode.physics.LissajousFrequencyMode;
@@ -80,6 +81,7 @@ public final class VisualizationModes {
                 new Lissajous3DMode(),
                 new LissajousSpectralAnalyzerMode(),
                 new ChaosLissajousMode(),
+                new FourierSeriesSpiralMode(),
         };
     }
 }

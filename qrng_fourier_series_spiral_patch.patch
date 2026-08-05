@@ -1,0 +1,617 @@
+diff --git a/src/main/java/org/ThreeDotsSierpinski/mode/VisualizationModes.java b/src/main/java/org/ThreeDotsSierpinski/mode/VisualizationModes.java
+index c7cae35..f212893 100644
+--- a/src/main/java/org/ThreeDotsSierpinski/mode/VisualizationModes.java
++++ b/src/main/java/org/ThreeDotsSierpinski/mode/VisualizationModes.java
+@@ -15,6 +15,7 @@ import org.ThreeDotsSierpinski.mode.physics.ChaosLissajousMode;
+ import org.ThreeDotsSierpinski.mode.physics.ChirikovStandardMapMode;
+ import org.ThreeDotsSierpinski.mode.physics.DadrasAttractorMode;
+ import org.ThreeDotsSierpinski.mode.physics.ForestFireMode;
++import org.ThreeDotsSierpinski.mode.physics.FourierSeriesSpiralMode;
+ import org.ThreeDotsSierpinski.mode.physics.HalvorsenAttractorMode;
+ import org.ThreeDotsSierpinski.mode.physics.Lissajous3DMode;
+ import org.ThreeDotsSierpinski.mode.physics.LissajousFrequencyMode;
+@@ -80,6 +81,7 @@ public final class VisualizationModes {
+                 new Lissajous3DMode(),
+                 new LissajousSpectralAnalyzerMode(),
+                 new ChaosLissajousMode(),
++                new FourierSeriesSpiralMode(),
+         };
+     }
+ }
+diff --git a/src/main/java/org/ThreeDotsSierpinski/mode/physics/FourierSeriesSpiralMode.java b/src/main/java/org/ThreeDotsSierpinski/mode/physics/FourierSeriesSpiralMode.java
+new file mode 100644
+index 0000000..b4b32fc
+--- /dev/null
++++ b/src/main/java/org/ThreeDotsSierpinski/mode/physics/FourierSeriesSpiralMode.java
+@@ -0,0 +1,463 @@
++package org.ThreeDotsSierpinski.mode.physics;
++
++import org.ThreeDotsSierpinski.mode.RngStepBudget;
++import org.ThreeDotsSierpinski.mode.VisualizationCategory;
++import org.ThreeDotsSierpinski.mode.VisualizationMode;
++import org.ThreeDotsSierpinski.rng.RNProvider;
++
++import java.awt.*;
++import java.awt.geom.Ellipse2D;
++import java.awt.geom.Line2D;
++import java.awt.image.BufferedImage;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Locale;
++import java.util.OptionalInt;
++
++/**
++ * Fourier epicycle spiral inspired by the classic rotating-vector construction.
++ *
++ * <p>The mode uses an Archimedean spiral as the slowly expanding base vector and
++ * adds a short Fourier series of smaller rotating vectors. The endpoint of the
++ * vector chain draws the luminous trail; the current vector chain is rendered as
++ * a thin epicycle overlay. QRNG/PSEUDO values add small phase and branch jitter,
++ * so the same deterministic series becomes a living random-number visualization.</p>
++ */
++public class FourierSeriesSpiralMode implements VisualizationMode {
++
++    private static final String ID = "fourier-series-spiral";
++    private static final String NAME = "Fourier Series Spiral";
++    private static final String DESCRIPTION =
++            "Epicycle/Fourier-series spiral with QRNG-modulated phase jitter.\n"
++                    + "Rotating vectors trace a luminous spiral with small recursive branchlets.";
++    private static final String ICON = "∑";
++
++    private static final double RANDOM_MAX = 65_535.0;
++    private static final double TWO_PI = Math.PI * 2.0;
++    private static final double MAX_THETA = TWO_PI * 5.65;
++    private static final double THETA_STEP = 0.018;
++    private static final double SPIRAL_POWER = 0.94;
++    private static final double OUTER_RADIUS_FACTOR = 0.39;
++    private static final double INNER_RADIUS_FACTOR = 0.010;
++    private static final double HARMONIC_JITTER_SCALE = 0.0026;
++    private static final double BRANCH_SPREAD_BASE = 0.48;
++    private static final double BRANCH_SPREAD_JITTER = 0.36;
++    private static final double MIN_BRANCH_LENGTH = 4.0;
++    private static final double MAX_BRANCH_LENGTH = 13.0;
++    private static final double CHILD_BRANCH_SCALE = 0.58;
++    private static final int BRANCH_DEPTH = 2;
++    private static final int SAMPLES_PER_STEP = 96;
++    private static final int QUANTUM_SAMPLES_PER_STEP = 18;
++    private static final int CANVAS_ORIGIN = 0;
++    private static final int MIN_CANVAS_SIZE = 1;
++    private static final int HUD_X = 18;
++    private static final int HUD_TITLE_Y = 28;
++    private static final int HUD_SUBTITLE_Y = 48;
++    private static final int HUD_STATUS_Y = 68;
++    private static final int TITLE_FONT_SIZE = 25;
++    private static final int SUBTITLE_FONT_SIZE = 13;
++    private static final int STATUS_FONT_SIZE = 12;
++    private static final int EPICYCLE_POINT_RADIUS = 3;
++    private static final int TRACE_STROKE_WIDTH = 1;
++    private static final int BACKGROUND_FADE_ALPHA = 16;
++    private static final int TRACE_ALPHA = 150;
++    private static final int BRANCH_ALPHA = 150;
++    private static final int EPICYCLE_ALPHA = 155;
++    private static final int EPICYCLE_CIRCLE_ALPHA = 52;
++
++    private static final int[] HARMONIC_FREQUENCIES = {2, -3, 5, -8, 13};
++    private static final double[] HARMONIC_RADIUS_FACTORS = {0.062, 0.043, 0.030, 0.021, 0.014};
++    private static final double[] INITIAL_PHASES = {0.20, 1.55, 2.85, 4.10, 5.35};
++
++    private static final Color BACKGROUND = new Color(22, 2, 0);
++    private static final Color BACKGROUND_FADE = new Color(22, 2, 0, BACKGROUND_FADE_ALPHA);
++    private static final Color TITLE_COLOR = new Color(248, 236, 206);
++    private static final Color TEXT_COLOR = new Color(204, 176, 150);
++    private static final Color EPICYCLE_COLOR = new Color(252, 244, 230, EPICYCLE_ALPHA);
++    private static final Color EPICYCLE_CIRCLE_COLOR = new Color(252, 244, 230, EPICYCLE_CIRCLE_ALPHA);
++    private static final Color[] PALETTE = {
++            new Color(255, 235, 64, BRANCH_ALPHA),
++            new Color(171, 47, 255, BRANCH_ALPHA),
++            new Color(128, 182, 255, BRANCH_ALPHA),
++            new Color(255, 255, 245, 128)
++    };
++
++    private static final Font TITLE_FONT = new Font("SansSerif", Font.BOLD, TITLE_FONT_SIZE);
++    private static final Font SUBTITLE_FONT = new Font("SansSerif", Font.PLAIN, SUBTITLE_FONT_SIZE);
++    private static final Font STATUS_FONT = new Font("Monospaced", Font.PLAIN, STATUS_FONT_SIZE);
++    private static final Stroke TRACE_STROKE = new BasicStroke(TRACE_STROKE_WIDTH, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
++    private static final Stroke EPICYCLE_STROKE = new BasicStroke(1.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
++
++    private final double[] phaseOffsets = INITIAL_PHASES.clone();
++
++    private int width;
++    private int height;
++    private int pointCount;
++    private int randomNumbersUsed;
++    private double theta;
++    private double previousX;
++    private double previousY;
++    private boolean hasPreviousPoint;
++    private BufferedImage traceLayer;
++    private RNProvider.Mode lastObservedMode = RNProvider.Mode.PSEUDO;
++
++    @Override
++    public String getId() {
++        return ID;
++    }
++
++    @Override
++    public String getName() {
++        return NAME;
++    }
++
++    @Override
++    public String getDescription() {
++        return DESCRIPTION;
++    }
++
++    @Override
++    public String getIcon() {
++        return ICON;
++    }
++
++    @Override
++    public VisualizationCategory getCategory() {
++        return VisualizationCategory.LISSAJOUS;
++    }
++
++    @Override
++    public boolean usesDarkBackground() {
++        return true;
++    }
++
++    @Override
++    public boolean usesRecolorAnimation() {
++        return false;
++    }
++
++    @Override
++    public boolean usesInfoTextOverlay() {
++        return false;
++    }
++
++    @Override
++    public boolean usesPointCounterOverlay() {
++        return false;
++    }
++
++    @Override
++    public boolean usesRngModeIndicatorOverlay() {
++        return false;
++    }
++
++    @Override
++    public boolean usesRandomNumbersStackOverlay() {
++        return false;
++    }
++
++    @Override
++    public void initialize(BufferedImage canvas, int width, int height) {
++        if (canvas == null) {
++            throw new IllegalArgumentException("Canvas cannot be null");
++        }
++
++        this.width = Math.max(MIN_CANVAS_SIZE, width);
++        this.height = Math.max(MIN_CANVAS_SIZE, height);
++        this.traceLayer = new BufferedImage(this.width, this.height, BufferedImage.TYPE_INT_ARGB);
++        resetState();
++        render(canvas);
++    }
++
++    @Override
++    public List<Point> step(RNProvider provider, BufferedImage canvas, int dotSize) {
++        ensureInitialized(canvas);
++        if (provider == null || canvas == null || traceLayer == null) {
++            return List.of();
++        }
++
++        lastObservedMode = provider.getMode();
++        int samplesThisStep = RngStepBudget.forProvider(provider, SAMPLES_PER_STEP, QUANTUM_SAMPLES_PER_STEP);
++        List<Point> newPoints = new ArrayList<>(samplesThisStep);
++
++        Graphics2D graphics = traceLayer.createGraphics();
++        try {
++            graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
++            graphics.setStroke(TRACE_STROKE);
++            fadeTraceLayer(graphics);
++
++            for (int i = 0; i < samplesThisStep; i++) {
++                OptionalInt raw = provider.getNextRandomNumber();
++                if (raw.isEmpty()) {
++                    break;
++                }
++
++                randomNumbersUsed++;
++                advancePhaseOffsets(raw.getAsInt());
++                Point point = drawNextSample(graphics, raw.getAsInt());
++                newPoints.add(point);
++                pointCount++;
++
++                theta += THETA_STEP;
++                if (theta >= MAX_THETA) {
++                    resetTraceLayer(graphics);
++                    resetSpiralCycle();
++                }
++            }
++        } finally {
++            graphics.dispose();
++        }
++
++        if (!newPoints.isEmpty()) {
++            render(canvas);
++        }
++
++        return newPoints;
++    }
++
++    @Override
++    public void redraw(BufferedImage canvas, int width, int height, int dotSize) {
++        if (canvas == null) {
++            return;
++        }
++
++        if (canvas.getWidth() != this.width || canvas.getHeight() != this.height || traceLayer == null) {
++            initialize(canvas, canvas.getWidth(), canvas.getHeight());
++            return;
++        }
++
++        render(canvas);
++    }
++
++    @Override
++    public int getPointCount() {
++        return pointCount;
++    }
++
++    @Override
++    public int getRandomNumbersUsed() {
++        return randomNumbersUsed;
++    }
++
++    private void ensureInitialized(BufferedImage canvas) {
++        if (canvas != null && (traceLayer == null || canvas.getWidth() != width || canvas.getHeight() != height)) {
++            initialize(canvas, canvas.getWidth(), canvas.getHeight());
++        }
++    }
++
++    private void resetState() {
++        pointCount = 0;
++        randomNumbersUsed = 0;
++        resetSpiralCycle();
++        clearTraceLayer();
++        System.arraycopy(INITIAL_PHASES, 0, phaseOffsets, 0, phaseOffsets.length);
++    }
++
++    private void resetSpiralCycle() {
++        theta = THETA_STEP;
++        hasPreviousPoint = false;
++    }
++
++    private void clearTraceLayer() {
++        if (traceLayer == null) {
++            return;
++        }
++
++        Graphics2D graphics = traceLayer.createGraphics();
++        try {
++            resetTraceLayer(graphics);
++        } finally {
++            graphics.dispose();
++        }
++    }
++
++    private void resetTraceLayer(Graphics2D graphics) {
++        Composite oldComposite = graphics.getComposite();
++        graphics.setComposite(AlphaComposite.Clear);
++        graphics.fillRect(CANVAS_ORIGIN, CANVAS_ORIGIN, width, height);
++        graphics.setComposite(oldComposite);
++    }
++
++    private void fadeTraceLayer(Graphics2D graphics) {
++        Composite oldComposite = graphics.getComposite();
++        graphics.setComposite(AlphaComposite.SrcOver);
++        graphics.setColor(BACKGROUND_FADE);
++        graphics.fillRect(CANVAS_ORIGIN, CANVAS_ORIGIN, width, height);
++        graphics.setComposite(oldComposite);
++    }
++
++    private Point drawNextSample(Graphics2D graphics, int raw) {
++        SpiralPoint point = calculateSpiralPoint(theta, raw);
++        Color traceColor = colorFor(raw, theta, TRACE_ALPHA);
++        graphics.setColor(traceColor);
++
++        if (hasPreviousPoint) {
++            graphics.draw(new Line2D.Double(previousX, previousY, point.x(), point.y()));
++        }
++
++        drawBranchlets(graphics, point, raw);
++
++        previousX = point.x();
++        previousY = point.y();
++        hasPreviousPoint = true;
++
++        return new Point((int) Math.round(point.x()), (int) Math.round(point.y()));
++    }
++
++    private void drawBranchlets(Graphics2D graphics, SpiralPoint origin, int raw) {
++        double normalized = normalize(raw);
++        double normalAngle = origin.theta() + Math.PI / 2.0;
++        double spread = BRANCH_SPREAD_BASE + (normalized * BRANCH_SPREAD_JITTER);
++        double length = MIN_BRANCH_LENGTH + normalized * (MAX_BRANCH_LENGTH - MIN_BRANCH_LENGTH);
++        Color color = colorFor(raw, origin.theta(), BRANCH_ALPHA);
++
++        graphics.setColor(color);
++        drawBranch(graphics, origin.x(), origin.y(), normalAngle + spread, length, BRANCH_DEPTH);
++        drawBranch(graphics, origin.x(), origin.y(), normalAngle - spread, length * 0.82, BRANCH_DEPTH);
++    }
++
++    private void drawBranch(Graphics2D graphics, double x, double y, double angle, double length, int depth) {
++        if (depth <= 0 || length < 1.2) {
++            return;
++        }
++
++        double nextX = x + Math.cos(angle) * length;
++        double nextY = y + Math.sin(angle) * length;
++        graphics.draw(new Line2D.Double(x, y, nextX, nextY));
++
++        drawBranch(graphics, nextX, nextY, angle + 0.58, length * CHILD_BRANCH_SCALE, depth - 1);
++        drawBranch(graphics, nextX, nextY, angle - 0.48, length * CHILD_BRANCH_SCALE, depth - 1);
++    }
++
++    private SpiralPoint calculateSpiralPoint(double localTheta, int raw) {
++        double centerX = width / 2.0;
++        double centerY = height / 2.0;
++        double maxRadius = Math.max(MIN_CANVAS_SIZE, Math.min(width, height) * OUTER_RADIUS_FACTOR);
++        double normalizedTheta = Math.clamp(localTheta / MAX_THETA, 0.0, 1.0);
++        double baseRadius = Math.min(width, height) * INNER_RADIUS_FACTOR
++                + maxRadius * Math.pow(normalizedTheta, SPIRAL_POWER);
++        double radiusJitter = signedUnit(raw) * maxRadius * 0.006;
++
++        double x = centerX + (baseRadius + radiusJitter) * Math.cos(localTheta);
++        double y = centerY + (baseRadius + radiusJitter) * Math.sin(localTheta);
++
++        for (int i = 0; i < HARMONIC_FREQUENCIES.length; i++) {
++            double harmonicRadius = maxRadius * HARMONIC_RADIUS_FACTORS[i] * (1.10 - normalizedTheta * 0.42);
++            double angle = HARMONIC_FREQUENCIES[i] * localTheta + phaseOffsets[i];
++            x += harmonicRadius * Math.cos(angle);
++            y += harmonicRadius * Math.sin(angle);
++        }
++
++        return new SpiralPoint(x, y, localTheta);
++    }
++
++    private void advancePhaseOffsets(int raw) {
++        for (int i = 0; i < phaseOffsets.length; i++) {
++            int shifted = Integer.rotateRight(raw, i * 5);
++            phaseOffsets[i] += signedUnit(shifted) * HARMONIC_JITTER_SCALE * (i + 1);
++        }
++    }
++
++    private void render(BufferedImage canvas) {
++        Graphics2D graphics = canvas.createGraphics();
++        try {
++            graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
++            graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
++            drawBackground(graphics);
++            graphics.drawImage(traceLayer, CANVAS_ORIGIN, CANVAS_ORIGIN, null);
++            drawEpicycleOverlay(graphics);
++            drawHud(graphics);
++        } finally {
++            graphics.dispose();
++        }
++    }
++
++    private void drawBackground(Graphics2D graphics) {
++        graphics.setColor(BACKGROUND);
++        graphics.fillRect(CANVAS_ORIGIN, CANVAS_ORIGIN, width, height);
++    }
++
++    private void drawEpicycleOverlay(Graphics2D graphics) {
++        double centerX = width / 2.0;
++        double centerY = height / 2.0;
++        double maxRadius = Math.max(MIN_CANVAS_SIZE, Math.min(width, height) * OUTER_RADIUS_FACTOR);
++        double normalizedTheta = Math.clamp(theta / MAX_THETA, 0.0, 1.0);
++        double baseRadius = Math.min(width, height) * INNER_RADIUS_FACTOR
++                + maxRadius * Math.pow(normalizedTheta, SPIRAL_POWER);
++
++        double currentX = centerX;
++        double currentY = centerY;
++        double baseX = centerX + baseRadius * Math.cos(theta);
++        double baseY = centerY + baseRadius * Math.sin(theta);
++
++        graphics.setStroke(EPICYCLE_STROKE);
++        graphics.setColor(EPICYCLE_COLOR);
++        graphics.draw(new Line2D.Double(currentX, currentY, baseX, baseY));
++        drawNode(graphics, baseX, baseY);
++
++        currentX = baseX;
++        currentY = baseY;
++
++        for (int i = 0; i < HARMONIC_FREQUENCIES.length; i++) {
++            double radius = maxRadius * HARMONIC_RADIUS_FACTORS[i] * (1.10 - normalizedTheta * 0.42);
++            double angle = HARMONIC_FREQUENCIES[i] * theta + phaseOffsets[i];
++            double nextX = currentX + radius * Math.cos(angle);
++            double nextY = currentY + radius * Math.sin(angle);
++
++            graphics.setColor(EPICYCLE_CIRCLE_COLOR);
++            graphics.draw(new Ellipse2D.Double(currentX - radius, currentY - radius, radius * 2.0, radius * 2.0));
++            graphics.setColor(EPICYCLE_COLOR);
++            graphics.draw(new Line2D.Double(currentX, currentY, nextX, nextY));
++            drawNode(graphics, nextX, nextY);
++
++            currentX = nextX;
++            currentY = nextY;
++        }
++    }
++
++    private static void drawNode(Graphics2D graphics, double x, double y) {
++        graphics.fill(new Ellipse2D.Double(
++                x - EPICYCLE_POINT_RADIUS,
++                y - EPICYCLE_POINT_RADIUS,
++                EPICYCLE_POINT_RADIUS * 2.0,
++                EPICYCLE_POINT_RADIUS * 2.0
++        ));
++    }
++
++    private void drawHud(Graphics2D graphics) {
++        graphics.setFont(TITLE_FONT);
++        graphics.setColor(TITLE_COLOR);
++        graphics.drawString(NAME, HUD_X, HUD_TITLE_Y);
++
++        graphics.setFont(SUBTITLE_FONT);
++        graphics.setColor(TEXT_COLOR);
++        graphics.drawString("z(θ) = r(θ)e^{iθ} + Σ cₖe^{ikθ}; QRNG perturbs phases", HUD_X, HUD_SUBTITLE_Y);
++
++        graphics.setFont(STATUS_FONT);
++        graphics.drawString(
++                String.format(Locale.US, "mode=%s  θ=%.2f  points=%d  rng=%d", lastObservedMode, theta, pointCount, randomNumbersUsed),
++                HUD_X,
++                HUD_STATUS_Y
++        );
++    }
++
++    private static double normalize(int value) {
++        return Math.floorMod(value, 65_536) / RANDOM_MAX;
++    }
++
++    private static double signedUnit(int value) {
++        return normalize(value) * 2.0 - 1.0;
++    }
++
++    private static Color colorFor(int raw, double localTheta, int alpha) {
++        int paletteIndex = Math.floorMod(raw >>> 4, PALETTE.length);
++        Color base = PALETTE[paletteIndex];
++        float brightnessPulse = (float) (0.78 + 0.20 * Math.sin(localTheta * 1.7 + paletteIndex));
++        float[] hsb = Color.RGBtoHSB(base.getRed(), base.getGreen(), base.getBlue(), null);
++        Color rgb = Color.getHSBColor(hsb[0], Math.min(1.0f, hsb[1] * 1.05f), Math.clamp(brightnessPulse, 0.45f, 1.0f));
++        return new Color(rgb.getRed(), rgb.getGreen(), rgb.getBlue(), alpha);
++    }
++
++    private record SpiralPoint(double x, double y, double theta) {
++    }
++}
+diff --git a/src/test/java/org/ThreeDotsSierpinski/mode/VisualizationModeRegistryTest.java b/src/test/java/org/ThreeDotsSierpinski/mode/VisualizationModeRegistryTest.java
+index f4802ce..e15c163 100644
+--- a/src/test/java/org/ThreeDotsSierpinski/mode/VisualizationModeRegistryTest.java
++++ b/src/test/java/org/ThreeDotsSierpinski/mode/VisualizationModeRegistryTest.java
+@@ -51,6 +51,7 @@ class VisualizationModeRegistryTest {
+         assertTrue(ids.contains("dla"));
+         assertTrue(ids.contains("monte-carlo-mandelbrot-3d-area"));
+         assertTrue(ids.contains("chirikov-standard-map"));
++        assertTrue(ids.contains("fourier-series-spiral"));
+     }
+ 
+     @Test
+diff --git a/src/test/java/org/ThreeDotsSierpinski/mode/physics/FourierSeriesSpiralModeTest.java b/src/test/java/org/ThreeDotsSierpinski/mode/physics/FourierSeriesSpiralModeTest.java
+new file mode 100644
+index 0000000..0533afb
+--- /dev/null
++++ b/src/test/java/org/ThreeDotsSierpinski/mode/physics/FourierSeriesSpiralModeTest.java
+@@ -0,0 +1,110 @@
++package org.ThreeDotsSierpinski.mode.physics;
++
++import org.ThreeDotsSierpinski.rng.RNProvider;
++import org.junit.jupiter.api.DisplayName;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++import java.awt.*;
++import java.awt.image.BufferedImage;
++import java.util.List;
++import java.util.OptionalInt;
++import java.util.concurrent.atomic.AtomicInteger;
++
++import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++@DisplayName("FourierSeriesSpiralMode")
++@Tag("fast")
++class FourierSeriesSpiralModeTest {
++
++    private static final int WIDTH = 220;
++    private static final int HEIGHT = 180;
++    private static final int DOT_SIZE = 2;
++
++    @Test
++    @DisplayName("Consumes RNG values and draws Fourier spiral samples")
++    void consumesRngValuesAndDrawsSpiralSamples() {
++        FourierSeriesSpiralMode mode = new FourierSeriesSpiralMode();
++        BufferedImage canvas = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
++
++        mode.initialize(canvas, WIDTH, HEIGHT);
++        List<Point> points = mode.step(sequentialProvider(), canvas, DOT_SIZE);
++
++        assertFalse(points.isEmpty());
++        assertEquals(points.size(), mode.getPointCount());
++        assertEquals(points.size(), mode.getRandomNumbersUsed());
++        assertTrue(mode.usesDarkBackground());
++        assertFalse(mode.usesRecolorAnimation());
++        assertFalse(mode.usesRandomNumbersStackOverlay());
++        assertDoesNotThrow(() -> mode.redraw(canvas, WIDTH, HEIGHT, DOT_SIZE));
++    }
++
++    @Test
++    @DisplayName("Handles temporarily empty provider without consuming values")
++    void handlesEmptyProviderWithoutConsumingValues() {
++        FourierSeriesSpiralMode mode = new FourierSeriesSpiralMode();
++        BufferedImage canvas = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
++
++        mode.initialize(canvas, WIDTH, HEIGHT);
++        assertDoesNotThrow(() -> mode.step(emptyProvider(), canvas, DOT_SIZE));
++        assertEquals(0, mode.getPointCount());
++        assertEquals(0, mode.getRandomNumbersUsed());
++    }
++
++    private static RNProvider sequentialProvider() {
++        AtomicInteger value = new AtomicInteger(1);
++        return new TestRNProvider(() -> OptionalInt.of(value.getAndAdd(379) & 0xFFFF));
++    }
++
++    private static RNProvider emptyProvider() {
++        return new TestRNProvider(OptionalInt::empty);
++    }
++
++    private interface NumberSupplier {
++        OptionalInt next();
++    }
++
++    private static final class TestRNProvider extends RNProvider {
++        private final NumberSupplier numberSupplier;
++
++        private TestRNProvider(NumberSupplier numberSupplier) {
++            super(testSettings(), false, _ -> { }, false);
++            this.numberSupplier = numberSupplier;
++        }
++
++        @Override
++        public OptionalInt getNextRandomNumber() {
++            return numberSupplier.next();
++        }
++
++        @Override
++        public Mode getMode() {
++            return Mode.PSEUDO;
++        }
++
++        @Override
++        public boolean isForcedPseudo() {
++            return true;
++        }
++    }
++
++    private static RNProvider.ProviderSettings testSettings() {
++        return new RNProvider.ProviderSettings(
++                "http://localhost/test",
++                "test-api-key",
++                "uint16",
++                16,
++                2,
++                1,
++                10,
++                10,
++                1,
++                0,
++                0L,
++                0L
++        );
++    }
++}

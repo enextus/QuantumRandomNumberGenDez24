@@ -51,6 +51,7 @@ class VisualizationModeRegistryTest {
         assertTrue(ids.contains("dla"));
         assertTrue(ids.contains("monte-carlo-mandelbrot-3d-area"));
         assertTrue(ids.contains("chirikov-standard-map"));
+        assertTrue(ids.contains("fourier-series-spiral"));
     }
 
     @Test
